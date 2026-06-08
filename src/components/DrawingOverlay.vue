@@ -635,13 +635,40 @@ onUnmounted(() => {
   destroy()
 })
 
+function hideOverlayUI(): HTMLElement[] {
+  const container = containerRef.value
+  if (!container) return []
+  const keep = new Set<Element>([historyCanvasRef.value!, previewCanvasRef.value!].filter(Boolean))
+  const hidden: HTMLElement[] = []
+  for (const child of Array.from(container.children)) {
+    const el = child as HTMLElement
+    if (keep.has(el)) continue
+    el.style.visibility = 'hidden'
+    hidden.push(el)
+  }
+  return hidden
+}
+
+function restoreOverlayUI(hidden: HTMLElement[]) {
+  for (const el of hidden) {
+    el.style.visibility = ''
+  }
+}
+
 let isCopying = false
 
 async function copyScreen() {
   if (isCopying) return
   isCopying = true
   try {
+    const hidden = hideOverlayUI()
+
+    await nextTick()
+    await new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 50)))
+
     await invoke('copy_screen')
+
+    restoreOverlayUI(hidden)
     showTip(t('overlay.copiedToClipboard'))
   } catch (err) {
     console.error('Copy screen failed:', err)

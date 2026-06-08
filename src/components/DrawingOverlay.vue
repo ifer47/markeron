@@ -441,7 +441,10 @@ function onKeyDown(e: KeyboardEvent) {
   }
 
   if (showQuickColors.value) {
-    if (e.key === 'Escape') showQuickColors.value = false
+    if (modDown(e) && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
+      e.preventDefault()
+      copyScreen()
+    } else if (e.key === 'Escape') showQuickColors.value = false
     else if (e.key === 'q' || e.key === 'Q') cycleColor(-1)
     else if (e.key === 'e' || e.key === 'E') cycleColor(1)
     else if (e.key === ' ') {
@@ -643,7 +646,7 @@ function hideOverlayUI(): HTMLElement[] {
   for (const child of Array.from(container.children)) {
     const el = child as HTMLElement
     if (keep.has(el)) continue
-    el.style.visibility = 'hidden'
+    el.style.display = 'none'
     hidden.push(el)
   }
   return hidden
@@ -651,7 +654,7 @@ function hideOverlayUI(): HTMLElement[] {
 
 function restoreOverlayUI(hidden: HTMLElement[]) {
   for (const el of hidden) {
-    el.style.visibility = ''
+    el.style.display = ''
   }
 }
 

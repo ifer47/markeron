@@ -15,6 +15,7 @@ dist-ssr
 
 # Tauri / Rust
 src-tauri/target
+src-tauri/gen/
 
 # Editor directories and files
 .vscode/.debug.env

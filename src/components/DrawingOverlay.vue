@@ -201,6 +201,7 @@ function toggleSettingsVisible() {
 const hoveredActionInfo = shallowRef<{ action: DrawAction; index: number } | null>(null)
 const isMoving = ref(false)
 const enableDragging = ref(false)
+const preserveDrawings = ref(false)
 let hoverRafId: number | null = null
 let isDragging = false
 let dragStartX = 0
@@ -587,6 +588,7 @@ onMounted(async () => {
   try {
     const cfg = await invoke<AppConfig>('get_config')
     enableDragging.value = cfg.general?.enableDragging ?? false
+    preserveDrawings.value = cfg.general?.preserveDrawings ?? false
   } catch (error) {
     console.error('Failed to get initial config:', error)
   }
@@ -595,6 +597,7 @@ onMounted(async () => {
   unlisteners.push(
     await listen<AppConfig>('config-changed', (event) => {
       enableDragging.value = event.payload.general?.enableDragging ?? false
+      preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
     }),
   )
 
@@ -605,7 +608,9 @@ onMounted(async () => {
       showSettings.value = false
       showQuickColors.value = false
       textBoxPos.value = null
-      hardReset()
+      if (!preserveDrawings.value) {
+        hardReset()
+      }
       if (isActive) {
         currentTool.value = 'pen'
         nextTick(() => resizeCanvas())

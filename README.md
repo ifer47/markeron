@@ -35,6 +35,7 @@
 - **8 tools** — pen, highlighter, arrow, rectangle, ellipse, line, eraser, text
 - **Intuitive panel** — press <kbd>Space</kbd> to toggle tools, colors, and stroke widths
 - **Full keyboard control** — every action has a shortcut, no menus needed
+- **Preserve drawings** — optionally keep annotations in memory after exiting, so you can resume where you left off
 
 <table>
 <tr>

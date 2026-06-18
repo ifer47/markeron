@@ -6,6 +6,7 @@ export interface AppConfig {
   general: {
     enableDragging: boolean
     locale?: string
+    preserveDrawings: boolean
   }
 }
 

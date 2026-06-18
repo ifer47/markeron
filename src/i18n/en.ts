@@ -87,6 +87,9 @@ export default {
     autoStartDesc: 'When enabled, the app runs silently in the background on system startup.',
     enableDragging: 'Allow dragging elements',
     enableDraggingDesc: 'When enabled, you can drag existing drawings and text by hovering over them.',
+    preserveDrawings: 'Preserve drawings on exit',
+    preserveDrawingsDesc:
+      'When enabled, annotations are kept in memory after exiting annotation mode. Re-entering will restore your previous drawings.',
   },
   help: {
     basicUsage: 'Basic Usage',

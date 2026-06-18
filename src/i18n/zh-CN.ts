@@ -86,6 +86,8 @@ export default {
     autoStartDesc: '开启后，应用程序会在系统启动时自动在后台静默运行。',
     enableDragging: '允许拖拽已有元素',
     enableDraggingDesc: '开启后，可以通过鼠标拖动已经绘制的图形和文字。',
+    preserveDrawings: '退出后保留标注',
+    preserveDrawingsDesc: '开启后，退出标注模式时不会清除已有标注，下次进入将恢复上次的绘制内容。',
   },
   help: {
     basicUsage: '基本用法',

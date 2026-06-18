@@ -65,10 +65,14 @@ fn toggle_drawing(app: &AppHandle) {
     let active = *is_drawing;
     drop(is_drawing);
 
+    let preserve = state.config.lock().unwrap().general.preserve_drawings;
+
     if let Some(window) = app.get_webview_window("overlay") {
         if active {
             setup_overlay_size(app);
-            app.emit("clear-drawing", ()).ok();
+            if !preserve {
+                app.emit("clear-drawing", ()).ok();
+            }
             window.show().ok();
             window.set_ignore_cursor_events(false).ok();
             window.set_always_on_top(true).ok();

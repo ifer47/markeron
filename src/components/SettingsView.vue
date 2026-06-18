@@ -183,6 +183,7 @@ async function resetDefaults() {
 
 const autoStartEnabled = ref(false)
 const enableDragging = ref(false)
+const preserveDrawings = ref(false)
 
 async function toggleAutoStart() {
   try {
@@ -205,11 +206,23 @@ async function toggleDragging() {
   enableDragging.value = !enableDragging.value
   try {
     const cfg = await invoke<AppConfig>('get_config')
-    if (!cfg.general) cfg.general = { enableDragging: false }
+    if (!cfg.general) cfg.general = { enableDragging: false, preserveDrawings: false }
     cfg.general.enableDragging = enableDragging.value
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
     console.error('Failed to save drag setting:', error)
+  }
+}
+
+async function togglePreserveDrawings() {
+  preserveDrawings.value = !preserveDrawings.value
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general) cfg.general = { enableDragging: false, preserveDrawings: false }
+    cfg.general.preserveDrawings = preserveDrawings.value
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save preserve drawings setting:', error)
   }
 }
 
@@ -219,6 +232,7 @@ onMounted(async () => {
   const cfg = await invoke<AppConfig>('get_config')
   Object.assign(shortcuts, cfg.shortcuts)
   enableDragging.value = cfg.general?.enableDragging ?? false
+  preserveDrawings.value = cfg.general?.preserveDrawings ?? false
   syncLocaleFromConfig(cfg.general?.locale)
   window.addEventListener('keydown', onKeyDown, true)
 
@@ -539,6 +553,28 @@ onUnmounted(() => {
 
             <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
               {{ t('settings.enableDraggingDesc') }}
+            </p>
+          </div>
+
+          <div
+            class="flex flex-col gap-3 px-4 py-3.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10 transition-all duration-200"
+          >
+            <div class="flex items-center justify-between">
+              <span class="text-[12.5px] text-white/70">{{ t('settings.preserveDrawings') }}</span>
+              <button
+                class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
+                :class="preserveDrawings ? 'bg-accent/80' : 'bg-white/20 hover:bg-white/30'"
+                @click="togglePreserveDrawings"
+              >
+                <span
+                  class="absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-md transition-transform duration-200"
+                  :class="preserveDrawings ? 'translate-x-[14px]' : 'translate-x-0'"
+                />
+              </button>
+            </div>
+
+            <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
+              {{ t('settings.preserveDrawingsDesc') }}
             </p>
           </div>
         </div>

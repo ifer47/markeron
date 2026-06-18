@@ -17,6 +17,8 @@ pub struct GeneralConfig {
     pub enable_dragging: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub locale: Option<String>,
+    #[serde(default, rename = "preserveDrawings")]
+    pub preserve_drawings: bool,
 }
 
 impl Default for GeneralConfig {
@@ -24,6 +26,7 @@ impl Default for GeneralConfig {
         Self {
             enable_dragging: false,
             locale: None,
+            preserve_drawings: false,
         }
     }
 }

@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "windows": {
+      "certificateThumbprint": "F42AB8F970072D92ABC6FF1CA41CDC53DAC329D7",
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "http://timestamp.digicert.com"
+    }
+  }
+}

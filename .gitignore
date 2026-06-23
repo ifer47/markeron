@@ -31,8 +31,13 @@ src-tauri/gen/
 pnpm-lock.yaml
 yarn.lock
 
-# Development certificate
+# Code-signing certificates (NEVER commit)
 devcert.pfx
+codesign.pfx
+codesign.cer
+.cert-thumbprint
+*.pfx
+*.cer
 
 # MSIX packaging
 dist_msix/

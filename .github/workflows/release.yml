@@ -38,6 +38,28 @@ jobs:
         if: matrix.platform == 'macos-latest'
         run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
 
+      - name: Import code-signing certificate (Windows)
+        if: matrix.platform == 'windows-latest'
+        id: codesign
+        shell: powershell
+        env:
+          SIGN_PFX_BASE64: ${{ secrets.SIGN_PFX_BASE64 }}
+          SIGN_PFX_PASSWORD: ${{ secrets.SIGN_PFX_PASSWORD }}
+        run: |
+          if ($env:SIGN_PFX_BASE64) {
+            $pfxBytes = [Convert]::FromBase64String($env:SIGN_PFX_BASE64)
+            $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+            [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+            $securePass = ConvertTo-SecureString -String $env:SIGN_PFX_PASSWORD -Force -AsPlainText
+            Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\CurrentUser\My" -Password $securePass
+            Remove-Item $pfxPath
+            Write-Host "Certificate imported — signing enabled"
+            "sign_args=-c src-tauri/tauri.sign.conf.json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            Write-Host "No signing certificate — build will be unsigned"
+            "sign_args=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
         id: tauri
@@ -49,7 +71,7 @@ jobs:
           releaseBody: "See the assets below to download and install."
           releaseDraft: false
           prerelease: false
-          args: ${{ matrix.args }}
+          args: ${{ matrix.args }} ${{ steps.codesign.outputs.sign_args }}
 
       - name: Build MSIX
         if: matrix.platform == 'windows-latest'

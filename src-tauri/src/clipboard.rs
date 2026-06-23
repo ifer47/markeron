@@ -3,6 +3,7 @@
 pub fn copy_screen() -> Result<(), String> {
     use crate::win32::*;
 
+    #[allow(clippy::upper_case_acronyms)]
     #[repr(C)]
     struct BITMAPINFOHEADER {
         bi_size: u32,
@@ -17,6 +18,7 @@ pub fn copy_screen() -> Result<(), String> {
         bi_clr_used: u32,
         bi_clr_important: u32,
     }
+    #[allow(clippy::upper_case_acronyms)]
     #[repr(C)]
     struct BITMAPINFO {
         header: BITMAPINFOHEADER,

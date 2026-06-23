@@ -1,5 +1,6 @@
 #![cfg(target_os = "windows")]
 
+#[allow(clippy::upper_case_acronyms)]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct POINT {
@@ -7,6 +8,7 @@ pub struct POINT {
     pub y: i32,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct RECT {
@@ -16,6 +18,7 @@ pub struct RECT {
     pub bottom: i32,
 }
 
+#[allow(clippy::upper_case_acronyms)]
 #[repr(C)]
 pub struct MONITORINFO {
     pub cb_size: u32,

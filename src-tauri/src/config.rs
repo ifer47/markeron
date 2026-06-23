@@ -12,7 +12,7 @@ pub struct Shortcuts {
     pub clear_drawing: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GeneralConfig {
     #[serde(rename = "enableDragging")]
     pub enable_dragging: bool,
@@ -20,16 +20,6 @@ pub struct GeneralConfig {
     pub locale: Option<String>,
     #[serde(default, rename = "preserveDrawings")]
     pub preserve_drawings: bool,
-}
-
-impl Default for GeneralConfig {
-    fn default() -> Self {
-        Self {
-            enable_dragging: false,
-            locale: None,
-            preserve_drawings: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

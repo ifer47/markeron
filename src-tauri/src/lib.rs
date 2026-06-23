@@ -234,18 +234,14 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| match event {
-            tauri::WindowEvent::CloseRequested { api, .. } => {
-                if window.label() == "overlay" {
-                    api.prevent_close();
-                    window.hide().ok();
-                }
+            tauri::WindowEvent::CloseRequested { api, .. } if window.label() == "overlay" => {
+                api.prevent_close();
+                window.hide().ok();
             }
-            tauri::WindowEvent::Focused(false) => {
-                if window.label() == "overlay" {
-                    let app = window.app_handle();
-                    let state = app.state::<AppState>();
-                    deactivate_drawing(app, &state);
-                }
+            tauri::WindowEvent::Focused(false) if window.label() == "overlay" => {
+                let app = window.app_handle();
+                let state = app.state::<AppState>();
+                deactivate_drawing(app, &state);
             }
             _ => {}
         })

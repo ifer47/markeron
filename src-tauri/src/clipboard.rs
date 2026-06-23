@@ -218,9 +218,15 @@ pub fn copy_screen() -> Result<(), String> {
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 #[tauri::command]
 pub fn copy_screen() -> Result<(), String> {
-    let monitors = xcap::Monitor::all().map_err(|e| format!("{}", e))?;
+    let monitors = std::panic::catch_unwind(|| xcap::Monitor::all())
+        .map_err(|_| {
+            "Screen capture not supported: Wayland compositor lacks required protocol".to_string()
+        })?
+        .map_err(|e| format!("{}", e))?;
     let monitor = monitors.first().ok_or("No monitor found")?;
-    let image = monitor.capture_image().map_err(|e| format!("{}", e))?;
+    let image = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| monitor.capture_image()))
+        .map_err(|_| "Screen capture failed: compositor protocol error".to_string())?
+        .map_err(|e| format!("{}", e))?;
     let mut cb = arboard::Clipboard::new().map_err(|e| format!("{}", e))?;
     cb.set_image(arboard::ImageData {
         width: image.width() as usize,

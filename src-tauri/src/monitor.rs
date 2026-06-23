@@ -37,17 +37,9 @@ pub fn get_cursor_monitor_rect() -> Option<(i32, i32, u32, u32)> {
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub fn get_cursor_monitor_rect() -> Option<(i32, i32, u32, u32)> {
-    let monitors = xcap::Monitor::all().ok()?;
-    if monitors.len() <= 1 {
-        let m = monitors.first()?;
-        let x = m.x().ok()?;
-        let y = m.y().ok()?;
-        let w = m.width().ok()?;
-        let h = m.height().ok()?;
-        return Some((x, y, w, h));
-    }
-    // xcap doesn't provide cursor position on Linux directly,
-    // return the primary monitor as fallback
+    let monitors = std::panic::catch_unwind(|| xcap::Monitor::all())
+        .ok()?
+        .ok()?;
     let m = monitors.first()?;
     let x = m.x().ok()?;
     let y = m.y().ok()?;

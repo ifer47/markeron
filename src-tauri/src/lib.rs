@@ -40,12 +40,27 @@ pub fn rebuild_tray_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Erro
 fn setup_overlay_size(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("overlay") {
         if let Some((x, y, w, h)) = monitor::get_cursor_monitor_rect() {
-            // Subtract 1px from height to prevent Windows from treating it as
-            // fullscreen exclusive, which causes the taskbar to lose Mica effect.
-            window
-                .set_size(tauri::PhysicalSize::new(w, h.saturating_sub(1)))
-                .ok();
-            window.set_position(tauri::PhysicalPosition::new(x, y)).ok();
+            #[cfg(target_os = "macos")]
+            {
+                // xcap returns logical coordinates (points) on macOS via CGDisplayBounds
+                window
+                    .set_size(tauri::LogicalSize::new(w, h))
+                    .ok();
+                window
+                    .set_position(tauri::LogicalPosition::new(x, y))
+                    .ok();
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                // Subtract 1px from height to prevent Windows from treating it as
+                // fullscreen exclusive, which causes the taskbar to lose Mica effect.
+                window
+                    .set_size(tauri::PhysicalSize::new(w, h.saturating_sub(1)))
+                    .ok();
+                window
+                    .set_position(tauri::PhysicalPosition::new(x, y))
+                    .ok();
+            }
         } else if let Some(mon) = app.primary_monitor().ok().flatten() {
             let size = mon.size();
             let pos = mon.position();

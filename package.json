@@ -54,7 +54,7 @@
     "@commitlint/config-conventional": "^20.5.0",
     "@lucide/vue": "^1.0.0",
     "@tailwindcss/vite": "^4.2.2",
-    "@tauri-apps/api": "^2",
+    "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/cli": "^2",
     "@vitejs/plugin-vue": "^6.0.6",
     "czg": "^1.12.0",

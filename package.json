@@ -50,7 +50,7 @@
     ]
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.0",
+    "@commitlint/cli": "^21.0.2",
     "@commitlint/config-conventional": "^20.5.0",
     "@lucide/vue": "^1.0.0",
     "@tailwindcss/vite": "^4.2.2",

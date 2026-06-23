@@ -348,7 +348,7 @@ onUnmounted(() => {
 
     <!-- Content -->
     <div class="flex-1 bg-[#1e1e20] flex flex-col overflow-hidden">
-      <div v-if="activeTab === 'shortcuts'" class="flex-1 flex flex-col px-7 py-6 overflow-y-auto">
+      <div v-if="activeTab === 'shortcuts'" class="flex-1 flex flex-col px-7 py-6 overflow-y-auto settings-scroll">
         <div class="flex items-center gap-2 mb-4">
           <h2 class="text-[14px] font-semibold text-white/75">{{ t('settings.shortcutsTitle') }}</h2>
           <div class="group relative flex items-center">
@@ -443,7 +443,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div v-else-if="activeTab === 'general'" class="flex-1 flex flex-col px-7 py-6 overflow-y-auto">
+      <div v-else-if="activeTab === 'general'" class="flex-1 flex flex-col px-7 py-6 overflow-y-auto settings-scroll">
         <h2 class="text-[14px] font-semibold text-white/75 mb-4">{{ t('settings.generalTitle') }}</h2>
 
         <div class="flex flex-col gap-2">
@@ -506,10 +506,6 @@ onUnmounted(() => {
                 </Transition>
               </div>
             </div>
-
-            <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
-              {{ t('settings.languageDesc') }}
-            </p>
           </div>
 
           <div
@@ -528,10 +524,6 @@ onUnmounted(() => {
                 />
               </button>
             </div>
-
-            <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
-              {{ t('settings.autoStartDesc') }}
-            </p>
           </div>
 
           <div
@@ -798,7 +790,10 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div v-else-if="activeTab === 'about'" class="flex-1 flex flex-col items-center px-7 py-8 overflow-y-auto">
+      <div
+        v-else-if="activeTab === 'about'"
+        class="flex-1 flex flex-col items-center px-7 py-8 overflow-y-auto settings-scroll"
+      >
         <!-- Icon -->
         <div
           class="w-16 h-16 rounded-2xl bg-linear-to-br from-accent/20 to-accent/5 flex items-center justify-center mb-4 shadow-lg shadow-accent/5 border border-accent/10"
@@ -892,14 +887,17 @@ onUnmounted(() => {
   transform: translateY(-4px);
 }
 
+.settings-scroll::-webkit-scrollbar,
 .help-scroll::-webkit-scrollbar {
   width: 4px;
 }
 
+.settings-scroll::-webkit-scrollbar-track,
 .help-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
+.settings-scroll::-webkit-scrollbar-thumb,
 .help-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;

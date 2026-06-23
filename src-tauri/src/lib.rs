@@ -43,12 +43,8 @@ fn setup_overlay_size(app: &AppHandle) {
             #[cfg(target_os = "macos")]
             {
                 // xcap returns logical coordinates (points) on macOS via CGDisplayBounds
-                window
-                    .set_size(tauri::LogicalSize::new(w, h))
-                    .ok();
-                window
-                    .set_position(tauri::LogicalPosition::new(x, y))
-                    .ok();
+                window.set_size(tauri::LogicalSize::new(w, h)).ok();
+                window.set_position(tauri::LogicalPosition::new(x, y)).ok();
             }
             #[cfg(not(target_os = "macos"))]
             {
@@ -57,9 +53,7 @@ fn setup_overlay_size(app: &AppHandle) {
                 window
                     .set_size(tauri::PhysicalSize::new(w, h.saturating_sub(1)))
                     .ok();
-                window
-                    .set_position(tauri::PhysicalPosition::new(x, y))
-                    .ok();
+                window.set_position(tauri::PhysicalPosition::new(x, y)).ok();
             }
         } else if let Some(mon) = app.primary_monitor().ok().flatten() {
             let size = mon.size();

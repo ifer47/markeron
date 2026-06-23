@@ -35,6 +35,21 @@ function needsWhiteCheck(ri: number, ci: number): boolean {
   return ci >= 5 || (ri === colors.length - 1 && ci >= 3)
 }
 
+function selectToolAndClose(tool: Tool) {
+  emit('selectTool', tool)
+  emit('close')
+}
+
+function selectColorAndClose(color: string) {
+  emit('selectColor', color)
+  emit('close')
+}
+
+function updateWidthAndClose(width: number) {
+  emit('updateLineWidth', width)
+  emit('close')
+}
+
 const panelW = 272
 const panelRef = ref<HTMLDivElement | null>(null)
 const panelLeft = ref(0)
@@ -140,10 +155,7 @@ onUnmounted(() => {
                 : 'bg-white/4 text-white/70 hover:bg-white/10 hover:text-white'
             "
             :title="`${tool.label} (${tool.key})`"
-            @click="
-              emit('selectTool', tool.id)
-              emit('close')
-            "
+            @click="selectToolAndClose(tool.id)"
           >
             <component :is="tool.icon" :size="18" />
             <span class="text-[10px] leading-none font-sans">{{ tool.label }}</span>
@@ -170,10 +182,7 @@ onUnmounted(() => {
               :key="color"
               class="w-[30px] h-[30px] p-0 border-none rounded-full bg-transparent cursor-pointer relative flex items-center justify-center transition-transform duration-120"
               :class="currentColor === color ? 'scale-[1.18]' : 'hover:scale-[1.18]'"
-              @click="
-                emit('selectColor', color)
-                emit('close')
-              "
+              @click="selectColorAndClose(color)"
             >
               <span
                 class="w-6 h-6 rounded-full border-2 transition-[border-color] duration-120"
@@ -255,10 +264,7 @@ onUnmounted(() => {
                 : 'bg-white/4 hover:bg-white/10'
             "
             :title="w.label"
-            @click="
-              emit('updateLineWidth', w.value)
-              emit('close')
-            "
+            @click="updateWidthAndClose(w.value)"
           >
             <span
               class="w-[70%] rounded-full transition-transform duration-120 group-hover:scale-x-110"

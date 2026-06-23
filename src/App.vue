@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import DrawingOverlay from './components/DrawingOverlay.vue'
-import SettingsView from './components/SettingsView.vue'
+import { ref, onMounted, defineAsyncComponent } from 'vue'
+
+const DrawingOverlay = defineAsyncComponent(() => import('./components/DrawingOverlay.vue'))
+const SettingsView = defineAsyncComponent(() => import('./components/SettingsView.vue'))
 
 const mode = ref<'overlay' | 'settings'>('overlay')
 

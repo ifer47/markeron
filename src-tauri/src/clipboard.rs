@@ -1,26 +1,8 @@
 #[cfg(target_os = "windows")]
 #[tauri::command]
 pub fn copy_screen() -> Result<(), String> {
-    #[repr(C)]
-    #[derive(Copy, Clone)]
-    struct POINT {
-        x: i32,
-        y: i32,
-    }
-    #[repr(C)]
-    struct RECT {
-        left: i32,
-        top: i32,
-        right: i32,
-        bottom: i32,
-    }
-    #[repr(C)]
-    struct MONITORINFO {
-        cb_size: u32,
-        rc_monitor: RECT,
-        rc_work: RECT,
-        dw_flags: u32,
-    }
+    use crate::win32::*;
+
     #[repr(C)]
     struct BITMAPINFOHEADER {
         bi_size: u32,
@@ -41,15 +23,11 @@ pub fn copy_screen() -> Result<(), String> {
         _colors: [u32; 1],
     }
 
-    const MONITOR_DEFAULTTONEAREST: u32 = 2;
     const SRCCOPY: u32 = 0x00CC0020;
     const CF_DIB: u32 = 8;
     const GMEM_MOVEABLE: u32 = 0x0002;
 
     extern "system" {
-        fn GetCursorPos(p: *mut POINT) -> i32;
-        fn MonitorFromPoint(pt: POINT, flags: u32) -> isize;
-        fn GetMonitorInfoW(hmon: isize, lpmi: *mut MONITORINFO) -> i32;
         fn GetDC(hwnd: isize) -> isize;
         fn CreateCompatibleDC(hdc: isize) -> isize;
         fn CreateCompatibleBitmap(hdc: isize, w: i32, h: i32) -> isize;
@@ -131,12 +109,22 @@ pub fn copy_screen() -> Result<(), String> {
         bmi.header.bi_planes = 1;
         bmi.header.bi_bit_count = 32;
 
-        GetDIBits(
+        let scan_lines = GetDIBits(
             hdc_mem, hbm, 0, h as u32,
             ptr.add(header_size),
             &mut bmi,
             0,
         );
+
+        if scan_lines == 0 {
+            GlobalUnlock(hmem);
+            GlobalFree(hmem);
+            SelectObject(hdc_mem, old_obj);
+            DeleteObject(hbm);
+            DeleteDC(hdc_mem);
+            ReleaseDC(0, hdc_screen);
+            return Err("GetDIBits failed: no scan lines copied".into());
+        }
 
         std::ptr::copy_nonoverlapping(
             &bmi.header as *const _ as *const u8,

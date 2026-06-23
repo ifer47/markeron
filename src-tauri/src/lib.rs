@@ -1,9 +1,12 @@
 mod clipboard;
 mod commands;
 mod config;
+mod error;
 mod i18n;
 mod monitor;
 mod shortcuts;
+#[cfg(target_os = "windows")]
+mod win32;
 
 use std::sync::Mutex;
 use tauri::{
@@ -11,8 +14,9 @@ use tauri::{
     tray::TrayIconEvent,
     AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
 };
+use tracing::{info, warn};
 
-use config::{AppConfig, AppState};
+use config::{lock_or_recover, AppConfig, AppState};
 
 pub fn rebuild_tray_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let s = i18n::strings();
@@ -58,36 +62,61 @@ fn setup_overlay_size(app: &AppHandle) {
     }
 }
 
-fn toggle_drawing(app: &AppHandle) {
-    let state = app.state::<AppState>();
-    let mut is_drawing = state.is_drawing.lock().unwrap();
-    *is_drawing = !*is_drawing;
-    let active = *is_drawing;
+/// Deactivate drawing mode: set state to false, hide overlay, notify frontend.
+/// Unified logic used by exit_drawing command, focus-loss handler, and toggle.
+pub fn deactivate_drawing(app: &AppHandle, state: &AppState) {
+    let mut is_drawing = lock_or_recover(&state.is_drawing);
+    if !*is_drawing {
+        return;
+    }
+    *is_drawing = false;
     drop(is_drawing);
 
-    let preserve = state.config.lock().unwrap().general.preserve_drawings;
+    if let Some(window) = app.get_webview_window("overlay") {
+        window.set_ignore_cursor_events(true).ok();
+        if let Err(e) = app.emit("toggle-drawing", false) {
+            warn!("Failed to emit toggle-drawing(false): {}", e);
+        }
+        window.hide().ok();
+    }
+}
+
+fn toggle_drawing(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let currently_drawing = *lock_or_recover(&state.is_drawing);
+
+    if currently_drawing {
+        // deactivate_drawing handles setting is_drawing = false
+        deactivate_drawing(app, &state);
+        return;
+    }
+
+    // Activate drawing
+    *lock_or_recover(&state.is_drawing) = true;
+
+    let preserve = lock_or_recover(&state.config).general.preserve_drawings;
 
     if let Some(window) = app.get_webview_window("overlay") {
-        if active {
-            setup_overlay_size(app);
-            if !preserve {
-                app.emit("clear-drawing", ()).ok();
+        setup_overlay_size(app);
+        if !preserve {
+            if let Err(e) = app.emit("clear-drawing", ()) {
+                warn!("Failed to emit clear-drawing: {}", e);
             }
-            window.show().ok();
-            window.set_ignore_cursor_events(false).ok();
-            window.set_always_on_top(true).ok();
-            window.set_focus().ok();
-            app.emit("toggle-drawing", true).ok();
-        } else {
-            window.set_ignore_cursor_events(true).ok();
-            app.emit("toggle-drawing", false).ok();
-            window.hide().ok();
+        }
+        window.show().ok();
+        window.set_ignore_cursor_events(false).ok();
+        window.set_always_on_top(true).ok();
+        window.set_focus().ok();
+        if let Err(e) = app.emit("toggle-drawing", true) {
+            warn!("Failed to emit toggle-drawing(true): {}", e);
         }
     }
 }
 
 fn clear_drawing(app: &AppHandle) {
-    app.emit("clear-drawing", ()).ok();
+    if let Err(e) = app.emit("clear-drawing", ()) {
+        warn!("Failed to emit clear-drawing: {}", e);
+    }
 }
 
 fn open_settings(app: &AppHandle) {
@@ -115,10 +144,21 @@ fn open_settings_tab(app: &AppHandle, tab: Option<&str>) {
         .resizable(true)
         .visible(true);
 
-    builder.build().ok();
+    if let Err(e) = builder.build() {
+        warn!("Failed to open settings window: {}", e);
+    }
 }
 
 pub fn run() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "markeron=info".parse().unwrap()),
+        )
+        .init();
+
+    info!("Starting MarkerOn");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(win) = app.get_webview_window("settings") {
@@ -130,6 +170,7 @@ pub fn run() {
             Some(vec![]),
         ))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
         .manage(AppState {
             config: Mutex::new(AppConfig::default()),
             is_drawing: Mutex::new(false),
@@ -153,8 +194,7 @@ pub fn run() {
             i18n::init(loaded.general.locale.as_deref());
             {
                 let state = handle.state::<AppState>();
-                let mut cfg = state.config.lock().unwrap();
-                *cfg = loaded;
+                *lock_or_recover(&state.config) = loaded;
             }
 
             setup_overlay_size(&handle);
@@ -203,14 +243,7 @@ pub fn run() {
                 if window.label() == "overlay" {
                     let app = window.app_handle();
                     let state = app.state::<AppState>();
-                    let mut is_drawing = state.is_drawing.lock().unwrap();
-                    if *is_drawing {
-                        *is_drawing = false;
-                        drop(is_drawing);
-                        window.set_ignore_cursor_events(true).ok();
-                        app.emit("toggle-drawing", false).ok();
-                        window.hide().ok();
-                    }
+                    deactivate_drawing(app, &state);
                 }
             }
             _ => {}

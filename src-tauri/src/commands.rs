@@ -1,12 +1,15 @@
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::GlobalShortcutExt;
+use tauri_plugin_opener::OpenerExt;
+use tracing::{info, warn};
 
-use crate::config::{AppConfig, AppState, GeneralConfig, SaveResult, Shortcuts};
+use crate::config::{lock_or_recover, AppConfig, AppState, GeneralConfig, SaveResult, Shortcuts};
+use crate::error::{AppError, AppResult};
 use crate::shortcuts::{parse_shortcut, register_shortcuts};
 
 #[tauri::command]
 pub fn get_config(state: tauri::State<'_, AppState>) -> AppConfig {
-    state.config.lock().unwrap().clone()
+    lock_or_recover(&state.config).clone()
 }
 
 #[tauri::command]
@@ -15,7 +18,7 @@ pub fn save_shortcuts(
     state: tauri::State<'_, AppState>,
     shortcuts: Shortcuts,
 ) -> SaveResult {
-    let old_config = state.config.lock().unwrap().clone();
+    let old_config = lock_or_recover(&state.config).clone();
     let mut failed = Vec::new();
 
     app.global_shortcut().unregister_all().ok();
@@ -33,10 +36,7 @@ pub fn save_shortcuts(
     }
 
     if !failed.is_empty() {
-        {
-            let mut cfg = state.config.lock().unwrap();
-            *cfg = old_config;
-        }
+        *lock_or_recover(&state.config) = old_config;
         register_shortcuts(&app);
         return SaveResult {
             ok: false,
@@ -53,10 +53,7 @@ pub fn save_shortcuts(
     }
 
     if !failed.is_empty() {
-        {
-            let mut cfg = state.config.lock().unwrap();
-            *cfg = old_config;
-        }
+        *lock_or_recover(&state.config) = old_config;
         register_shortcuts(&app);
         return SaveResult {
             ok: false,
@@ -65,12 +62,13 @@ pub fn save_shortcuts(
     }
 
     {
-        let mut cfg = state.config.lock().unwrap();
+        let mut cfg = lock_or_recover(&state.config);
         cfg.shortcuts = shortcuts;
         crate::config::save_config(&app, &cfg);
     }
     register_shortcuts(&app);
 
+    info!("Shortcuts saved successfully");
     SaveResult {
         ok: true,
         failed: None,
@@ -82,11 +80,14 @@ pub fn save_general(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
     general: GeneralConfig,
-) -> Result<(), String> {
-    let mut cfg = state.config.lock().unwrap();
+) -> AppResult<()> {
+    let mut cfg = lock_or_recover(&state.config);
     cfg.general = general.clone();
     crate::config::save_config(&app, &cfg);
-    app.emit("config-changed", cfg.clone()).ok();
+    if let Err(e) = app.emit("config-changed", cfg.clone()) {
+        warn!("Failed to emit config-changed: {}", e);
+    }
+    info!("General config saved");
     Ok(())
 }
 
@@ -95,51 +96,44 @@ pub fn save_locale(
     app: AppHandle,
     state: tauri::State<'_, AppState>,
     locale: String,
-) -> Result<(), String> {
-    let mut cfg = state.config.lock().unwrap();
-    cfg.general.locale = Some(locale.clone());
-    crate::config::save_config(&app, &cfg);
-    drop(cfg);
-
-    crate::i18n::set_locale(&locale);
-    crate::rebuild_tray_menu(&app).map_err(|e| e.to_string())?;
-
-    if let Some(win) = app.get_webview_window("settings") {
-        win.set_title(crate::i18n::strings().window_title).ok();
+) -> AppResult<()> {
+    {
+        let mut cfg = lock_or_recover(&state.config);
+        cfg.general.locale = Some(locale.clone());
+        crate::config::save_config(&app, &cfg);
     }
 
+    crate::i18n::set_locale(&locale);
+    crate::rebuild_tray_menu(&app).map_err(|e| AppError::Other(e.to_string()))?;
+
+    if let Some(win) = app.get_webview_window("settings") {
+        if let Err(e) = win.set_title(crate::i18n::strings().window_title) {
+            warn!("Failed to set settings window title: {}", e);
+        }
+    }
+
+    info!("Locale changed to {}", locale);
     Ok(())
 }
 
 #[tauri::command]
 pub fn exit_drawing(app: AppHandle, state: tauri::State<'_, AppState>) {
-    let mut is_drawing = state.is_drawing.lock().unwrap();
-    if *is_drawing {
-        *is_drawing = false;
-        drop(is_drawing);
-        if let Some(window) = app.get_webview_window("overlay") {
-            window.set_ignore_cursor_events(true).ok();
-            app.emit("toggle-drawing", false).ok();
-            window.hide().ok();
-        }
-    }
+    crate::deactivate_drawing(&app, &state);
 }
 
+const ALLOWED_URL_PREFIXES: &[&str] = &[
+    "https://github.com/",
+    "https://apps.microsoft.com/",
+];
+
 #[tauri::command]
-pub fn open_url(url: String) {
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("cmd")
-            .args(["/c", "start", "", &url])
-            .spawn()
-            .ok();
+pub fn open_url(app: AppHandle, url: String) -> AppResult<()> {
+    if !ALLOWED_URL_PREFIXES.iter().any(|prefix| url.starts_with(prefix)) {
+        warn!("Blocked open_url for untrusted URL: {}", url);
+        return Err(AppError::Other("URL not allowed".into()));
     }
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open").arg(&url).spawn().ok();
-    }
-    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
-    {
-        std::process::Command::new("xdg-open").arg(&url).spawn().ok();
-    }
+    app.opener()
+        .open_url(&url, None::<&str>)
+        .map_err(|e| AppError::Other(e.to_string()))?;
+    Ok(())
 }

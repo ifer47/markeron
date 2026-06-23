@@ -52,7 +52,7 @@
         "installMode": "currentUser",
         "installerIcon": "./icons/installer-icon.ico",
         "sidebarImage": "./icons/installer-sidebar.bmp",
-        "languages": ["SimpChinese"]
+        "languages": ["SimpChinese", "English"]
       },
       "wix": {
         "language": "zh-CN",

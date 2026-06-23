@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, shallowRef, onMounted, onUnmounted, nextTick, computed, watch, type Component } from 'vue'
+import { ref, shallowRef, onMounted, onUnmounted, nextTick, computed, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useDrawing, type Tool, type DrawAction } from '../composables/useDrawing'
 import type { AppConfig } from '../types/app'
 import SettingsPanel from './SettingsPanel.vue'
 import TextBox from './TextBox.vue'
-import { Pen, Highlighter, ArrowUpRight, Square, Circle, Minus, Eraser, Type } from '@lucide/vue'
+import { TOOL_ICON_MAP, WIDTH_PRESETS } from '../constants/tools'
+import { COLOR_PALETTE } from '../constants/colors'
 import { isMacOS } from '../utils/platform'
 import { useI18n } from '../i18n'
 
@@ -16,16 +17,7 @@ function modDown(e: PointerEvent | KeyboardEvent): boolean {
   return e.ctrlKey || (isMacOS() && e.metaKey)
 }
 
-const toolIconMap: Record<Tool, Component> = {
-  pen: Pen,
-  highlighter: Highlighter,
-  arrow: ArrowUpRight,
-  rect: Square,
-  ellipse: Circle,
-  line: Minus,
-  eraser: Eraser,
-  text: Type,
-}
+const toolIconMap = TOOL_ICON_MAP
 
 const historyCanvasRef = ref<HTMLCanvasElement | null>(null)
 const previewCanvasRef = ref<HTMLCanvasElement | null>(null)
@@ -55,22 +47,7 @@ const toolTipWidth = ref<number | null>(null)
 const showQuickColors = ref(false)
 const quickColorsPos = ref({ x: 0, y: 0 })
 
-const quickColorList = [
-  '#FF3B30',
-  '#FF6B35',
-  '#FFCC02',
-  '#34C759',
-  '#007AFF',
-  '#5856D6',
-  '#FFFFFF',
-  '#AF52DE',
-  '#FF2D55',
-  '#00C7BE',
-  '#8E8E93',
-  '#636366',
-  '#3A3A3C',
-  '#000000',
-]
+const quickColorList = COLOR_PALETTE
 
 const colorNameMap = computed<Record<string, string>>(() => ({
   '#FF3B30': t('colors.#FF3B30'),
@@ -136,8 +113,6 @@ function selectQuickColor(color: string) {
   showQuickColors.value = false
   showColorTip(color)
 }
-
-const WIDTH_PRESETS = [1, 2, 3, 5, 8]
 
 function onWheel(e: WheelEvent) {
   if (!active.value || !e.ctrlKey) return
@@ -420,7 +395,7 @@ function onPointerUp(e: PointerEvent) {
 
   endDraw()
   if (toolBeforeModifier !== null) {
-    currentTool.value = toolBeforeModifier as any
+    currentTool.value = toolBeforeModifier as Tool
     toolBeforeModifier = null
   }
 }

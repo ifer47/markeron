@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, computed, type Component } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import type { Tool } from '../composables/useDrawing'
 import { isMacOS } from '../utils/platform'
 import { useI18n } from '../i18n'
+import { TOOL_DEFS, WIDTH_PRESETS } from '../constants/tools'
+import { COLOR_ROWS } from '../constants/colors'
 
 const { t } = useI18n()
 
 const modKeyLabel = computed(() => (isMacOS() ? 'Command' : 'Ctrl'))
-import {
-  Pen, Highlighter, ArrowUpRight, Square, Circle,
-  Minus, Eraser, Type,
-} from '@lucide/vue'
 
 const props = defineProps<{
   currentTool: Tool
@@ -27,30 +25,11 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const toolDefs: { id: Tool; icon: Component; key: string }[] = [
-  { id: 'pen', icon: Pen, key: '1' },
-  { id: 'highlighter', icon: Highlighter, key: '2' },
-  { id: 'arrow', icon: ArrowUpRight, key: '3' },
-  { id: 'rect', icon: Square, key: '4' },
-  { id: 'ellipse', icon: Circle, key: '5' },
-  { id: 'line', icon: Minus, key: '6' },
-  { id: 'eraser', icon: Eraser, key: '7' },
-  { id: 'text', icon: Type, key: 'T' },
-]
+const tools = computed(() => TOOL_DEFS.map((d) => ({ ...d, label: t(`tools.${d.id}`) })))
 
-const tools = computed(() =>
-  toolDefs.map(d => ({ ...d, label: t(`tools.${d.id}`) }))
-)
+const colors = COLOR_ROWS
 
-const colors = [
-  ['#FF3B30', '#FF6B35', '#FFCC02', '#34C759', '#007AFF', '#5856D6', '#FFFFFF'],
-  ['#AF52DE', '#FF2D55', '#00C7BE', '#8E8E93', '#636366', '#3A3A3C', '#000000'],
-]
-
-const widthValues = [1, 2, 3, 5, 8]
-const widths = computed(() =>
-  widthValues.map(v => ({ value: v, label: t(`widths.${v}`) }))
-)
+const widths = computed(() => WIDTH_PRESETS.map((v) => ({ value: v, label: t(`widths.${v}`) })))
 
 function needsWhiteCheck(ri: number, ci: number): boolean {
   return ci >= 5 || (ri === colors.length - 1 && ci >= 3)
@@ -60,6 +39,7 @@ const panelW = 272
 const panelRef = ref<HTMLDivElement | null>(null)
 const panelLeft = ref(0)
 const panelTop = ref(0)
+const positioned = ref(false)
 const isDragging = ref(false)
 const dragOffset = ref({ x: 0, y: 0 })
 
@@ -72,6 +52,7 @@ function initPosition() {
     top = Math.max(12, Math.min(top, window.innerHeight - panelH - 12))
     panelLeft.value = left
     panelTop.value = top
+    positioned.value = true
   })
 }
 
@@ -128,10 +109,16 @@ onUnmounted(() => {
 
 <template>
   <div class="fixed top-0 left-0 w-screen h-screen z-100001" @mousedown.self="emit('close')">
-    <div ref="panelRef"
+    <div
+      ref="panelRef"
       class="absolute left-0 top-0 w-[272px] bg-[rgba(30,30,32,0.97)] rounded-2xl border border-white/8 shadow-[0_24px_48px_rgba(0,0,0,0.45),0_4px_16px_rgba(0,0,0,0.25),inset_0_0.5px_0_rgba(255,255,255,0.08)] select-none overflow-hidden"
-      :style="{ transform: `translate3d(${panelLeft}px,${panelTop}px,0)`, willChange: isDragging ? 'transform' : 'auto' }"
-      @mousedown.stop>
+      :style="{
+        transform: `translate3d(${panelLeft}px,${panelTop}px,0)`,
+        willChange: isDragging ? 'transform' : 'auto',
+        opacity: positioned ? 1 : 0,
+      }"
+      @mousedown.stop
+    >
       <div class="h-2.5 cursor-default" @mousedown="startDrag" />
 
       <!-- 工具区 -->
@@ -141,16 +128,30 @@ onUnmounted(() => {
           <span class="text-[10px] text-white/20 font-sans">{{ t('panel.toolsHint') }}</span>
         </div>
         <div class="grid grid-cols-4 gap-1">
-          <button v-for="tool in tools" :key="tool.id"
+          <button
+            v-for="tool in tools"
+            :key="tool.id"
+            :aria-label="`${tool.label} (${tool.key})`"
+            :aria-pressed="currentTool === tool.id"
             class="flex flex-col items-center gap-[3px] pt-2 px-1 pb-1.5 border-none rounded-[10px] cursor-pointer relative transition-all duration-150"
-            :class="currentTool === tool.id
-              ? 'bg-accent/30 text-white shadow-[inset_0_0_0_1px_rgba(10,132,255,0.45)]'
-              : 'bg-white/4 text-white/70 hover:bg-white/10 hover:text-white'" :title="`${tool.label} (${tool.key})`"
-            @click="emit('selectTool', tool.id); emit('close')">
+            :class="
+              currentTool === tool.id
+                ? 'bg-accent/30 text-white shadow-[inset_0_0_0_1px_rgba(10,132,255,0.45)]'
+                : 'bg-white/4 text-white/70 hover:bg-white/10 hover:text-white'
+            "
+            :title="`${tool.label} (${tool.key})`"
+            @click="
+              emit('selectTool', tool.id)
+              emit('close')
+            "
+          >
             <component :is="tool.icon" :size="18" />
             <span class="text-[10px] leading-none font-sans">{{ tool.label }}</span>
-            <span class="absolute top-[3px] right-[5px] text-[8px] font-sans"
-              :class="currentTool === tool.id ? 'text-white/60' : 'text-white/40'">{{ tool.key }}</span>
+            <span
+              class="absolute top-[3px] right-[5px] text-[8px] font-sans"
+              :class="currentTool === tool.id ? 'text-white/60' : 'text-white/40'"
+              >{{ tool.key }}</span
+            >
           </button>
         </div>
       </div>
@@ -158,33 +159,79 @@ onUnmounted(() => {
       <!-- 颜色区 -->
       <div class="px-3.5 py-2.5 border-t border-white/5">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{ t('panel.colors')
-            }}</span>
+          <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{
+            t('panel.colors')
+          }}</span>
         </div>
         <div class="flex flex-col gap-1.5">
           <div v-for="(row, ri) in colors" :key="ri" class="flex justify-between">
-            <button v-for="(color, ci) in row" :key="color"
+            <button
+              v-for="(color, ci) in row"
+              :key="color"
               class="w-[30px] h-[30px] p-0 border-none rounded-full bg-transparent cursor-pointer relative flex items-center justify-center transition-transform duration-120"
               :class="currentColor === color ? 'scale-[1.18]' : 'hover:scale-[1.18]'"
-              @click="emit('selectColor', color); emit('close')">
-              <span class="w-6 h-6 rounded-full border-2 transition-[border-color] duration-120" :class="currentColor === color
-                ? 'border-white/75 shadow-[0_0_0_2px_rgba(255,255,255,0.12)]'
-                : 'border-white/10'" :style="{ backgroundColor: color }" />
-              <span v-if="currentColor === color" class="absolute text-[11px] font-bold pointer-events-none" :class="needsWhiteCheck(ri, ci)
-                ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]'
-                : 'text-black [text-shadow:0_0_2px_rgba(255,255,255,0.5)]'">✓</span>
+              @click="
+                emit('selectColor', color)
+                emit('close')
+              "
+            >
+              <span
+                class="w-6 h-6 rounded-full border-2 transition-[border-color] duration-120"
+                :class="
+                  currentColor === color
+                    ? 'border-white/75 shadow-[0_0_0_2px_rgba(255,255,255,0.12)]'
+                    : 'border-white/10'
+                "
+                :style="{ backgroundColor: color }"
+              />
+              <span
+                v-if="currentColor === color"
+                class="absolute text-[11px] font-bold pointer-events-none"
+                :class="
+                  needsWhiteCheck(ri, ci)
+                    ? 'text-white [text-shadow:0_0_2px_rgba(0,0,0,0.5)]'
+                    : 'text-black [text-shadow:0_0_2px_rgba(255,255,255,0.5)]'
+                "
+                >✓</span
+              >
             </button>
           </div>
         </div>
         <label
-          class="group inline-flex items-center gap-2.5 cursor-pointer py-1.5 pl-1.5 pr-2.5 rounded-lg mt-1.5 transition-[background] duration-120 hover:bg-white/6">
-          <input type="color" class="absolute w-0 h-0 opacity-0 pointer-events-none" :value="currentColor"
-            @input="emit('selectColor', ($event.target as HTMLInputElement).value)" />
+          class="group inline-flex items-center gap-2.5 cursor-pointer py-1.5 pl-1.5 pr-2.5 rounded-lg mt-1.5 transition-[background] duration-120 hover:bg-white/6"
+        >
+          <input
+            type="color"
+            class="absolute w-0 h-0 opacity-0 pointer-events-none"
+            :value="currentColor"
+            @input="emit('selectColor', ($event.target as HTMLInputElement).value)"
+          />
           <span
             class="w-[20px] h-[20px] rounded-full border border-white/20 transition-[border-color,transform] duration-120 pointer-events-none group-hover:border-white/40 group-hover:scale-105 flex items-center justify-center shadow-[inset_0_0_2px_rgba(0,0,0,0.5)]"
-            style="background: conic-gradient(from 90deg, #ff0000, #ff8000, #ffff00, #80ff00, #00ff00, #00ff80, #00ffff, #0080ff, #0000ff, #8000ff, #ff00ff, #ff0080, #ff0000);">
-            <span class="text-white text-[14px] leading-none font-light"
-              style="text-shadow: 0 1px 2px rgba(0,0,0,0.6)">+</span>
+            style="
+              background: conic-gradient(
+                from 90deg,
+                #ff0000,
+                #ff8000,
+                #ffff00,
+                #80ff00,
+                #00ff00,
+                #00ff80,
+                #00ffff,
+                #0080ff,
+                #0000ff,
+                #8000ff,
+                #ff00ff,
+                #ff0080,
+                #ff0000
+              );
+            "
+          >
+            <span
+              class="text-white text-[14px] leading-none font-light"
+              style="text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6)"
+              >+</span
+            >
           </span>
           <span class="text-[11px] text-white/50 font-sans">{{ t('panel.customColor') }}</span>
         </label>
@@ -193,20 +240,33 @@ onUnmounted(() => {
       <!-- 线宽区 -->
       <div class="px-3.5 py-2.5 border-t border-white/5">
         <div class="flex items-center justify-between mb-2">
-          <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{ t('panel.strokeWidth')
-            }}</span>
+          <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{
+            t('panel.strokeWidth')
+          }}</span>
         </div>
         <div class="flex gap-1">
-          <button v-for="w in widths" :key="w.value"
+          <button
+            v-for="w in widths"
+            :key="w.value"
             class="group flex-1 flex items-center justify-center h-8 border-none rounded-lg cursor-pointer transition-all duration-120"
-            :class="lineWidth === w.value
-              ? 'bg-accent/30 shadow-[inset_0_0_0_1px_rgba(10,132,255,0.45)]'
-              : 'bg-white/4 hover:bg-white/10'" :title="w.label"
-            @click="emit('updateLineWidth', w.value); emit('close')">
-            <span class="w-[70%] rounded-full transition-transform duration-120 group-hover:scale-x-110" :style="{
-              height: Math.max(1.5, w.value * 1.2) + 'px',
-              backgroundColor: lineWidth === w.value ? '#ffffff' : 'rgba(255,255,255,0.4)',
-            }" />
+            :class="
+              lineWidth === w.value
+                ? 'bg-accent/30 shadow-[inset_0_0_0_1px_rgba(10,132,255,0.45)]'
+                : 'bg-white/4 hover:bg-white/10'
+            "
+            :title="w.label"
+            @click="
+              emit('updateLineWidth', w.value)
+              emit('close')
+            "
+          >
+            <span
+              class="w-[70%] rounded-full transition-transform duration-120 group-hover:scale-x-110"
+              :style="{
+                height: Math.max(1.5, w.value * 1.2) + 'px',
+                backgroundColor: lineWidth === w.value ? '#ffffff' : 'rgba(255,255,255,0.4)',
+              }"
+            />
           </button>
         </div>
       </div>
@@ -216,8 +276,9 @@ onUnmounted(() => {
         <div class="flex items-center justify-between text-[10.5px] font-sans">
           <span class="flex items-center gap-1.5 text-white/45">
             <kbd
-              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm">{{
-              modKeyLabel }}</kbd>
+              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
+              >{{ modKeyLabel }}</kbd
+            >
             <span class="text-white/30 text-[10px]">+</span>
             <span>{{ t('panel.drag') }}</span>
           </span>
@@ -226,7 +287,9 @@ onUnmounted(() => {
         <div class="flex items-center justify-between text-[10.5px] font-sans">
           <span class="flex items-center gap-1.5 text-white/45">
             <kbd
-              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm">Shift</kbd>
+              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
+              >Shift</kbd
+            >
             <span class="text-white/30 text-[10px]">+</span>
             <span>{{ t('panel.drag') }}</span>
           </span>
@@ -235,11 +298,14 @@ onUnmounted(() => {
         <div class="flex items-center justify-between text-[10.5px] font-sans">
           <span class="flex items-center gap-1.5 text-white/45">
             <kbd
-              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm">{{
-              modKeyLabel }}</kbd>
+              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
+              >{{ modKeyLabel }}</kbd
+            >
             <span class="text-white/30 text-[10px]">+</span>
             <kbd
-              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm">Shift</kbd>
+              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
+              >Shift</kbd
+            >
             <span class="text-white/30 text-[10px]">+</span>
             <span>{{ t('panel.drag') }}</span>
           </span>
@@ -248,10 +314,14 @@ onUnmounted(() => {
         <div class="flex items-center justify-between text-[10.5px] font-sans">
           <span class="flex items-center gap-1.5 text-white/45">
             <kbd
-              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm">Q</kbd>
+              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
+              >Q</kbd
+            >
             <span class="text-white/30 text-[10px]">/</span>
             <kbd
-              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm">E</kbd>
+              class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
+              >E</kbd
+            >
             <span class="text-white/30 text-[10px]">/</span>
             <span>{{ t('panel.rightClick') }}</span>
           </span>

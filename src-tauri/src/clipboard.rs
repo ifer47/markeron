@@ -218,7 +218,7 @@ pub fn copy_screen() -> Result<(), String> {
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 #[tauri::command]
 pub fn copy_screen() -> Result<(), String> {
-    let monitors = std::panic::catch_unwind(|| xcap::Monitor::all())
+    let monitors = std::panic::catch_unwind(xcap::Monitor::all)
         .map_err(|_| {
             "Screen capture not supported: Wayland compositor lacks required protocol".to_string()
         })?

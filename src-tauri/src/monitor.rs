@@ -37,9 +37,7 @@ pub fn get_cursor_monitor_rect() -> Option<(i32, i32, u32, u32)> {
 
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 pub fn get_cursor_monitor_rect() -> Option<(i32, i32, u32, u32)> {
-    let monitors = std::panic::catch_unwind(|| xcap::Monitor::all())
-        .ok()?
-        .ok()?;
+    let monitors = std::panic::catch_unwind(xcap::Monitor::all).ok()?.ok()?;
     let m = monitors.first()?;
     let x = m.x().ok()?;
     let y = m.y().ok()?;

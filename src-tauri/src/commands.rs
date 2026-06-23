@@ -121,14 +121,14 @@ pub fn exit_drawing(app: AppHandle, state: tauri::State<'_, AppState>) {
     crate::deactivate_drawing(&app, &state);
 }
 
-const ALLOWED_URL_PREFIXES: &[&str] = &[
-    "https://github.com/",
-    "https://apps.microsoft.com/",
-];
+const ALLOWED_URL_PREFIXES: &[&str] = &["https://github.com/", "https://apps.microsoft.com/"];
 
 #[tauri::command]
 pub fn open_url(app: AppHandle, url: String) -> AppResult<()> {
-    if !ALLOWED_URL_PREFIXES.iter().any(|prefix| url.starts_with(prefix)) {
+    if !ALLOWED_URL_PREFIXES
+        .iter()
+        .any(|prefix| url.starts_with(prefix))
+    {
         warn!("Blocked open_url for untrusted URL: {}", url);
         return Err(AppError::Other("URL not allowed".into()));
     }

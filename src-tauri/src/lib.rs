@@ -45,14 +45,15 @@ fn setup_overlay_size(app: &AppHandle) {
             window
                 .set_size(tauri::PhysicalSize::new(w, h.saturating_sub(1)))
                 .ok();
-            window
-                .set_position(tauri::PhysicalPosition::new(x, y))
-                .ok();
+            window.set_position(tauri::PhysicalPosition::new(x, y)).ok();
         } else if let Some(mon) = app.primary_monitor().ok().flatten() {
             let size = mon.size();
             let pos = mon.position();
             window
-                .set_size(tauri::PhysicalSize::new(size.width, size.height.saturating_sub(1)))
+                .set_size(tauri::PhysicalSize::new(
+                    size.width,
+                    size.height.saturating_sub(1),
+                ))
                 .ok();
             window
                 .set_position(tauri::PhysicalPosition::new(pos.x, pos.y))

@@ -19,22 +19,28 @@ pub fn register_shortcuts(app: &AppHandle) {
     let app_handle = app.clone();
     if let Some(shortcut) = parse_shortcut(&config.shortcuts.toggle_drawing) {
         let h = app_handle.clone();
-        if let Err(e) = app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
-            if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                crate::toggle_drawing(&h);
-            }
-        }) {
+        if let Err(e) =
+            app.global_shortcut()
+                .on_shortcut(shortcut, move |_app, _shortcut, event| {
+                    if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        crate::toggle_drawing(&h);
+                    }
+                })
+        {
             warn!("Failed to register toggle_drawing shortcut: {}", e);
         }
     }
 
     if let Some(shortcut) = parse_shortcut(&config.shortcuts.clear_drawing) {
         let h = app_handle.clone();
-        if let Err(e) = app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
-            if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                crate::clear_drawing(&h);
-            }
-        }) {
+        if let Err(e) =
+            app.global_shortcut()
+                .on_shortcut(shortcut, move |_app, _shortcut, event| {
+                    if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        crate::clear_drawing(&h);
+                    }
+                })
+        {
             warn!("Failed to register clear_drawing shortcut: {}", e);
         }
     }

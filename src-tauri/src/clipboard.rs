@@ -33,12 +33,24 @@ pub fn copy_screen() -> Result<(), String> {
         fn CreateCompatibleBitmap(hdc: isize, w: i32, h: i32) -> isize;
         fn SelectObject(hdc: isize, h: isize) -> isize;
         fn BitBlt(
-            dst: isize, x: i32, y: i32, w: i32, h: i32,
-            src: isize, sx: i32, sy: i32, rop: u32,
+            dst: isize,
+            x: i32,
+            y: i32,
+            w: i32,
+            h: i32,
+            src: isize,
+            sx: i32,
+            sy: i32,
+            rop: u32,
         ) -> i32;
         fn GetDIBits(
-            hdc: isize, hbm: isize, start: u32, lines: u32,
-            bits: *mut u8, bmi: *mut BITMAPINFO, usage: u32,
+            hdc: isize,
+            hbm: isize,
+            start: u32,
+            lines: u32,
+            bits: *mut u8,
+            bmi: *mut BITMAPINFO,
+            usage: u32,
         ) -> i32;
         fn DeleteObject(h: isize) -> i32;
         fn DeleteDC(hdc: isize) -> i32;
@@ -109,12 +121,7 @@ pub fn copy_screen() -> Result<(), String> {
         bmi.header.bi_planes = 1;
         bmi.header.bi_bit_count = 32;
 
-        let scan_lines = GetDIBits(
-            hdc_mem, hbm, 0, h as u32,
-            ptr.add(header_size),
-            &mut bmi,
-            0,
-        );
+        let scan_lines = GetDIBits(hdc_mem, hbm, 0, h as u32, ptr.add(header_size), &mut bmi, 0);
 
         if scan_lines == 0 {
             GlobalUnlock(hmem);
@@ -126,11 +133,7 @@ pub fn copy_screen() -> Result<(), String> {
             return Err("GetDIBits failed: no scan lines copied".into());
         }
 
-        std::ptr::copy_nonoverlapping(
-            &bmi.header as *const _ as *const u8,
-            ptr,
-            header_size,
-        );
+        std::ptr::copy_nonoverlapping(&bmi.header as *const _ as *const u8, ptr, header_size);
         GlobalUnlock(hmem);
 
         if OpenClipboard(0) == 0 {
@@ -181,8 +184,7 @@ pub fn copy_screen() -> Result<(), String> {
         }
     };
 
-    let monitor = cursor_pos
-        .and_then(|(x, y)| xcap::Monitor::from_point(x, y).ok());
+    let monitor = cursor_pos.and_then(|(x, y)| xcap::Monitor::from_point(x, y).ok());
     let monitor = match monitor {
         Some(m) => m,
         None => xcap::Monitor::all()

@@ -45,7 +45,11 @@ pub fn set_locale(locale: &str) {
 }
 
 pub fn strings() -> &'static Strings {
-    if USE_CHINESE.load(Ordering::Relaxed) { &ZH } else { &EN }
+    if USE_CHINESE.load(Ordering::Relaxed) {
+        &ZH
+    } else {
+        &EN
+    }
 }
 
 fn detect_chinese() -> bool {
@@ -67,9 +71,7 @@ fn detect_chinese() -> bool {
     }
     #[cfg(target_os = "macos")]
     {
-        std::env::var("LANG")
-            .unwrap_or_default()
-            .starts_with("zh")
+        std::env::var("LANG").unwrap_or_default().starts_with("zh")
             || std::process::Command::new("defaults")
                 .args(["read", "-g", "AppleLanguages"])
                 .output()
@@ -78,8 +80,6 @@ fn detect_chinese() -> bool {
     }
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
-        std::env::var("LANG")
-            .unwrap_or_default()
-            .starts_with("zh")
+        std::env::var("LANG").unwrap_or_default().starts_with("zh")
     }
 }

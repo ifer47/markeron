@@ -29,6 +29,8 @@
 
 **[Download Latest Release](https://github.com/ifer47/markeron/releases/latest)** — pick the installer for your platform from the assets list.
 
+> After launching, the app runs silently in the **system tray** with no window shown.
+
 ## Features
 
 - **Annotate anywhere** — draw over any app, including the taskbar
@@ -47,6 +49,10 @@
 </td>
 </tr>
 </table>
+
+## Lightweight & Fast
+
+Built with Rust + Canvas, MarkerOn has an installer of just ~1.5 MB and a minimal memory footprint — no background daemons, no bloat. It responds instantly to your hotkey and renders annotations at full frame rate while consuming nearly zero system resources.
 
 ## Keyboard Shortcuts
 
@@ -119,15 +125,13 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 
 </details>
 
-## Quick Start
+## Development
 
 ```bash
 npm install
 npm run dev
 npm run build
 ```
-
-After launching, the app runs silently in the **system tray** with no window shown.
 
 ## Tech Stack
 

@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '../../i18n'
+import { useUpdater } from '../../composables/useUpdater'
 
 const { t } = useI18n()
 const APP_VERSION = __APP_VERSION__
+
+const { status, newVersion, progress, checkForUpdate, downloadAndInstall } = useUpdater()
 
 async function openUrl(url: string) {
   try {
@@ -29,7 +32,50 @@ async function openUrl(url: string) {
 
     <h1 class="text-[18px] font-semibold text-white/85 tracking-wide mb-1">MarkerOn</h1>
     <span class="text-[12px] text-white/30 font-mono tracking-wider mb-1.5">v{{ APP_VERSION }}</span>
-    <p class="text-[11.5px] text-white/40 mb-6">{{ t('about.tagline') }}</p>
+    <p class="text-[11.5px] text-white/40 mb-4">{{ t('about.tagline') }}</p>
+
+    <!-- Update checker -->
+    <div class="mb-6 flex flex-col items-center gap-2">
+      <button
+        v-if="status === 'idle' || status === 'error'"
+        class="px-4 py-1.5 text-[11.5px] text-accent/80 bg-accent/8 hover:bg-accent/15 border border-accent/15 rounded-lg transition-colors cursor-pointer"
+        @click="checkForUpdate()"
+      >
+        {{ status === 'error' ? t('about.updateError') : t('about.checkUpdate') }}
+      </button>
+
+      <span v-else-if="status === 'checking'" class="text-[11.5px] text-white/40 flex items-center gap-1.5">
+        <svg class="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" />
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+        {{ t('about.checking') }}
+      </span>
+
+      <div v-else-if="status === 'available'" class="flex flex-col items-center gap-1.5">
+        <span class="text-[11.5px] text-accent/80">{{ t('about.updateAvailable', { version: newVersion }) }}</span>
+        <button
+          class="px-4 py-1.5 text-[11.5px] text-white/85 bg-accent/20 hover:bg-accent/30 border border-accent/25 rounded-lg transition-colors cursor-pointer"
+          @click="downloadAndInstall()"
+        >
+          {{ t('about.installAndRestart') }}
+        </button>
+      </div>
+
+      <div v-else-if="status === 'downloading'" class="flex flex-col items-center gap-1.5 w-full max-w-[200px]">
+        <span class="text-[11.5px] text-white/40">{{ t('about.downloading', { progress: String(progress) }) }}</span>
+        <div class="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+          <div
+            class="h-full bg-accent/60 rounded-full transition-all duration-300"
+            :style="{ width: progress + '%' }"
+          />
+        </div>
+      </div>
+
+      <span v-else-if="status === 'up-to-date'" class="text-[11.5px] text-green-400/70">
+        {{ t('about.upToDate') }}
+      </span>
+    </div>
 
     <div class="w-full max-w-[340px] rounded-xl border border-white/5 bg-white/2 overflow-hidden">
       <div

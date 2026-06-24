@@ -136,6 +136,13 @@ export default {
     author: '作者',
     license: '开源协议',
     feedback: '反馈问题',
+    checkUpdate: '检查更新',
+    checking: '正在检查...',
+    updateAvailable: '发现新版本 v{version}',
+    downloading: '正在下载... {progress}%',
+    upToDate: '已是最新版本',
+    updateError: '检查失败，请稍后重试',
+    installAndRestart: '安装并重启',
   },
   tray: {
     settings: '设置',

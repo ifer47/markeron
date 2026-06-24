@@ -37,6 +37,14 @@
       "menuOnLeftClick": false
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ2Q0FBMzUzMkQyRDg0NTcKUldSWGhDMHRVNlBLUm1xZHVJSVp4cGkvVU0ybDZLT3RMOWxqVnQ4L25ON01hR2xwdndMOFFLYWkK",
+      "endpoints": [
+        "https://github.com/ifer47/markeron/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

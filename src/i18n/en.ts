@@ -141,6 +141,13 @@ export default {
     author: 'Author',
     license: 'License',
     feedback: 'Feedback',
+    checkUpdate: 'Check for updates',
+    checking: 'Checking...',
+    updateAvailable: 'New version v{version} available',
+    downloading: 'Downloading... {progress}%',
+    upToDate: 'Already up to date',
+    updateError: 'Check failed, try again later',
+    installAndRestart: 'Install & Restart',
   },
   tray: {
     settings: 'Settings',

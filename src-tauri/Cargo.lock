@@ -2455,7 +2455,7 @@ checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 
 [[package]]
 name = "markeron"
-version = "0.1.21"
+version = "0.1.22"
 dependencies = [
  "arboard",
  "ctrlc",

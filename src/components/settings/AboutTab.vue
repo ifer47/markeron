@@ -81,12 +81,6 @@ async function openUrl(url: string) {
       <div
         class="flex items-center justify-between px-4 py-3 border-b border-white/5 hover:bg-white/3 transition-colors"
       >
-        <span class="text-[12px] text-white/45">{{ t('about.author') }}</span>
-        <span class="text-[12px] text-white/65">ifer47</span>
-      </div>
-      <div
-        class="flex items-center justify-between px-4 py-3 border-b border-white/5 hover:bg-white/3 transition-colors"
-      >
         <span class="text-[12px] text-white/45">{{ t('about.license') }}</span>
         <span class="text-[12px] text-white/65">MIT License</span>
       </div>

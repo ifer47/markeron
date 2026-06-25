@@ -14,6 +14,7 @@ export type { InputPointLike } from './drawingTypes'
 import type { Tool, Point, DrawAction, InputPointLike } from './drawingTypes'
 
 const HIT_GRID_SIZE = 192
+const HIT_GRID_MAX_CELLS = 64
 
 // Adaptive point sampling: large CSS viewports (e.g. 4K@150%) generate far more
 // pointer events per physical pen-movement than small ones (e.g. 2880×1800@200%).
@@ -194,7 +195,7 @@ export function useDrawing(
     const endCellY = Math.floor(bbox.y2 / HIT_GRID_SIZE)
     const cellCount = (endCellX - startCellX + 1) * (endCellY - startCellY + 1)
 
-    if (cellCount > 64) return null
+    if (cellCount > HIT_GRID_MAX_CELLS) return null
 
     const cells: string[] = []
     for (let cy = startCellY; cy <= endCellY; cy++) {

@@ -3,6 +3,8 @@ import { ref, shallowRef, onMounted, onUnmounted, nextTick, computed, watch } fr
 import { invoke } from '@tauri-apps/api/core'
 import { listen, type UnlistenFn } from '@tauri-apps/api/event'
 import { useDrawing, type Tool, type DrawAction } from '../composables/useDrawing'
+import { useTooltip } from '../composables/useTooltip'
+import { createKeyDownHandler } from '../composables/useOverlayKeyboard'
 import type { AppConfig } from '../types/app'
 import SettingsPanel from './SettingsPanel.vue'
 import TextBox from './TextBox.vue'
@@ -27,8 +29,6 @@ const active = ref(false)
 const showSettings = ref(false)
 const mousePos = ref({ x: 0, y: 0 })
 const textBoxPos = ref<{ x: number; y: number } | null>(null)
-const toolTip = ref('')
-let toolTipTimer: ReturnType<typeof setTimeout> | null = null
 
 const toolLabelMap = computed<Record<Tool, string>>(() => ({
   pen: t('tools.pen'),
@@ -40,14 +40,6 @@ const toolLabelMap = computed<Record<Tool, string>>(() => ({
   eraser: t('tools.eraser'),
   text: t('tools.text'),
 }))
-const toolTipTool = ref<Tool | null>(null)
-const toolTipColor = ref<string | null>(null)
-const toolTipWidth = ref<number | null>(null)
-
-const showQuickColors = ref(false)
-const quickColorsPos = ref({ x: 0, y: 0 })
-
-const quickColorList = COLOR_PALETTE
 
 const colorNameMap = computed<Record<string, string>>(() => ({
   '#FF3B30': t('colors.#FF3B30'),
@@ -66,33 +58,24 @@ const colorNameMap = computed<Record<string, string>>(() => ({
   '#000000': t('colors.#000000'),
 }))
 
-function showToolTip(tool: Tool) {
-  toolTip.value = toolLabelMap.value[tool] || tool
-  toolTipTool.value = tool
-  toolTipColor.value = null
-  toolTipWidth.value = null
-  if (toolTipTimer) clearTimeout(toolTipTimer)
-  toolTipTimer = setTimeout(() => {
-    toolTip.value = ''
-    toolTipTool.value = null
-    toolTipColor.value = null
-    toolTipWidth.value = null
-  }, 1200)
-}
+const {
+  state: tooltip,
+  showTool: showToolTip,
+  showColor: showColorTip,
+  showWidth: showWidthTip,
+  showMessage: showTip,
+  dispose: disposeTooltip,
+} = useTooltip({ toolLabelMap, colorNameMap, t })
 
-function showColorTip(color: string) {
-  toolTip.value = colorNameMap.value[color.toUpperCase()] ?? color
-  toolTipTool.value = null
-  toolTipColor.value = color
-  toolTipWidth.value = null
-  if (toolTipTimer) clearTimeout(toolTipTimer)
-  toolTipTimer = setTimeout(() => {
-    toolTip.value = ''
-    toolTipTool.value = null
-    toolTipColor.value = null
-    toolTipWidth.value = null
-  }, 1200)
-}
+const toolTip = tooltip.text
+const toolTipTool = tooltip.tool
+const toolTipColor = tooltip.color
+const toolTipWidth = tooltip.width
+
+const showQuickColors = ref(false)
+const quickColorsPos = ref({ x: 0, y: 0 })
+
+const quickColorList = COLOR_PALETTE
 
 function cycleColor(direction: number) {
   const idx = quickColorList.indexOf(currentColor.value)
@@ -238,7 +221,7 @@ function onDprChange() {
 function commitCurrentTextBox(cancel = false) {
   if (textBoxRef.value && textBoxPos.value) {
     if (cancel && editingOriginalAction.value) {
-      // 如果是取消编辑且有原文本，恢复原文本
+      // Cancel edit: restore the original text action
       const a = editingOriginalAction.value
       addTextAction(a.text!, a.points[0].x, a.points[0].y, 0, a.fontSize!, a.color)
     } else if (!cancel) {
@@ -279,7 +262,7 @@ function onDoubleClick(e: MouseEvent) {
       textBoxPos.value = { x: action.points[0].x, y: action.points[0].y }
     })
   } else if (currentTool.value === 'text') {
-    // 在文本模式下，双击空白处新建文本
+    // In text mode, double-click on empty area to create new text
     if (textBoxPos.value) {
       commitCurrentTextBox()
     }
@@ -304,7 +287,7 @@ function onPointerDown(e: PointerEvent) {
     return
   }
 
-  // 优先处理拖拽，无论在什么工具模式下，只要放在已有元素上，按下就是拖拽
+  // Prioritize dragging: if pointer is over an existing element, start drag regardless of tool
   if (hoveredActionInfo.value && enableDragging.value) {
     isDragging = true
     dragStartX = e.clientX
@@ -315,7 +298,7 @@ function onPointerDown(e: PointerEvent) {
     return
   }
 
-  // 如果当前是文字模式，单击不执行任何操作（新建文字交由双击处理）
+  // In text mode, single-click is a no-op (text creation is handled by double-click)
   if (currentTool.value === 'text') {
     return
   }
@@ -408,102 +391,42 @@ function onTextCancel() {
   commitCurrentTextBox(true)
 }
 
-function onKeyDown(e: KeyboardEvent) {
-  if (!active.value) return
-
-  // 屏蔽单独按下 Alt 键触发的系统菜单焦点（会导致光标变成默认箭头）
-  if (e.key === 'Alt') {
-    e.preventDefault()
-  }
-
-  if (showQuickColors.value) {
-    if (modDown(e) && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
-      e.preventDefault()
-      copyScreen()
-    } else if (e.key === 'Escape') showQuickColors.value = false
-    else if (e.key === 'q' || e.key === 'Q') cycleColor(-1)
-    else if (e.key === 'e' || e.key === 'E') cycleColor(1)
-    else if (e.key === ' ') {
-      e.preventDefault()
-      mousePos.value = { ...quickColorsPos.value }
-      showQuickColors.value = false
-      toggleSettingsVisible()
-    }
-    return
-  }
-
-  if (textBoxPos.value) {
-    if (e.key === 'Escape') {
-      commitCurrentTextBox(true)
-    }
-    return
-  }
-
-  if (e.key === ' ') {
-    e.preventDefault()
-    mousePos.value = { x: lastPointerX, y: lastPointerY }
-    toggleSettingsVisible()
-    return
-  }
-
-  if (e.key === 'q' || e.key === 'Q') {
-    cycleColor(-1)
-    return
-  }
-  if (e.key === 'e' || e.key === 'E') {
-    cycleColor(1)
-    return
-  }
-
-  if (e.key === 't' || e.key === 'T') {
-    currentTool.value = 'text'
-    showToolTip('text')
-    setSettingsVisible(false)
-    return
-  }
-
-  if (e.key >= '1' && e.key <= '7') {
-    const toolMap: Tool[] = ['pen', 'highlighter', 'arrow', 'rect', 'ellipse', 'line', 'eraser', 'text']
-    const tool = toolMap[parseInt(e.key) - 1]
-    currentTool.value = tool
-    showToolTip(tool)
-    setSettingsVisible(false)
-    return
-  }
-
-  if (modDown(e) && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
-    e.preventDefault()
-    copyScreen()
-    return
-  }
-
-  if (showSettings.value) return
-
-  if (modDown(e) && e.shiftKey && e.key === 'Z') {
-    e.preventDefault()
-    redo()
-  } else if (modDown(e) && e.key === 'z') {
-    e.preventDefault()
-    undo()
-  } else if (modDown(e) && e.key === 'y') {
-    e.preventDefault()
-    redo()
-  } else if (e.key === 'Delete') {
-    clearAll()
-  } else if (e.key === 'Escape') {
-    exitDrawing()
-  }
-}
+const onKeyDown = createKeyDownHandler(
+  {
+    active,
+    showSettings,
+    showQuickColors,
+    quickColorsPos,
+    textBoxPos,
+    currentTool,
+    isDrawing,
+    lastPointerX: () => lastPointerX,
+    lastPointerY: () => lastPointerY,
+    mousePos,
+  },
+  {
+    cycleColor,
+    showToolTip,
+    undo,
+    redo,
+    clearAll,
+    exitDrawing,
+    copyScreen,
+    setSettingsVisible,
+    toggleSettingsVisible,
+    commitCurrentTextBox,
+  },
+)
 
 // Custom cursor element ref — position updated directly in pointermove for performance
 const cursorEl = ref<HTMLDivElement | null>(null)
 
 function getCursorHotspot(): { x: number; y: number } {
   const tool = currentTool.value
-  // SVG 的 viewBox 是 0 0 1024 1024。笔尖大约在 (388, 846) 的位置
-  // 映射到 32x32 尺寸：x = 388/1024*32 ≈ 12， y = 846/1024*32 ≈ 26
+  // SVG viewBox is 0 0 1024 1024. Pen tip is at approximately (388, 846).
+  // Mapped to 32x32 cursor size: x = 388/1024*32 ≈ 12, y = 846/1024*32 ≈ 26
   if (tool === 'pen') return { x: 12, y: 26 }
-  if (tool === 'highlighter') return { x: 5, y: 27 } // 映射到 1024x1024 的笔尖位置(约 150, 850)
+  if (tool === 'highlighter') return { x: 5, y: 27 } // tip at ~(150, 850) in 1024x1024 space
   if (tool === 'eraser') return { x: 16, y: 16 }
   return { x: 14, y: 14 }
 }
@@ -524,7 +447,7 @@ const canvasCursor = computed(() => {
 
 const showCustomCursor = computed(() => active.value && canvasCursor.value === 'none' && !textBoxPos.value)
 
-// 修复静止时按快捷键切换工具或颜色导致的光标偏心问题
+// Fix cursor offset when switching tools/colors via shortcut while pointer is stationary
 watch([currentTool, currentColor], () => {
   nextTick(() => {
     if (active.value && showCustomCursor.value) {
@@ -615,6 +538,7 @@ onUnmounted(() => {
     hoverRafId = null
   }
   unlisteners.forEach((fn) => fn())
+  disposeTooltip()
   destroy()
 })
 
@@ -661,35 +585,6 @@ async function copyScreen() {
   }
 }
 
-function showTip(text: string) {
-  toolTip.value = text
-  toolTipTool.value = null
-  toolTipColor.value = null
-  toolTipWidth.value = null
-  if (toolTipTimer) clearTimeout(toolTipTimer)
-  toolTipTimer = setTimeout(() => {
-    toolTip.value = ''
-    toolTipTool.value = null
-    toolTipColor.value = null
-    toolTipWidth.value = null
-  }, 1500)
-}
-
-function showWidthTip(w: number, label?: string) {
-  const resolved = t(`widths.${w}`)
-  toolTip.value = label ?? (resolved !== `widths.${w}` ? resolved : `${w}px`)
-  toolTipTool.value = null
-  toolTipColor.value = null
-  toolTipWidth.value = w
-  if (toolTipTimer) clearTimeout(toolTipTimer)
-  toolTipTimer = setTimeout(() => {
-    toolTip.value = ''
-    toolTipTool.value = null
-    toolTipColor.value = null
-    toolTipWidth.value = null
-  }, 1200)
-}
-
 function exitDrawing() {
   commitCurrentTextBox()
   showSettings.value = false
@@ -731,7 +626,7 @@ function exitDrawing() {
       class="fixed top-0 left-0 pointer-events-none select-none drop-shadow-md"
       style="z-index: 100010; will-change: transform"
     >
-      <!-- 画笔: 使用用户提供的自定义 SVG 图标 -->
+      <!-- Pen: custom SVG icon -->
       <svg
         v-if="currentTool === 'pen'"
         width="32"
@@ -745,10 +640,10 @@ function exitDrawing() {
           <path d="M490.435 254.311l167.144 50.477L532.37 719.395l-167.145-50.477z" fill="#FECD44"></path>
           <path d="M388.3 797.1l14.6 49.5 39.6-33.1z" fill="#AEABA8"></path>
           <path d="M402.9 846.6l66.2-118.8 23.9-37.4 31.8 54.2z" fill="#CC9D71"></path>
-          <!-- 笔尖：绑定 currentColor，让它显示当前绘制的颜色 -->
+          <!-- Pen tip: bound to currentColor -->
           <path d="M424.4 808.1l-21.5 38.5 39.6-33.1z" :fill="currentColor"></path>
           <path d="M413.4 710.9l-10.5 135.7 66.2-118.8 0.6-53.3-38.6 5.2z" fill="#F0BF92"></path>
-          <!-- 笔身蓝色条纹：原本是蓝色，我们也把它改成动态颜色以增强辨识度 -->
+          <!-- Pen body stripe: dynamic color for better visibility -->
           <path
             d="M413.4 710.9s-9-15.2-24.4-19.9c-15.4-4.7-31.3 3.1-31.3 3.1l125.2-414.6 55.7 16.8-125.2 414.6z"
             :fill="currentColor"
@@ -764,12 +659,12 @@ function exitDrawing() {
             :fill="currentColor"
           ></path>
           <path d="M406.3 802.6l-3.4 44 21.5-38.5z" fill="#63585B"></path>
-          <!-- 笔帽：绑定 currentColor，改变颜色时跟随变化 -->
+          <!-- Pen cap: follows currentColor -->
           <path
             d="M650 330l-167.1-50.5 12.1-40c13.9-46.2 62.7-72.3 108.8-58.3 46.2 13.9 72.3 62.6 58.3 108.8L650 330z"
             :fill="currentColor"
           ></path>
-          <!-- 笔帽和笔身之间的分割线：默认白色，如果是白色画笔则变黑，同时增加 1px 厚度 -->
+          <!-- Divider between cap and body: white by default, black when pen color is white -->
           <g
             :fill="currentColor.toUpperCase() === '#FFFFFF' ? '#333333' : '#FFFFFF'"
             :stroke="currentColor.toUpperCase() === '#FFFFFF' ? '#333333' : '#FFFFFF'"
@@ -790,7 +685,7 @@ function exitDrawing() {
         </g>
       </svg>
 
-      <!-- 荧光笔: 使用用户提供的自定义 SVG 图标 -->
+      <!-- Highlighter: custom SVG icon -->
       <svg
         v-else-if="currentTool === 'highlighter'"
         width="32"
@@ -809,7 +704,7 @@ function exitDrawing() {
           opacity="0.8"
         ></path>
       </svg>
-      <!-- 橡皮擦: 虚线圆 + 十字 -->
+      <!-- Eraser: dashed circle + crosshair -->
       <svg
         v-else-if="currentTool === 'eraser'"
         width="32"
@@ -821,7 +716,7 @@ function exitDrawing() {
         <line x1="16" y1="12" x2="16" y2="20" stroke="white" stroke-width="1" />
         <line x1="12" y1="16" x2="20" y2="16" stroke="white" stroke-width="1" />
       </svg>
-      <!-- 箭头/矩形/椭圆/直线: 彩色十字准星 -->
+      <!-- Arrow/Rectangle/Ellipse/Line: colored crosshair -->
       <svg v-else width="28" height="28" xmlns="http://www.w3.org/2000/svg" style="display: block">
         <line
           x1="14"

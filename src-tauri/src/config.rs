@@ -122,3 +122,165 @@ pub fn save_config(app: &AppHandle, config: &AppConfig) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_config_serializes_to_valid_json() {
+        let config = AppConfig::default();
+        let json = serde_json::to_string_pretty(&config).unwrap();
+        assert!(json.contains("toggleDrawing"));
+        assert!(json.contains("clearDrawing"));
+    }
+
+    #[test]
+    fn default_config_roundtrip() {
+        let config = AppConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let parsed: AppConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(
+            parsed.shortcuts.toggle_drawing,
+            config.shortcuts.toggle_drawing
+        );
+        assert_eq!(
+            parsed.shortcuts.clear_drawing,
+            config.shortcuts.clear_drawing
+        );
+        assert_eq!(
+            parsed.general.enable_dragging,
+            config.general.enable_dragging
+        );
+        assert_eq!(
+            parsed.general.preserve_drawings,
+            config.general.preserve_drawings
+        );
+    }
+
+    #[test]
+    fn config_deserializes_from_json() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Alt+X",
+                "clearDrawing": "Ctrl+Alt+C"
+            },
+            "general": {
+                "enableDragging": true,
+                "locale": "zh-CN",
+                "preserveDrawings": true
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.shortcuts.toggle_drawing, "Ctrl+Alt+X");
+        assert_eq!(config.shortcuts.clear_drawing, "Ctrl+Alt+C");
+        assert!(config.general.enable_dragging);
+        assert_eq!(config.general.locale, Some("zh-CN".to_string()));
+        assert!(config.general.preserve_drawings);
+    }
+
+    #[test]
+    fn config_deserializes_with_missing_general() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert!(!config.general.enable_dragging);
+        assert_eq!(config.general.locale, None);
+        assert!(!config.general.preserve_drawings);
+    }
+
+    #[test]
+    fn config_deserializes_with_partial_general() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {
+                "enableDragging": false
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert!(!config.general.enable_dragging);
+        assert_eq!(config.general.locale, None);
+        assert!(!config.general.preserve_drawings);
+    }
+
+    #[test]
+    fn save_result_serializes_correctly() {
+        let success = SaveResult {
+            ok: true,
+            failed: None,
+        };
+        let json = serde_json::to_string(&success).unwrap();
+        assert_eq!(json, r#"{"ok":true}"#);
+
+        let failure = SaveResult {
+            ok: false,
+            failed: Some(vec!["Toggle: Bad+Key".to_string()]),
+        };
+        let json = serde_json::to_string(&failure).unwrap();
+        assert!(json.contains("\"ok\":false"));
+        assert!(json.contains("Bad+Key"));
+    }
+
+    #[test]
+    fn lock_or_recover_normal_mutex() {
+        let mutex = Mutex::new(42);
+        let guard = lock_or_recover(&mutex);
+        assert_eq!(*guard, 42);
+    }
+
+    #[test]
+    fn lock_or_recover_poisoned_mutex() {
+        let mutex = std::sync::Arc::new(Mutex::new(99));
+        let m2 = mutex.clone();
+        let _ = std::thread::spawn(move || {
+            let _guard = m2.lock().unwrap();
+            panic!("intentional panic to poison mutex");
+        })
+        .join();
+
+        // Mutex is now poisoned
+        assert!(mutex.lock().is_err());
+        // lock_or_recover should still work
+        let guard = lock_or_recover(&mutex);
+        assert_eq!(*guard, 99);
+    }
+
+    #[test]
+    fn default_shortcuts_are_valid() {
+        let shortcuts = default_shortcuts();
+        assert!(!shortcuts.toggle_drawing.is_empty());
+        assert!(!shortcuts.clear_drawing.is_empty());
+        assert!(shortcuts.toggle_drawing.contains('+'));
+        assert!(shortcuts.clear_drawing.contains('+'));
+    }
+
+    #[test]
+    fn general_config_default_values() {
+        let general = GeneralConfig::default();
+        assert!(!general.enable_dragging);
+        assert_eq!(general.locale, None);
+        assert!(!general.preserve_drawings);
+    }
+
+    #[test]
+    fn config_skips_none_locale_in_serialization() {
+        let config = AppConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(!json.contains("locale"));
+    }
+
+    #[test]
+    fn config_includes_locale_when_set() {
+        let mut config = AppConfig::default();
+        config.general.locale = Some("en".to_string());
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"locale\":\"en\""));
+    }
+}

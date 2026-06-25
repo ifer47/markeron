@@ -136,7 +136,7 @@ onUnmounted(() => {
     >
       <div class="h-2.5 cursor-default" @mousedown="startDrag" />
 
-      <!-- 工具区 -->
+      <!-- Tools -->
       <div class="px-3.5 pt-1 pb-2.5">
         <div class="flex items-center justify-between mb-2 cursor-default" @mousedown="startDrag">
           <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{ t('panel.tools') }}</span>
@@ -168,7 +168,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- 颜色区 -->
+      <!-- Colors -->
       <div class="px-3.5 py-2.5 border-t border-white/5">
         <div class="flex items-center justify-between mb-2">
           <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{
@@ -246,7 +246,7 @@ onUnmounted(() => {
         </label>
       </div>
 
-      <!-- 线宽区 -->
+      <!-- Stroke width -->
       <div class="px-3.5 py-2.5 border-t border-white/5">
         <div class="flex items-center justify-between mb-2">
           <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{
@@ -277,7 +277,7 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- 底部快捷键提示 -->
+      <!-- Shortcut hints -->
       <div class="flex flex-col gap-1.5 pt-3 px-3.5 pb-3 border-t border-white/5">
         <div class="flex items-center justify-between text-[10.5px] font-sans">
           <span class="flex items-center gap-1.5 text-white/45">

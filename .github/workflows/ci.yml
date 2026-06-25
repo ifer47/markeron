@@ -58,6 +58,10 @@ jobs:
         working-directory: src-tauri
         run: cargo clippy -- -D warnings
 
+      - name: Test
+        working-directory: src-tauri
+        run: cargo test
+
       - name: Build
         working-directory: src-tauri
         run: cargo build

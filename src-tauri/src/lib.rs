@@ -152,6 +152,7 @@ fn open_settings_tab(app: &AppHandle, tab: Option<&str>) {
         .inner_size(620.0, 450.0)
         .min_inner_size(500.0, 380.0)
         .resizable(true)
+        .center()
         .visible(true);
 
     if let Err(e) = builder.build() {

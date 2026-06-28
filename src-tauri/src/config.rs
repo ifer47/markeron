@@ -16,7 +16,7 @@ fn default_angle_snap_step() -> u16 {
     15
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
     #[serde(rename = "enableDragging")]
     pub enable_dragging: bool,
@@ -26,6 +26,17 @@ pub struct GeneralConfig {
     pub preserve_drawings: bool,
     #[serde(default = "default_angle_snap_step", rename = "angleSnapStep")]
     pub angle_snap_step: u16,
+}
+
+impl Default for GeneralConfig {
+    fn default() -> Self {
+        Self {
+            enable_dragging: false,
+            locale: None,
+            preserve_drawings: false,
+            angle_snap_step: default_angle_snap_step(),
+        }
+    }
 }
 
 impl GeneralConfig {
@@ -171,7 +182,10 @@ mod tests {
             parsed.general.preserve_drawings,
             config.general.preserve_drawings
         );
-        assert_eq!(parsed.general.angle_snap_step, config.general.angle_snap_step);
+        assert_eq!(
+            parsed.general.angle_snap_step,
+            config.general.angle_snap_step
+        );
     }
 
     #[test]
@@ -209,6 +223,26 @@ mod tests {
         assert!(!config.general.enable_dragging);
         assert_eq!(config.general.locale, None);
         assert!(!config.general.preserve_drawings);
+        assert_eq!(config.general.angle_snap_step, 15);
+    }
+
+    #[test]
+    fn config_deserializes_with_missing_angle_snap_step() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {
+                "enableDragging": true,
+                "locale": "en",
+                "preserveDrawings": true
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert!(config.general.enable_dragging);
+        assert_eq!(config.general.locale, Some("en".to_string()));
+        assert!(config.general.preserve_drawings);
         assert_eq!(config.general.angle_snap_step, 15);
     }
 

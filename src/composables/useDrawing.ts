@@ -44,6 +44,11 @@ export function useDrawing(
   const currentColor = ref('#FF0000')
   const lineWidth = ref(3)
   const isDrawing = ref(false)
+  const angleSnapStep = ref<15 | 30 | 45>(15)
+
+  function setAngleSnapStep(step: number) {
+    angleSnapStep.value = step === 30 || step === 45 ? step : 15
+  }
 
   interface DragSnapshot {
     points: Point[]
@@ -576,7 +581,7 @@ export function useDrawing(
       if (pts.length > 0) {
         const start = pts[0]
         if (action.tool === 'line' || action.tool === 'arrow') {
-          finalPoint = isPerfect ? snapPointToAngle(start, { x, y }, 15) : { x, y }
+          finalPoint = isPerfect ? snapPointToAngle(start, { x, y }, angleSnapStep.value) : { x, y }
         } else if (isPerfect && (action.tool === 'rect' || action.tool === 'ellipse')) {
           const dx = x - start.x
           const dy = y - start.y
@@ -1053,6 +1058,7 @@ export function useDrawing(
     currentTool,
     currentColor,
     lineWidth,
+    angleSnapStep,
     isDrawing,
     startDraw,
     draw,
@@ -1070,5 +1076,6 @@ export function useDrawing(
     updateDragOffset,
     endDrag,
     destroy,
+    setAngleSnapStep,
   }
 }

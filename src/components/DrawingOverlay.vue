@@ -125,6 +125,7 @@ const {
   currentTool,
   currentColor,
   lineWidth,
+  setAngleSnapStep,
   isDrawing,
   startDraw,
   draw,
@@ -491,6 +492,7 @@ onMounted(async () => {
     const cfg = await invoke<AppConfig>('get_config')
     enableDragging.value = cfg.general?.enableDragging ?? false
     preserveDrawings.value = cfg.general?.preserveDrawings ?? false
+    setAngleSnapStep((cfg.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15)
   } catch (error) {
     console.error('Failed to get initial config:', error)
   }
@@ -500,6 +502,7 @@ onMounted(async () => {
     await listen<AppConfig>('config-changed', (event) => {
       enableDragging.value = event.payload.general?.enableDragging ?? false
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
+      setAngleSnapStep((event.payload.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15)
     }),
   )
 

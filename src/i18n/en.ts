@@ -90,6 +90,8 @@ export default {
     preserveDrawings: 'Preserve drawings on exit',
     preserveDrawingsDesc:
       'When enabled, annotations are kept in memory after exiting annotation mode. Re-entering will restore your previous drawings.',
+    angleSnapStep: 'Angle snap step',
+    angleSnapStepDesc: 'Choose how far straight lines snap while holding Alt.',
   },
   help: {
     basicUsage: 'Basic Usage',

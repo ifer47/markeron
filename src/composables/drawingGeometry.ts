@@ -104,7 +104,8 @@ export function snapPointToAngle(start: Point, raw: Point, stepDegrees = 15): Po
   const length = Math.hypot(dx, dy)
   if (length === 0) return { ...raw }
 
-  const step = (Math.PI / 180) * stepDegrees
+  const safeStep = Number.isFinite(stepDegrees) && stepDegrees > 0 ? stepDegrees : 15
+  const step = (Math.PI / 180) * safeStep
   const snappedAngle = Math.round(Math.atan2(dy, dx) / step) * step
   return {
     x: start.x + Math.cos(snappedAngle) * length,

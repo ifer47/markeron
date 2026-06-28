@@ -88,6 +88,8 @@ export default {
     enableDraggingDesc: '开启后，可以通过鼠标拖动已经绘制的图形和文字。',
     preserveDrawings: '退出后保留标注',
     preserveDrawingsDesc: '开启后，退出标注模式时不会清除已有标注，下次进入将恢复上次的绘制内容。',
+    angleSnapStep: '吸附角度步进',
+    angleSnapStepDesc: '按住 Alt 绘制直线时，选择吸附到的角度间隔。',
   },
   help: {
     basicUsage: '基本用法',

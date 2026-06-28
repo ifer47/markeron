@@ -82,7 +82,7 @@ pub fn save_general(
     general: GeneralConfig,
 ) -> AppResult<()> {
     let mut cfg = lock_or_recover(&state.config);
-    cfg.general = general.clone();
+    cfg.general = general.normalized();
     crate::config::save_config(&app, &cfg);
     if let Err(e) = app.emit("config-changed", cfg.clone()) {
         warn!("Failed to emit config-changed: {}", e);

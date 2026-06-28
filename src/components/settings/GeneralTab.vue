@@ -15,16 +15,20 @@ const localeLabels: Record<string, string> = {
 const localeOpen = ref(false)
 const localeDropdownRef = ref<HTMLElement | null>(null)
 
+const snapStepOptions = [15, 30, 45] as const
+
 const props = defineProps<{
   enableDragging: boolean
   preserveDrawings: boolean
   autoStartEnabled: boolean
+  angleSnapStep: 15 | 30 | 45
 }>()
 
 const emit = defineEmits<{
   'update:enableDragging': [value: boolean]
   'update:preserveDrawings': [value: boolean]
   'update:autoStartEnabled': [value: boolean]
+  'update:angleSnapStep': [value: 15 | 30 | 45]
 }>()
 
 async function changeLocale(loc: string) {
@@ -75,7 +79,8 @@ async function toggleDragging() {
   emit('update:enableDragging', newValue)
   try {
     const cfg = await invoke<AppConfig>('get_config')
-    if (!cfg.general) cfg.general = { enableDragging: false, preserveDrawings: false }
+    if (!cfg.general)
+      cfg.general = { enableDragging: false, preserveDrawings: false, angleSnapStep: props.angleSnapStep }
     cfg.general.enableDragging = newValue
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
@@ -88,11 +93,26 @@ async function togglePreserveDrawings() {
   emit('update:preserveDrawings', newValue)
   try {
     const cfg = await invoke<AppConfig>('get_config')
-    if (!cfg.general) cfg.general = { enableDragging: false, preserveDrawings: false }
+    if (!cfg.general)
+      cfg.general = { enableDragging: false, preserveDrawings: false, angleSnapStep: props.angleSnapStep }
     cfg.general.preserveDrawings = newValue
+    cfg.general.angleSnapStep = props.angleSnapStep
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
     console.error('Failed to save preserve drawings setting:', error)
+  }
+}
+
+async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
+  if (step === props.angleSnapStep) return
+  emit('update:angleSnapStep', step)
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general) cfg.general = { enableDragging: false, preserveDrawings: false, angleSnapStep: step }
+    cfg.general.angleSnapStep = step
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save snap step setting:', error)
   }
 }
 </script>
@@ -206,6 +226,33 @@ async function togglePreserveDrawings() {
 
         <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
           {{ t('settings.enableDraggingDesc') }}
+        </p>
+      </div>
+
+      <div
+        class="flex flex-col gap-3 px-4 py-3.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10 transition-all duration-200"
+      >
+        <div class="flex items-center justify-between gap-4">
+          <span class="text-[12.5px] text-white/70">{{ t('settings.angleSnapStep') }}</span>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button
+              v-for="step in snapStepOptions"
+              :key="step"
+              class="px-2.5 py-[4px] rounded-md border text-[10.5px] leading-none transition-colors duration-120"
+              :class="
+                angleSnapStep === step
+                  ? 'bg-accent/15 border-accent/40 text-accent'
+                  : 'bg-white/6 border-white/8 text-white/65 hover:bg-white/10 hover:text-white/85'
+              "
+              @click="toggleAngleSnapStep(step)"
+            >
+              {{ step }}°
+            </button>
+          </div>
+        </div>
+
+        <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
+          {{ t('settings.angleSnapStepDesc') }}
         </p>
       </div>
 

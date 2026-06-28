@@ -12,6 +12,10 @@ pub struct Shortcuts {
     pub clear_drawing: String,
 }
 
+fn default_angle_snap_step() -> u16 {
+    15
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GeneralConfig {
     #[serde(rename = "enableDragging")]
@@ -20,6 +24,17 @@ pub struct GeneralConfig {
     pub locale: Option<String>,
     #[serde(default, rename = "preserveDrawings")]
     pub preserve_drawings: bool,
+    #[serde(default = "default_angle_snap_step", rename = "angleSnapStep")]
+    pub angle_snap_step: u16,
+}
+
+impl GeneralConfig {
+    pub fn normalized(mut self) -> Self {
+        if !matches!(self.angle_snap_step, 15 | 30 | 45) {
+            self.angle_snap_step = default_angle_snap_step();
+        }
+        self
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,7 +65,7 @@ impl Default for AppConfig {
     fn default() -> Self {
         Self {
             shortcuts: default_shortcuts(),
-            general: GeneralConfig::default(),
+            general: GeneralConfig::default().normalized(),
         }
     }
 }
@@ -156,6 +171,7 @@ mod tests {
             parsed.general.preserve_drawings,
             config.general.preserve_drawings
         );
+        assert_eq!(parsed.general.angle_snap_step, config.general.angle_snap_step);
     }
 
     #[test]
@@ -168,7 +184,8 @@ mod tests {
             "general": {
                 "enableDragging": true,
                 "locale": "zh-CN",
-                "preserveDrawings": true
+                "preserveDrawings": true,
+                "angleSnapStep": 30
             }
         }"#;
         let config: AppConfig = serde_json::from_str(json).unwrap();
@@ -177,6 +194,7 @@ mod tests {
         assert!(config.general.enable_dragging);
         assert_eq!(config.general.locale, Some("zh-CN".to_string()));
         assert!(config.general.preserve_drawings);
+        assert_eq!(config.general.angle_snap_step, 30);
     }
 
     #[test]
@@ -191,6 +209,7 @@ mod tests {
         assert!(!config.general.enable_dragging);
         assert_eq!(config.general.locale, None);
         assert!(!config.general.preserve_drawings);
+        assert_eq!(config.general.angle_snap_step, 15);
     }
 
     #[test]
@@ -208,6 +227,7 @@ mod tests {
         assert!(!config.general.enable_dragging);
         assert_eq!(config.general.locale, None);
         assert!(!config.general.preserve_drawings);
+        assert_eq!(config.general.angle_snap_step, 15);
     }
 
     #[test]

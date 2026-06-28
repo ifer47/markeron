@@ -5,6 +5,7 @@ import {
   offsetAttachedErasers,
   updateShapeHitCache,
   hitTestAction,
+  snapPointToAngle,
 } from './drawingGeometry'
 import { drawActionDirect } from './drawingRender'
 
@@ -572,14 +573,18 @@ export function useDrawing(
       if (x == null || y == null) return
 
       let finalPoint = { x, y }
-      if (isPerfect && pts.length > 0 && (action.tool === 'rect' || action.tool === 'ellipse')) {
+      if (pts.length > 0) {
         const start = pts[0]
-        const dx = x - start.x
-        const dy = y - start.y
-        const maxDist = Math.max(Math.abs(dx), Math.abs(dy))
-        finalPoint = {
-          x: start.x + (dx < 0 ? -maxDist : maxDist),
-          y: start.y + (dy < 0 ? -maxDist : maxDist),
+        if (action.tool === 'line' || action.tool === 'arrow') {
+          finalPoint = isPerfect ? snapPointToAngle(start, { x, y }, 15) : { x, y }
+        } else if (isPerfect && (action.tool === 'rect' || action.tool === 'ellipse')) {
+          const dx = x - start.x
+          const dy = y - start.y
+          const maxDist = Math.max(Math.abs(dx), Math.abs(dy))
+          finalPoint = {
+            x: start.x + (dx < 0 ? -maxDist : maxDist),
+            y: start.y + (dy < 0 ? -maxDist : maxDist),
+          }
         }
       }
 

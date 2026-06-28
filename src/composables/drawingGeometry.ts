@@ -98,6 +98,20 @@ export function distancePointToSegment(p: Point, a: Point, b: Point): number {
   return distToSeg(p.x, p.y, a.x, a.y, b.x, b.y)
 }
 
+export function snapPointToAngle(start: Point, raw: Point, stepDegrees = 15): Point {
+  const dx = raw.x - start.x
+  const dy = raw.y - start.y
+  const length = Math.hypot(dx, dy)
+  if (length === 0) return { ...raw }
+
+  const step = (Math.PI / 180) * stepDegrees
+  const snappedAngle = Math.round(Math.atan2(dy, dx) / step) * step
+  return {
+    x: start.x + Math.cos(snappedAngle) * length,
+    y: start.y + Math.sin(snappedAngle) * length,
+  }
+}
+
 export function hitTestAction(action: DrawAction, p: Point): boolean {
   const pts = action.points
   if (pts.length === 0) return false

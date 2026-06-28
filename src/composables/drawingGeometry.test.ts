@@ -8,6 +8,7 @@ import {
   updateShapeHitCache,
   distToSeg,
   distancePointToSegment,
+  snapPointToAngle,
   hitTestAction,
 } from './drawingGeometry'
 
@@ -305,6 +306,31 @@ describe('distancePointToSegment', () => {
     const a: Point = { x: 0, y: 0 }
     const b: Point = { x: 10, y: 0 }
     expect(distancePointToSegment(p, a, b)).toBe(3)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// snapPointToAngle
+// ---------------------------------------------------------------------------
+describe('snapPointToAngle', () => {
+  it('keeps the raw point when the segment is already aligned', () => {
+    const snapped = snapPointToAngle({ x: 0, y: 0 }, { x: 100, y: 0 })
+    expect(snapped.x).toBeCloseTo(100)
+    expect(snapped.y).toBeCloseTo(0)
+  })
+
+  it('snaps to the nearest 15-degree angle while preserving length', () => {
+    const snapped = snapPointToAngle({ x: 0, y: 0 }, { x: 100, y: 50 })
+    const angle = Math.atan2(snapped.y, snapped.x)
+    expect((angle * 180) / Math.PI).toBeCloseTo(30, 1)
+    expect(Math.hypot(snapped.x, snapped.y)).toBeCloseTo(Math.hypot(100, 50), 10)
+  })
+
+  it('returns a copy of the raw point when length is zero', () => {
+    const raw = { x: 10, y: 10 }
+    const snapped = snapPointToAngle({ x: 10, y: 10 }, raw)
+    expect(snapped).toEqual(raw)
+    expect(snapped).not.toBe(raw)
   })
 })
 

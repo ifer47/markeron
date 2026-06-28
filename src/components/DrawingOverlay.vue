@@ -19,6 +19,10 @@ function modDown(e: PointerEvent | KeyboardEvent): boolean {
   return e.ctrlKey || (isMacOS() && e.metaKey)
 }
 
+function snapLineModifierDown(e: PointerEvent): boolean {
+  return e.altKey
+}
+
 const toolIconMap = TOOL_ICON_MAP
 
 const historyCanvasRef = ref<HTMLCanvasElement | null>(null)
@@ -356,7 +360,7 @@ function onPointerMove(e: PointerEvent) {
     return
   }
 
-  const isPerfect = e.altKey
+  const isPerfect = snapLineModifierDown(e)
 
   const coalesced = e.getCoalescedEvents?.()
   if (coalesced && coalesced.length > 0) {

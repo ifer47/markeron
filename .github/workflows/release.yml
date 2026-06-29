@@ -23,7 +23,29 @@ jobs:
               repo: context.repo.repo,
               tag_name: context.ref.replace('refs/tags/', ''),
             });
-            return data.body || 'See the assets below to download and install.';
+
+            const body = data.body || 'See the assets below to download and install.';
+            const headingMap = new Map([
+              ["What's Changed", "What's New"],
+              ["What's New", "What's New"],
+              ["Features", "✨ New"],
+              ["New Features", "✨ New"],
+              ["New", "✨ New"],
+              ["Bug Fixes", "🛠 Fixes"],
+              ["Fixes", "🛠 Fixes"],
+              ["Improvements", "🧹 Improvements"],
+              ["Updates", "🔄 Updates"],
+              ["Linux", "🐧 Linux"],
+              ["Security", "🔐 Security"],
+              ["Documentation", "📚 Documentation"],
+            ]);
+
+            const normalized = body.replace(/^###\s+(.*)$/gm, (_, heading) => {
+              const nextHeading = headingMap.get(heading.trim()) ?? heading.trim();
+              return `### ${nextHeading}`;
+            });
+
+            return normalized;
 
   build:
     needs: release-notes

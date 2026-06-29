@@ -5,7 +5,28 @@ on:
     tags: ["v*"]
 
 jobs:
+  release-notes:
+    runs-on: ubuntu-latest
+    outputs:
+      body: ${{ steps.notes.outputs.result }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate release notes
+        id: notes
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const { data } = await github.rest.repos.generateReleaseNotes({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: context.ref.replace('refs/tags/', ''),
+            });
+            return data.body || 'See the assets below to download and install.';
+
   build:
+    needs: release-notes
     permissions:
       contents: write
     strategy:
@@ -68,20 +89,6 @@ jobs:
             "sign_args=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
           }
 
-      - name: Generate release notes
-        if: matrix.platform == 'windows-latest'
-        id: notes
-        uses: actions/github-script@v7
-        with:
-          result-encoding: string
-          script: |
-            const { data } = await github.rest.repos.generateReleaseNotes({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: context.ref.replace('refs/tags/', ''),
-            });
-            return data.body;
-
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
         id: tauri
@@ -92,7 +99,7 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "MarkerOn ${{ github.ref_name }}"
-          releaseBody: ${{ steps.notes.outputs.result || 'See the assets below to download and install.' }}
+          releaseBody: ${{ needs.release-notes.outputs.body }}
           releaseDraft: false
           prerelease: false
           updaterJsonPreferNsis: true

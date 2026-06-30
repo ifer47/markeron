@@ -157,20 +157,20 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
 
 <template>
   <div class="flex-1 flex flex-col px-7 py-6 overflow-y-auto settings-scroll">
-    <h2 class="text-[14px] font-semibold text-white/75 mb-4">{{ t('settings.generalTitle') }}</h2>
+    <h2 class="text-[14px] font-semibold settings-text-title mb-4">{{ t('settings.generalTitle') }}</h2>
 
     <div class="flex flex-col gap-2">
       <div class="settings-card">
         <div class="settings-card-row">
-          <span class="text-[12.5px] text-white/70">{{ t('settings.language') }}</span>
+          <span class="text-[12.5px] settings-text-label">{{ t('settings.language') }}</span>
           <div ref="localeDropdownRef" class="relative">
             <button
-              class="flex items-center gap-1.5 px-3 py-[5px] rounded-md ui-select text-[12px] text-white/75 cursor-pointer outline-none"
+              class="flex items-center gap-1.5 px-3 py-[5px] rounded-md ui-select text-[12px] cursor-pointer outline-none"
               @click="toggleLocaleDropdown"
             >
               {{ localeLabels[locale.locale] || locale.locale }}
               <svg
-                class="w-3 h-3 text-white/35 transition-transform duration-150"
+                class="w-3 h-3 settings-text-icon transition-transform duration-150"
                 :class="localeOpen ? 'rotate-180' : ''"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -191,11 +191,7 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
                   v-for="loc in availableLocales"
                   :key="loc"
                   class="w-full flex items-center gap-2 px-3 py-[6px] text-[12px] border-none cursor-pointer transition-colors duration-100"
-                  :class="
-                    locale.locale === loc
-                      ? 'bg-accent/12 text-accent'
-                      : 'bg-transparent text-white/65 hover:bg-white/8 hover:text-white/90'
-                  "
+                  :class="locale.locale === loc ? 'settings-locale-item--active' : 'settings-locale-item'"
                   @click="changeLocale(loc)"
                 >
                   <svg
@@ -221,13 +217,13 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
 
       <div class="settings-card">
         <div class="settings-card-row">
-          <span class="text-[12.5px] text-white/70">{{ t('settings.autoStart') }}</span>
+          <span class="text-[12.5px] settings-text-label">{{ t('settings.autoStart') }}</span>
           <button
             role="switch"
             :aria-checked="autoStartEnabled"
             :aria-label="t('settings.autoStart')"
             class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
-            :class="autoStartEnabled ? 'bg-accent/80' : 'bg-white/20 hover:bg-white/30'"
+            :class="autoStartEnabled ? 'settings-toggle-on' : 'settings-toggle-off'"
             @click="toggleAutoStart"
           >
             <span
@@ -240,13 +236,13 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
 
       <div class="settings-card">
         <div class="settings-card-row">
-          <span class="text-[12.5px] text-white/70">{{ t('settings.enableDragging') }}</span>
+          <span class="text-[12.5px] settings-text-label">{{ t('settings.enableDragging') }}</span>
           <button
             role="switch"
             :aria-checked="enableDragging"
             :aria-label="t('settings.enableDragging')"
             class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
-            :class="enableDragging ? 'bg-accent/80' : 'bg-white/20 hover:bg-white/30'"
+            :class="enableDragging ? 'settings-toggle-on' : 'settings-toggle-off'"
             @click="toggleDragging"
           >
             <span
@@ -260,7 +256,7 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
 
       <div class="settings-card">
         <div class="settings-card-row">
-          <span class="text-[12.5px] text-white/70">{{ t('settings.angleSnapStep') }}</span>
+          <span class="text-[12.5px] settings-text-label">{{ t('settings.angleSnapStep') }}</span>
           <div class="flex items-center gap-1.5 shrink-0">
             <button
               v-for="step in snapStepOptions"
@@ -278,13 +274,13 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
 
       <div class="settings-card">
         <div class="settings-card-row">
-          <span class="text-[12.5px] text-white/70">{{ t('settings.preserveDrawings') }}</span>
+          <span class="text-[12.5px] settings-text-label">{{ t('settings.preserveDrawings') }}</span>
           <button
             role="switch"
             :aria-checked="preserveDrawings"
             :aria-label="t('settings.preserveDrawings')"
             class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
-            :class="preserveDrawings ? 'bg-accent/80' : 'bg-white/20 hover:bg-white/30'"
+            :class="preserveDrawings ? 'settings-toggle-on' : 'settings-toggle-off'"
             @click="togglePreserveDrawings"
           >
             <span
@@ -298,13 +294,13 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
 
       <div class="settings-card">
         <div class="settings-card-row">
-          <span class="text-[12.5px] text-white/70">{{ t('settings.whiteboardPreserveDrawings') }}</span>
+          <span class="text-[12.5px] settings-text-label">{{ t('settings.whiteboardPreserveDrawings') }}</span>
           <button
             role="switch"
             :aria-checked="whiteboardPreserveDrawings"
             :aria-label="t('settings.whiteboardPreserveDrawings')"
             class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
-            :class="whiteboardPreserveDrawings ? 'bg-accent/80' : 'bg-white/20 hover:bg-white/30'"
+            :class="whiteboardPreserveDrawings ? 'settings-toggle-on' : 'settings-toggle-off'"
             @click="toggleWhiteboardPreserveDrawings"
           >
             <span

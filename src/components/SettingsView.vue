@@ -189,7 +189,7 @@ onUnmounted(() => {
             fill="currentColor"
           />
         </svg>
-        <span class="text-[13px] font-semibold text-white/85 tracking-wide leading-tight">MarkerOn</span>
+        <span class="text-[13px] font-semibold settings-text-brand tracking-wide leading-tight">MarkerOn</span>
       </div>
 
       <nav role="tablist" aria-orientation="vertical" class="flex flex-col gap-0.5 px-2">
@@ -200,11 +200,7 @@ onUnmounted(() => {
           :aria-selected="activeTab === tab.id"
           :aria-controls="`tabpanel-${tab.id}`"
           class="relative flex items-center gap-2 px-3 py-[7px] rounded-lg text-[12.5px] border-none cursor-pointer transition-all duration-120 overflow-hidden"
-          :class="
-            activeTab === tab.id
-              ? 'bg-white/10 text-white/90'
-              : 'bg-transparent text-white/40 hover:bg-white/5 hover:text-white/60'
-          "
+          :class="activeTab === tab.id ? 'settings-nav-item--active' : 'settings-nav-item'"
           @click="activeTab = tab.id"
         >
           <div
@@ -278,10 +274,10 @@ onUnmounted(() => {
     <div class="flex-1 bg-[#1e1e20] flex flex-col overflow-hidden">
       <div v-if="activeTab === 'shortcuts'" class="flex-1 flex flex-col px-7 py-6 overflow-y-auto settings-scroll">
         <div class="flex items-center gap-2 mb-4">
-          <h2 class="text-[14px] font-semibold text-white/75">{{ t('settings.shortcutsTitle') }}</h2>
+          <h2 class="text-[14px] font-semibold settings-text-title">{{ t('settings.shortcutsTitle') }}</h2>
           <div class="group relative flex items-center">
             <svg
-              class="w-[14px] h-[14px] text-white/30 cursor-help hover:text-white/60 transition-colors duration-200 outline-none"
+              class="w-[14px] h-[14px] settings-text-icon settings-text-icon-hover cursor-help transition-colors duration-200 outline-none"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -296,7 +292,7 @@ onUnmounted(() => {
             <div
               class="absolute left-full top-1/2 -translate-y-1/2 ml-2 mt-4 w-[248px] p-2.5 ui-tooltip rounded-[8px] opacity-0 scale-95 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none origin-left"
             >
-              <p class="text-[10.5px] text-white/75 leading-[1.6] m-0 text-left font-sans">
+              <p class="text-[10.5px] settings-text-tooltip leading-[1.6] m-0 text-left font-sans">
                 {{ t('settings.comboRequirement', { mod: modLabel }) }}
               </p>
             </div>
@@ -310,7 +306,7 @@ onUnmounted(() => {
             class="settings-card settings-card-row"
             :class="{ 'settings-card--active': capturing === action }"
           >
-            <span class="text-[12.5px] text-white/70">{{ label }}</span>
+            <span class="text-[12.5px] settings-text-label">{{ label }}</span>
 
             <div class="flex items-center gap-2">
               <template v-if="capturing === action">
@@ -318,7 +314,7 @@ onUnmounted(() => {
                   {{ capturedKeys || t('settings.pressComboHint') }}
                 </span>
                 <button
-                  class="px-2.5 py-[4px] rounded-md ui-btn-outline text-white/60 text-[11px] cursor-pointer"
+                  class="px-2.5 py-[4px] rounded-md ui-btn-outline settings-text-btn text-[11px] cursor-pointer"
                   @click="cancelCapture"
                 >
                   {{ t('settings.cancel') }}
@@ -329,7 +325,7 @@ onUnmounted(() => {
                   {{ shortcuts[action] }}
                 </kbd>
                 <button
-                  class="px-2.5 py-[4px] rounded-md ui-btn-outline text-white/70 text-[11px] cursor-pointer shadow-sm"
+                  class="px-2.5 py-[4px] rounded-md ui-btn-outline settings-text-btn-strong text-[11px] cursor-pointer shadow-sm"
                   @click="startCapture(action)"
                 >
                   {{ t('settings.edit') }}
@@ -347,9 +343,7 @@ onUnmounted(() => {
               <div
                 v-if="message"
                 class="px-3 py-1.5 rounded-[6px] text-[11.5px]"
-                :class="
-                  message.type === 'success' ? 'bg-emerald-500/10 text-emerald-400/80' : 'bg-red-500/10 text-red-400/80'
-                "
+                :class="message.type === 'success' ? 'settings-msg-success' : 'settings-msg-error'"
               >
                 {{ message.text }}
               </div>
@@ -357,7 +351,7 @@ onUnmounted(() => {
           </div>
 
           <button
-            class="px-3.5 py-[5px] rounded-[6px] ui-btn-outline ui-btn-outline--subtle text-white/60 text-[11.5px] cursor-pointer shadow-sm ml-auto"
+            class="px-3.5 py-[5px] rounded-[6px] ui-btn-outline ui-btn-outline--subtle settings-text-btn text-[11.5px] cursor-pointer shadow-sm ml-auto"
             @click="resetDefaults"
           >
             {{ t('settings.restoreDefaults') }}
@@ -380,12 +374,12 @@ onUnmounted(() => {
       />
 
       <div v-else-if="activeTab === 'help'" class="flex-1 flex flex-col px-7 py-6 overflow-y-auto help-scroll">
-        <h2 class="text-[14px] font-semibold text-white/75 mb-4">{{ t('help.basicUsage') }}</h2>
+        <h2 class="text-[14px] font-semibold settings-text-title mb-4">{{ t('help.basicUsage') }}</h2>
 
         <div class="flex flex-col gap-2">
           <!-- Intro card -->
           <div class="settings-card help-card">
-            <div class="px-4 py-3 text-[11.5px] text-white/50 leading-[1.8]">
+            <div class="px-4 py-3 text-[11.5px] settings-text-body leading-[1.8]">
               <p class="m-0" v-html="t('help.basicDesc1')" />
               <p class="m-0 mt-1" v-html="t('help.basicDesc2')" />
             </div>
@@ -581,15 +575,15 @@ onUnmounted(() => {
             <div class="help-card-header">{{ t('help.dragAndText') }}</div>
             <div class="help-rows">
               <div class="help-row help-row-block">
-                <span class="help-label text-white/60">{{ t('help.dragElement') }}</span>
+                <span class="help-label settings-text-label">{{ t('help.dragElement') }}</span>
                 <span class="help-desc">{{ t('help.dragDesc') }}</span>
               </div>
               <div class="help-row help-row-block">
-                <span class="help-label text-white/60">{{ t('help.editText') }}</span>
+                <span class="help-label settings-text-label">{{ t('help.editText') }}</span>
                 <span class="help-desc"><span v-html="t('help.editTextDesc')" /></span>
               </div>
               <div class="help-row help-row-block">
-                <span class="help-label text-white/60">{{ t('help.confirmText') }}</span>
+                <span class="help-label settings-text-label">{{ t('help.confirmText') }}</span>
                 <span class="help-desc"><span v-html="t('help.confirmTextDesc')" /></span>
               </div>
             </div>

@@ -152,11 +152,7 @@ onUnmounted(() => {
               :aria-label="`${tool.label} (${tool.key})`"
               :aria-pressed="currentTool === tool.id"
               class="flex flex-col items-center gap-[3px] pt-2 px-1 pb-1.5 border-none rounded-[10px] cursor-pointer relative transition-all duration-150"
-              :class="
-                currentTool === tool.id
-                  ? 'bg-accent/30 text-white shadow-[inset_0_0_0_1px_rgba(10,132,255,0.45)]'
-                  : 'overlay-tool-btn'
-              "
+              :class="currentTool === tool.id ? 'overlay-tool-btn--active' : 'overlay-tool-btn'"
               :title="`${tool.label} (${tool.key})`"
               @click="selectToolAndClose(tool.id)"
             >
@@ -206,7 +202,7 @@ onUnmounted(() => {
             </div>
           </div>
           <label
-            class="group inline-flex items-center gap-2.5 cursor-pointer py-1.5 pl-1.5 pr-2.5 rounded-lg mt-1.5 transition-[background] duration-120 hover:bg-white/6"
+            class="group inline-flex items-center gap-2.5 cursor-pointer py-1.5 pl-1.5 pr-2.5 rounded-lg mt-1.5 transition-[background] duration-120 settings-row-hover-strong"
           >
             <input
               type="color"
@@ -257,11 +253,7 @@ onUnmounted(() => {
               v-for="w in widths"
               :key="w.value"
               class="group flex-1 flex items-center justify-center h-8 border-none rounded-lg cursor-pointer transition-all duration-120"
-              :class="
-                lineWidth === w.value
-                  ? 'bg-accent/30 shadow-[inset_0_0_0_1px_rgba(10,132,255,0.45)]'
-                  : 'overlay-width-btn'
-              "
+              :class="lineWidth === w.value ? 'overlay-width-btn--active' : 'overlay-width-btn'"
               :title="w.label"
               @click="updateWidthAndClose(w.value)"
             >

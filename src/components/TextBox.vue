@@ -82,7 +82,7 @@ defineExpose({ commitText, getText, getFontSize })
 <template>
   <textarea
     ref="textareaRef"
-    class="fixed left-0 top-0 z-100002 px-0.5 py-0 border-none bg-transparent outline-none resize-none font-text overflow-hidden whitespace-pre min-w-[4px] max-w-[80vw] placeholder:text-white/25"
+    class="textbox-input fixed left-0 top-0 z-100002 px-0.5 py-0 border-none bg-transparent outline-none resize-none font-text overflow-hidden whitespace-pre min-w-[4px] max-w-[80vw]"
     :style="{
       transform: `translate(${x}px, ${y - Math.round(fs * 1.3) / 2}px)`,
       color: color,

@@ -1,3 +1,29 @@
+use std::borrow::Cow;
+
+use base64::Engine;
+
+#[tauri::command]
+pub fn copy_whiteboard(data_url: String) -> Result<(), String> {
+    let (_, encoded) = data_url
+        .split_once(',')
+        .ok_or_else(|| "Invalid data URL".to_string())?;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|e| format!("Failed to decode whiteboard image: {}", e))?;
+    let image = image::load_from_memory(&bytes)
+        .map_err(|e| format!("Failed to decode whiteboard PNG: {}", e))?
+        .to_rgba8();
+
+    let mut cb = arboard::Clipboard::new().map_err(|e| format!("{}", e))?;
+    cb.set_image(arboard::ImageData {
+        width: image.width() as usize,
+        height: image.height() as usize,
+        bytes: Cow::Owned(image.into_raw()),
+    })
+    .map_err(|e| format!("{}", e))?;
+    Ok(())
+}
+
 #[cfg(target_os = "windows")]
 #[tauri::command]
 pub fn copy_screen() -> Result<(), String> {

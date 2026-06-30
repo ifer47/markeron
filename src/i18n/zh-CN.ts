@@ -54,6 +54,9 @@ export default {
   overlay: {
     copiedToClipboard: '已复制到剪贴板',
     copyFailed: '复制失败',
+    whiteboardMode: '已进入白板模式',
+    whiteboardExit: '已退出白板模式',
+    whiteboardReady: '白板已就绪',
   },
   textBox: {
     placeholder: '输入文字...',

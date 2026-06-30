@@ -196,6 +196,7 @@ pub fn run() {
             commands::exit_drawing,
             commands::open_url,
             clipboard::copy_screen,
+            clipboard::copy_whiteboard,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

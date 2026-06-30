@@ -54,6 +54,9 @@ export default {
   overlay: {
     copiedToClipboard: 'Copied to clipboard',
     copyFailed: 'Copy failed',
+    whiteboardMode: 'Whiteboard mode enabled',
+    whiteboardExit: 'Exited whiteboard mode',
+    whiteboardReady: 'Whiteboard is ready',
   },
   textBox: {
     placeholder: 'Type here...',

@@ -30,6 +30,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 ctrlc = "3"
 xcap = "0.9"
 arboard = { version = "3", features = ["image-data"] }
+base64 = "0.22"
+image = { version = "0.25", default-features = false, features = ["png"] }
 
 [profile.release]
 opt-level = 3

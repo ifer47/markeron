@@ -11,6 +11,7 @@ function createContext(overrides: Partial<KeyboardContext> = {}): KeyboardContex
     quickColorsPos: ref({ x: 100, y: 100 }),
     textBoxPos: ref(null),
     currentTool: ref<Tool>('pen'),
+    whiteboardMode: ref(false),
     isDrawing: ref(false),
     lastPointerX: () => 200,
     lastPointerY: () => 200,
@@ -36,7 +37,10 @@ function createActions(): KeyboardActions & { calls: Record<string, unknown[][]>
     redo: make('redo') as KeyboardActions['redo'],
     clearAll: make('clearAll') as KeyboardActions['clearAll'],
     exitDrawing: make('exitDrawing') as KeyboardActions['exitDrawing'],
+    enterWhiteboardMode: make('enterWhiteboardMode') as KeyboardActions['enterWhiteboardMode'],
+    exitWhiteboardMode: make('exitWhiteboardMode') as KeyboardActions['exitWhiteboardMode'],
     copyScreen: make('copyScreen') as KeyboardActions['copyScreen'],
+    copyWhiteboard: make('copyWhiteboard') as KeyboardActions['copyWhiteboard'],
     setSettingsVisible: make('setSettingsVisible') as KeyboardActions['setSettingsVisible'],
     toggleSettingsVisible: make('toggleSettingsVisible') as KeyboardActions['toggleSettingsVisible'],
     commitCurrentTextBox: make('commitCurrentTextBox') as KeyboardActions['commitCurrentTextBox'],
@@ -155,12 +159,20 @@ describe('useOverlayKeyboard', () => {
       expect(actions.calls.exitDrawing).toHaveLength(1)
     })
 
+    it('Escape exits whiteboard mode when active', () => {
+      ctx.whiteboardMode.value = true
+      handler(key('Escape'))
+      expect(actions.calls.exitWhiteboardMode).toHaveLength(1)
+      expect(actions.calls.exitDrawing).toHaveLength(0)
+    })
+
     it('does not clear/exit when settings panel is open', () => {
       ctx.showSettings.value = true
       handler(key('Delete'))
       handler(key('Escape'))
       expect(actions.calls.clearAll).toHaveLength(0)
       expect(actions.calls.exitDrawing).toHaveLength(0)
+      expect(actions.calls.exitWhiteboardMode).toHaveLength(0)
     })
   })
 
@@ -198,6 +210,28 @@ describe('useOverlayKeyboard', () => {
       ctx.showSettings.value = true
       handler(key('c', { ctrlKey: true }))
       expect(actions.calls.copyScreen).toHaveLength(1)
+    })
+  })
+
+  describe('whiteboard copy', () => {
+    it('Ctrl+C copies whiteboard when whiteboard mode is active', () => {
+      ctx.whiteboardMode.value = true
+      handler(key('c', { ctrlKey: true }))
+      expect(actions.calls.copyWhiteboard).toHaveLength(1)
+      expect(actions.calls.copyScreen).toHaveLength(0)
+    })
+  })
+
+  describe('whiteboard mode', () => {
+    it('W enters whiteboard mode', () => {
+      handler(key('w'))
+      expect(actions.calls.enterWhiteboardMode).toHaveLength(1)
+    })
+
+    it('W exits whiteboard mode when already active', () => {
+      ctx.whiteboardMode.value = true
+      handler(key('w'))
+      expect(actions.calls.exitWhiteboardMode).toHaveLength(1)
     })
   })
 

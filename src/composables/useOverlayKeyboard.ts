@@ -11,6 +11,7 @@ export interface KeyboardContext {
   quickColorsPos: Ref<{ x: number; y: number }>
   textBoxPos: Ref<{ x: number; y: number } | null>
   currentTool: Ref<Tool>
+  whiteboardMode: Ref<boolean>
   isDrawing: Ref<boolean>
   lastPointerX: () => number
   lastPointerY: () => number
@@ -24,7 +25,10 @@ export interface KeyboardActions {
   redo: () => void
   clearAll: () => void
   exitDrawing: () => void
+  enterWhiteboardMode: () => void
+  exitWhiteboardMode: () => void
   copyScreen: () => void
+  copyWhiteboard: () => void
   setSettingsVisible: (visible: boolean) => void
   toggleSettingsVisible: () => void
   commitCurrentTextBox: (cancel?: boolean) => void
@@ -106,10 +110,24 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
       return
     }
 
-    // Copy screen
+    // Whiteboard mode toggle
+    if (e.key === 'w' || e.key === 'W') {
+      if (ctx.whiteboardMode.value) {
+        actions.exitWhiteboardMode()
+      } else {
+        actions.enterWhiteboardMode()
+      }
+      return
+    }
+
+    // Copy whiteboard / screen
     if (modDown(e) && !e.shiftKey && (e.key === 'c' || e.key === 'C')) {
       e.preventDefault()
-      actions.copyScreen()
+      if (ctx.whiteboardMode.value) {
+        actions.copyWhiteboard()
+      } else {
+        actions.copyScreen()
+      }
       return
     }
 
@@ -129,7 +147,11 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     } else if (e.key === 'Delete') {
       actions.clearAll()
     } else if (e.key === 'Escape') {
-      actions.exitDrawing()
+      if (ctx.whiteboardMode.value) {
+        actions.exitWhiteboardMode()
+      } else {
+        actions.exitDrawing()
+      }
     }
   }
 }

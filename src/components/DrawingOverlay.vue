@@ -33,6 +33,7 @@ const active = ref(false)
 const showSettings = ref(false)
 const mousePos = ref({ x: 0, y: 0 })
 const textBoxPos = ref<{ x: number; y: number } | null>(null)
+const whiteboardMode = ref(false)
 
 const toolLabelMap = computed<Record<Tool, string>>(() => ({
   pen: t('tools.pen'),
@@ -137,6 +138,7 @@ const {
   undo,
   redo,
   clearAll,
+  exportAsDataURL,
   hardReset,
   redrawAll,
   beginDrag,
@@ -155,6 +157,25 @@ const editingOriginalAction = shallowRef<DrawAction | null>(null)
 function setSettingsVisible(visible: boolean) {
   if (showSettings.value === visible) return
   showSettings.value = visible
+}
+
+function enterWhiteboardMode() {
+  if (whiteboardMode.value) return
+  whiteboardMode.value = true
+  showSettings.value = false
+  showQuickColors.value = false
+  textBoxPos.value = null
+  currentTool.value = 'pen'
+  showTip(t('overlay.whiteboardReady'))
+}
+
+function exitWhiteboardMode() {
+  if (!whiteboardMode.value) return
+  whiteboardMode.value = false
+  showSettings.value = false
+  showQuickColors.value = false
+  textBoxPos.value = null
+  showTip(t('overlay.whiteboardExit'))
 }
 
 function toggleSettingsVisible() {
@@ -404,6 +425,7 @@ const onKeyDown = createKeyDownHandler(
     quickColorsPos,
     textBoxPos,
     currentTool,
+    whiteboardMode,
     isDrawing,
     lastPointerX: () => lastPointerX,
     lastPointerY: () => lastPointerY,
@@ -416,7 +438,10 @@ const onKeyDown = createKeyDownHandler(
     redo,
     clearAll,
     exitDrawing,
+    enterWhiteboardMode,
+    exitWhiteboardMode,
     copyScreen,
+    copyWhiteboard,
     setSettingsVisible,
     toggleSettingsVisible,
     commitCurrentTextBox,
@@ -513,6 +538,9 @@ onMounted(async () => {
       showSettings.value = false
       showQuickColors.value = false
       textBoxPos.value = null
+      if (!isActive) {
+        whiteboardMode.value = false
+      }
       if (!preserveDrawings.value) {
         hardReset()
       }
@@ -549,43 +577,35 @@ onUnmounted(() => {
   destroy()
 })
 
-function hideOverlayUI(): HTMLElement[] {
-  const container = containerRef.value
-  if (!container) return []
-  const keep = new Set<Element>([historyCanvasRef.value!, previewCanvasRef.value!].filter(Boolean))
-  const hidden: HTMLElement[] = []
-  for (const child of Array.from(container.children)) {
-    const el = child as HTMLElement
-    if (keep.has(el)) continue
-    el.style.display = 'none'
-    hidden.push(el)
-  }
-  return hidden
-}
-
-function restoreOverlayUI(hidden: HTMLElement[]) {
-  for (const el of hidden) {
-    el.style.display = ''
-  }
-}
-
 let isCopying = false
 
 async function copyScreen() {
   if (isCopying) return
   isCopying = true
   try {
-    const hidden = hideOverlayUI()
-
     await nextTick()
     await new Promise<void>((resolve) => requestAnimationFrame(() => setTimeout(resolve, 50)))
-
     await invoke('copy_screen')
-
-    restoreOverlayUI(hidden)
     showTip(t('overlay.copiedToClipboard'))
   } catch (err) {
     console.error('Copy screen failed:', err)
+    showTip(t('overlay.copyFailed'))
+  } finally {
+    isCopying = false
+  }
+}
+
+async function copyWhiteboard() {
+  if (isCopying) return
+  const dataUrl = exportAsDataURL('#FFFFFF')
+  if (!dataUrl) return
+
+  isCopying = true
+  try {
+    await invoke('copy_whiteboard', { dataUrl })
+    showTip(t('overlay.copiedToClipboard'))
+  } catch (err) {
+    console.error('Copy whiteboard failed:', err)
     showTip(t('overlay.copyFailed'))
   } finally {
     isCopying = false
@@ -605,12 +625,13 @@ function exitDrawing() {
   <div
     ref="containerRef"
     class="fixed top-0 left-0 w-screen h-screen z-99999"
-    :class="active ? 'pointer-events-auto' : 'pointer-events-none'"
+    :class="[active ? 'pointer-events-auto' : 'pointer-events-none', whiteboardMode ? 'bg-white' : '']"
   >
     <canvas
       ref="historyCanvasRef"
       class="absolute top-0 left-0 w-full h-full pointer-events-none"
       style="contain: strict"
+      :style="whiteboardMode ? { backgroundColor: '#FFFFFF' } : undefined"
     />
     <canvas
       ref="previewCanvasRef"

@@ -91,6 +91,9 @@ export default {
     enableDraggingDesc: '开启后，可以通过鼠标拖动已经绘制的图形和文字。',
     preserveDrawings: '退出后保留标注',
     preserveDrawingsDesc: '开启后，退出标注模式时不会清除已有标注，下次进入将恢复上次的绘制内容。',
+    whiteboardPreserveDrawings: '按 W 切换时保留白板内容',
+    whiteboardPreserveDrawingsDesc:
+      '开启后，按 W 进入或退出白板模式时会保留当前白板内容；关闭后，每次切换白板都会从空白画布开始。',
     angleSnapStep: '吸附角度步进',
     angleSnapStepDesc: '按住 Alt 绘制直线时，选择吸附到的角度间隔。',
   },

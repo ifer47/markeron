@@ -146,6 +146,7 @@ async function resetDefaults() {
 const autoStartEnabled = ref(false)
 const enableDragging = ref(false)
 const preserveDrawings = ref(false)
+const whiteboardPreserveDrawings = ref(true)
 const angleSnapStep = ref<15 | 30 | 45>(15)
 
 let unlistenSwitchTab: (() => void) | null = null
@@ -155,6 +156,7 @@ onMounted(async () => {
   Object.assign(shortcuts, cfg.shortcuts)
   enableDragging.value = cfg.general?.enableDragging ?? false
   preserveDrawings.value = cfg.general?.preserveDrawings ?? false
+  whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
   angleSnapStep.value = (cfg.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15
   syncLocaleFromConfig(cfg.general?.locale)
   window.addEventListener('keydown', onKeyDown, true)
@@ -373,10 +375,12 @@ onUnmounted(() => {
         v-else-if="activeTab === 'general'"
         :enable-dragging="enableDragging"
         :preserve-drawings="preserveDrawings"
+        :whiteboard-preserve-drawings="whiteboardPreserveDrawings"
         :auto-start-enabled="autoStartEnabled"
         :angle-snap-step="angleSnapStep"
         @update:enable-dragging="enableDragging = $event"
         @update:preserve-drawings="preserveDrawings = $event"
+        @update:whiteboard-preserve-drawings="whiteboardPreserveDrawings = $event"
         @update:auto-start-enabled="autoStartEnabled = $event"
         @update:angle-snap-step="angleSnapStep = $event"
       />

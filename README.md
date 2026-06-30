@@ -39,6 +39,8 @@
 - **Intuitive panel** — press <kbd>Space</kbd> to toggle tools, colors, and stroke widths
 - **Full keyboard control** — every action has a shortcut, no menus needed
 - **Preserve drawings** — optionally keep annotations in memory after exiting, so you can resume where you left off
+- **Whiteboard mode** — press <kbd>W</kbd> to switch into a clean whiteboard workspace; whether drawings are preserved when toggling is configurable in Settings
+- **Whiteboard copy** — copy the whiteboard as an image with <kbd>Ctrl</kbd>/<kbd>Command</kbd> + <kbd>C</kbd>
 
 <table>
 <tr>
@@ -81,6 +83,7 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 | :--- | :--- | :--- |
 | Settings panel | <kbd>Space</kbd> | <kbd>Space</kbd> |
 | Copy screen | <kbd>Ctrl</kbd> + <kbd>C</kbd> | <kbd>Command</kbd> + <kbd>C</kbd> |
+| Whiteboard toggle | <kbd>W</kbd> | <kbd>W</kbd> |
 | Undo / Redo | <kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> | <kbd>Command</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> |
 | Stroke width | <kbd>Ctrl</kbd> + Scroll | <kbd>Command</kbd> + Scroll |
 | Clear all | <kbd>Delete</kbd> | <kbd>Delete</kbd> |
@@ -116,6 +119,14 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 | <kbd>Q</kbd> / <kbd>E</kbd> | Previous / Next color |
 | Right-click | Open quick color picker at cursor |
 
+#### Whiteboard Mode
+
+| Action | Effect |
+| :--- | :--- |
+| <kbd>W</kbd> | Toggle whiteboard mode |
+| <kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>Command</kbd> + <kbd>C</kbd> | Copy the current whiteboard as an image |
+| Settings | Control whether toggling whiteboard preserves the current drawings |
+
 #### Other
 
 | Action | Windows | macOS |
@@ -125,6 +136,14 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 | Switch window & exit | <kbd>Alt</kbd> + <kbd>Tab</kbd> | <kbd>Command</kbd> + <kbd>Tab</kbd> |
 
 </details>
+
+## Settings
+
+- **Preserve drawings on exit** — keep annotations in memory after exiting annotation mode
+- **Preserve whiteboard drawings on W toggle** — keep the current whiteboard content when pressing <kbd>W</kbd> to enter or exit whiteboard mode
+- **Allow dragging elements** — drag existing drawings and text when hovering over them
+- **Angle snap step** — choose the snap interval used while drawing straight lines with <kbd>Alt</kbd>
+- **Auto start** — launch the app automatically at system startup
 
 ## Development
 

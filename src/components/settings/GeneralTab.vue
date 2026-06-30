@@ -20,6 +20,7 @@ const snapStepOptions = [15, 30, 45] as const
 const props = defineProps<{
   enableDragging: boolean
   preserveDrawings: boolean
+  whiteboardPreserveDrawings: boolean
   autoStartEnabled: boolean
   angleSnapStep: 15 | 30 | 45
 }>()
@@ -27,6 +28,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:enableDragging': [value: boolean]
   'update:preserveDrawings': [value: boolean]
+  'update:whiteboardPreserveDrawings': [value: boolean]
   'update:autoStartEnabled': [value: boolean]
   'update:angleSnapStep': [value: 15 | 30 | 45]
 }>()
@@ -80,7 +82,12 @@ async function toggleDragging() {
   try {
     const cfg = await invoke<AppConfig>('get_config')
     if (!cfg.general)
-      cfg.general = { enableDragging: false, preserveDrawings: false, angleSnapStep: props.angleSnapStep }
+      cfg.general = {
+        enableDragging: false,
+        preserveDrawings: false,
+        whiteboardPreserveDrawings: true,
+        angleSnapStep: props.angleSnapStep,
+      }
     cfg.general.enableDragging = newValue
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
@@ -94,7 +101,12 @@ async function togglePreserveDrawings() {
   try {
     const cfg = await invoke<AppConfig>('get_config')
     if (!cfg.general)
-      cfg.general = { enableDragging: false, preserveDrawings: false, angleSnapStep: props.angleSnapStep }
+      cfg.general = {
+        enableDragging: false,
+        preserveDrawings: false,
+        whiteboardPreserveDrawings: true,
+        angleSnapStep: props.angleSnapStep,
+      }
     cfg.general.preserveDrawings = newValue
     cfg.general.angleSnapStep = props.angleSnapStep
     await invoke('save_general', { general: cfg.general })
@@ -103,12 +115,38 @@ async function togglePreserveDrawings() {
   }
 }
 
+async function toggleWhiteboardPreserveDrawings() {
+  const newValue = !props.whiteboardPreserveDrawings
+  emit('update:whiteboardPreserveDrawings', newValue)
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general)
+      cfg.general = {
+        enableDragging: false,
+        preserveDrawings: false,
+        whiteboardPreserveDrawings: true,
+        angleSnapStep: props.angleSnapStep,
+      }
+    cfg.general.whiteboardPreserveDrawings = newValue
+    cfg.general.angleSnapStep = props.angleSnapStep
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save whiteboard preserve drawings setting:', error)
+  }
+}
+
 async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
   if (step === props.angleSnapStep) return
   emit('update:angleSnapStep', step)
   try {
     const cfg = await invoke<AppConfig>('get_config')
-    if (!cfg.general) cfg.general = { enableDragging: false, preserveDrawings: false, angleSnapStep: step }
+    if (!cfg.general)
+      cfg.general = {
+        enableDragging: false,
+        preserveDrawings: false,
+        whiteboardPreserveDrawings: true,
+        angleSnapStep: step,
+      }
     cfg.general.angleSnapStep = step
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
@@ -278,6 +316,31 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
 
         <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
           {{ t('settings.preserveDrawingsDesc') }}
+        </p>
+      </div>
+
+      <div
+        class="flex flex-col gap-3 px-4 py-3.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10 transition-all duration-200"
+      >
+        <div class="flex items-center justify-between">
+          <span class="text-[12.5px] text-white/70">{{ t('settings.whiteboardPreserveDrawings') }}</span>
+          <button
+            role="switch"
+            :aria-checked="whiteboardPreserveDrawings"
+            :aria-label="t('settings.whiteboardPreserveDrawings')"
+            class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
+            :class="whiteboardPreserveDrawings ? 'bg-accent/80' : 'bg-white/20 hover:bg-white/30'"
+            @click="toggleWhiteboardPreserveDrawings"
+          >
+            <span
+              class="absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-md transition-transform duration-200"
+              :class="whiteboardPreserveDrawings ? 'translate-x-[14px]' : 'translate-x-0'"
+            />
+          </button>
+        </div>
+
+        <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
+          {{ t('settings.whiteboardPreserveDrawingsDesc') }}
         </p>
       </div>
     </div>

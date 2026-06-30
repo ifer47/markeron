@@ -93,6 +93,9 @@ export default {
     preserveDrawings: 'Preserve drawings on exit',
     preserveDrawingsDesc:
       'When enabled, annotations are kept in memory after exiting annotation mode. Re-entering will restore your previous drawings.',
+    whiteboardPreserveDrawings: 'Preserve whiteboard drawings on W toggle',
+    whiteboardPreserveDrawingsDesc:
+      'When enabled, pressing W to enter or exit whiteboard mode keeps the existing whiteboard content. Turn this off to start whiteboard mode with a clean canvas each time.',
     angleSnapStep: 'Angle snap step',
     angleSnapStepDesc: 'Choose how far straight lines snap while holding Alt.',
   },

@@ -24,6 +24,8 @@ pub struct GeneralConfig {
     pub locale: Option<String>,
     #[serde(default, rename = "preserveDrawings")]
     pub preserve_drawings: bool,
+    #[serde(default, rename = "whiteboardPreserveDrawings")]
+    pub whiteboard_preserve_drawings: bool,
     #[serde(default = "default_angle_snap_step", rename = "angleSnapStep")]
     pub angle_snap_step: u16,
 }
@@ -34,6 +36,7 @@ impl Default for GeneralConfig {
             enable_dragging: false,
             locale: None,
             preserve_drawings: false,
+            whiteboard_preserve_drawings: true,
             angle_snap_step: default_angle_snap_step(),
         }
     }
@@ -183,6 +186,10 @@ mod tests {
             config.general.preserve_drawings
         );
         assert_eq!(
+            parsed.general.whiteboard_preserve_drawings,
+            config.general.whiteboard_preserve_drawings
+        );
+        assert_eq!(
             parsed.general.angle_snap_step,
             config.general.angle_snap_step
         );
@@ -199,6 +206,7 @@ mod tests {
                 "enableDragging": true,
                 "locale": "zh-CN",
                 "preserveDrawings": true,
+                "whiteboardPreserveDrawings": false,
                 "angleSnapStep": 30
             }
         }"#;
@@ -208,6 +216,7 @@ mod tests {
         assert!(config.general.enable_dragging);
         assert_eq!(config.general.locale, Some("zh-CN".to_string()));
         assert!(config.general.preserve_drawings);
+        assert!(!config.general.whiteboard_preserve_drawings);
         assert_eq!(config.general.angle_snap_step, 30);
     }
 
@@ -223,6 +232,7 @@ mod tests {
         assert!(!config.general.enable_dragging);
         assert_eq!(config.general.locale, None);
         assert!(!config.general.preserve_drawings);
+        assert_eq!(config.general.whiteboard_preserve_drawings, true);
         assert_eq!(config.general.angle_snap_step, 15);
     }
 

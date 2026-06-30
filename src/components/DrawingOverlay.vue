@@ -161,6 +161,9 @@ function setSettingsVisible(visible: boolean) {
 
 function enterWhiteboardMode() {
   if (whiteboardMode.value) return
+  if (!whiteboardPreserveDrawings.value) {
+    hardReset()
+  }
   whiteboardMode.value = true
   showSettings.value = false
   showQuickColors.value = false
@@ -175,6 +178,9 @@ function exitWhiteboardMode() {
   showSettings.value = false
   showQuickColors.value = false
   textBoxPos.value = null
+  if (!whiteboardPreserveDrawings.value) {
+    hardReset()
+  }
   showTip(t('overlay.whiteboardExit'))
 }
 
@@ -186,6 +192,7 @@ const hoveredActionInfo = shallowRef<{ action: DrawAction; index: number } | nul
 const isMoving = ref(false)
 const enableDragging = ref(false)
 const preserveDrawings = ref(false)
+const whiteboardPreserveDrawings = ref(true)
 let hoverRafId: number | null = null
 let isDragging = false
 let dragStartX = 0
@@ -527,6 +534,7 @@ onMounted(async () => {
     await listen<AppConfig>('config-changed', (event) => {
       enableDragging.value = event.payload.general?.enableDragging ?? false
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
+      whiteboardPreserveDrawings.value = event.payload.general?.whiteboardPreserveDrawings ?? true
       setAngleSnapStep((event.payload.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15)
     }),
   )
@@ -546,6 +554,9 @@ onMounted(async () => {
       }
       if (isActive) {
         currentTool.value = 'pen'
+        if (whiteboardMode.value && !whiteboardPreserveDrawings.value) {
+          hardReset()
+        }
         nextTick(() => resizeCanvas())
       }
     }),

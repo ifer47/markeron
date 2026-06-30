@@ -38,6 +38,8 @@
 - **直观面板** — 按 <kbd>Space</kbd> 呼出，工具 / 颜色 / 线宽一站式调整
 - **全键盘操控** — 每个操作都有快捷键，无需菜单
 - **保留标注** — 退出标注模式后可保留绘制内容，下次进入自动恢复
+- **白板模式** — 按 <kbd>W</kbd> 可切换到干净的白板工作区；是否在切换时保留绘制内容可在设置中配置
+- **白板复制** — 在白板模式下按 <kbd>Ctrl</kbd>/<kbd>Command</kbd> + <kbd>C</kbd> 可复制当前白板为图片
 
 <table>
 <tr>
@@ -80,6 +82,7 @@ MarkerOn 基于 Rust + Canvas 构建，安装包仅 ~1.5 MB，运行时内存占
 | :--- | :--- | :--- |
 | 呼出设置面板 | <kbd>Space</kbd> | <kbd>Space</kbd> |
 | 复制屏幕 | <kbd>Ctrl</kbd> + <kbd>C</kbd> | <kbd>Command</kbd> + <kbd>C</kbd> |
+| 白板模式切换 | <kbd>W</kbd> | <kbd>W</kbd> |
 | 撤销 / 重做 | <kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> | <kbd>Command</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> |
 | 调整线宽 | <kbd>Ctrl</kbd> + 滚轮 | <kbd>Command</kbd> + 滚轮 |
 | 清除全部 | <kbd>Delete</kbd> | <kbd>Delete</kbd> |
@@ -115,6 +118,14 @@ MarkerOn 基于 Rust + Canvas 构建，安装包仅 ~1.5 MB，运行时内存占
 | <kbd>Q</kbd> / <kbd>E</kbd> | 上一个 / 下一个颜色 |
 | 鼠标右键 | 在光标处弹出快速选色盘 |
 
+#### 白板模式
+
+| 操作 | 功能 |
+| :--- | :--- |
+| <kbd>W</kbd> | 切换白板模式 |
+| <kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>Command</kbd> + <kbd>C</kbd> | 将当前白板复制为图片 |
+| 设置项 | 控制按 <kbd>W</kbd> 切换时是否保留当前绘制内容 |
+
 #### 其他
 
 | 功能 | Windows | macOS |
@@ -124,6 +135,14 @@ MarkerOn 基于 Rust + Canvas 构建，安装包仅 ~1.5 MB，运行时内存占
 | 切换窗口并退出 | <kbd>Alt</kbd> + <kbd>Tab</kbd> | <kbd>Command</kbd> + <kbd>Tab</kbd> |
 
 </details>
+
+## 设置
+
+- **退出后保留标注** — 退出标注模式时保留绘制内容
+- **按 W 切换时保留白板内容** — 按 <kbd>W</kbd> 进入或退出白板模式时保留当前内容
+- **允许拖拽已有元素** — 悬停在已有绘制内容上时可直接拖动
+- **吸附角度步进** — 设置按住 <kbd>Alt</kbd> 绘制直线时的吸附角度间隔
+- **开机自动启动** — 系统启动时自动在后台运行
 
 ## 开发构建
 

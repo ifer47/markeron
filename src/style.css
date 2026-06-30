@@ -245,3 +245,122 @@
 .color-dot-ring {
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
+
+/* Overlay panel typography — explicit rgba avoids macOS WebKit opacity text issues */
+.overlay-text-section {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.overlay-text-hint {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.overlay-text-label {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.overlay-text-body {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.overlay-text-secondary {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.overlay-text-separator {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.overlay-text-caption {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.overlay-text-key {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.overlay-text-key--active {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.overlay-tool-btn {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.overlay-tool-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+}
+
+.overlay-width-btn {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.overlay-width-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.overlay-width-line {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+
+.overlay-width-line--active {
+  background-color: #ffffff;
+}
+
+.overlay-panel .ui-kbd {
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.platform-macos .overlay-text-section {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+html.platform-macos .overlay-text-hint {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+html.platform-macos .overlay-text-label {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+html.platform-macos .overlay-text-body {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+html.platform-macos .overlay-text-secondary {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+html.platform-macos .overlay-text-separator {
+  color: rgba(255, 255, 255, 0.52);
+}
+
+html.platform-macos .overlay-text-caption {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+html.platform-macos .overlay-text-key {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+html.platform-macos .overlay-text-key--active {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+html.platform-macos .overlay-tool-btn {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+html.platform-macos .overlay-panel .ui-kbd {
+  color: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+html.platform-macos .overlay-width-line {
+  background-color: rgba(255, 255, 255, 0.55);
+}

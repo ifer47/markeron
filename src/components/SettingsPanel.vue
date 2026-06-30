@@ -140,10 +140,10 @@ onUnmounted(() => {
         <!-- Tools -->
         <div class="px-3.5 pt-1 pb-2.5">
           <div class="flex items-center justify-between mb-2 cursor-default" @mousedown="startDrag">
-            <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{
+            <span class="text-[11px] font-semibold overlay-text-section tracking-[0.5px] font-sans">{{
               t('panel.tools')
             }}</span>
-            <span class="text-[10px] text-white/20 font-sans">{{ t('panel.toolsHint') }}</span>
+            <span class="text-[10px] overlay-text-hint font-sans">{{ t('panel.toolsHint') }}</span>
           </div>
           <div class="grid grid-cols-4 gap-1">
             <button
@@ -155,7 +155,7 @@ onUnmounted(() => {
               :class="
                 currentTool === tool.id
                   ? 'bg-accent/30 text-white shadow-[inset_0_0_0_1px_rgba(10,132,255,0.45)]'
-                  : 'bg-white/4 text-white/70 hover:bg-white/10 hover:text-white'
+                  : 'overlay-tool-btn'
               "
               :title="`${tool.label} (${tool.key})`"
               @click="selectToolAndClose(tool.id)"
@@ -164,7 +164,7 @@ onUnmounted(() => {
               <span class="text-[10px] leading-none font-sans">{{ tool.label }}</span>
               <span
                 class="absolute top-[3px] right-[5px] text-[8px] font-sans"
-                :class="currentTool === tool.id ? 'text-white/60' : 'text-white/40'"
+                :class="currentTool === tool.id ? 'overlay-text-key--active' : 'overlay-text-key'"
                 >{{ tool.key }}</span
               >
             </button>
@@ -174,7 +174,7 @@ onUnmounted(() => {
         <!-- Colors -->
         <div class="px-3.5 py-2.5 ui-divider-h">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{
+            <span class="text-[11px] font-semibold overlay-text-section tracking-[0.5px] font-sans">{{
               t('panel.colors')
             }}</span>
           </div>
@@ -241,14 +241,14 @@ onUnmounted(() => {
                 >+</span
               >
             </span>
-            <span class="text-[11px] text-white/50 font-sans">{{ t('panel.customColor') }}</span>
+            <span class="text-[11px] overlay-text-label font-sans">{{ t('panel.customColor') }}</span>
           </label>
         </div>
 
         <!-- Stroke width -->
         <div class="px-3.5 py-2.5 ui-divider-h">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{
+            <span class="text-[11px] font-semibold overlay-text-section tracking-[0.5px] font-sans">{{
               t('panel.strokeWidth')
             }}</span>
           </div>
@@ -260,16 +260,16 @@ onUnmounted(() => {
               :class="
                 lineWidth === w.value
                   ? 'bg-accent/30 shadow-[inset_0_0_0_1px_rgba(10,132,255,0.45)]'
-                  : 'bg-white/4 hover:bg-white/10'
+                  : 'overlay-width-btn'
               "
               :title="w.label"
               @click="updateWidthAndClose(w.value)"
             >
               <span
                 class="w-[70%] rounded-full transition-transform duration-120 group-hover:scale-x-110"
+                :class="lineWidth === w.value ? 'overlay-width-line--active' : 'overlay-width-line'"
                 :style="{
                   height: Math.max(1.5, w.value * 1.2) + 'px',
-                  backgroundColor: lineWidth === w.value ? '#ffffff' : 'rgba(255,255,255,0.4)',
                 }"
               />
             </button>
@@ -279,40 +279,46 @@ onUnmounted(() => {
         <!-- Shortcut hints -->
         <div class="flex flex-col gap-1.5 pt-3 px-3.5 pb-3 ui-divider-h">
           <div class="flex items-center justify-between text-[10.5px] font-sans">
-            <span class="flex items-center gap-1.5 text-white/45">
+            <span class="flex items-center gap-1.5 overlay-text-body">
               <kbd class="ui-kbd">{{ modKeyLabel }}</kbd>
-              <span class="text-white/30 text-[10px]">+</span>
+              <span class="overlay-text-separator text-[10px]">+</span>
               <span>{{ t('panel.drag') }}</span>
             </span>
-            <span class="text-white/50 text-[10.5px] text-right min-w-[48px]">{{ t('panel.rectShape') }}</span>
+            <span class="overlay-text-secondary text-[10.5px] text-right min-w-[48px]">{{ t('panel.rectShape') }}</span>
           </div>
           <div class="flex items-center justify-between text-[10.5px] font-sans">
-            <span class="flex items-center gap-1.5 text-white/45">
+            <span class="flex items-center gap-1.5 overlay-text-body">
               <kbd class="ui-kbd">Shift</kbd>
-              <span class="text-white/30 text-[10px]">+</span>
+              <span class="overlay-text-separator text-[10px]">+</span>
               <span>{{ t('panel.drag') }}</span>
             </span>
-            <span class="text-white/50 text-[10.5px] text-right min-w-[48px]">{{ t('panel.ellipseShape') }}</span>
+            <span class="overlay-text-secondary text-[10.5px] text-right min-w-[48px]">{{
+              t('panel.ellipseShape')
+            }}</span>
           </div>
           <div class="flex items-center justify-between text-[10.5px] font-sans">
-            <span class="flex items-center gap-1.5 text-white/45">
+            <span class="flex items-center gap-1.5 overlay-text-body">
               <kbd class="ui-kbd">{{ modKeyLabel }}</kbd>
-              <span class="text-white/30 text-[10px]">+</span>
+              <span class="overlay-text-separator text-[10px]">+</span>
               <kbd class="ui-kbd">Shift</kbd>
-              <span class="text-white/30 text-[10px]">+</span>
+              <span class="overlay-text-separator text-[10px]">+</span>
               <span>{{ t('panel.drag') }}</span>
             </span>
-            <span class="text-white/50 text-[10.5px] text-right min-w-[48px]">{{ t('panel.arrowShape') }}</span>
+            <span class="overlay-text-secondary text-[10.5px] text-right min-w-[48px]">{{
+              t('panel.arrowShape')
+            }}</span>
           </div>
           <div class="flex items-center justify-between text-[10.5px] font-sans">
-            <span class="flex items-center gap-1.5 text-white/45">
+            <span class="flex items-center gap-1.5 overlay-text-body">
               <kbd class="ui-kbd">Q</kbd>
-              <span class="text-white/30 text-[10px]">/</span>
+              <span class="overlay-text-separator text-[10px]">/</span>
               <kbd class="ui-kbd">E</kbd>
-              <span class="text-white/30 text-[10px]">/</span>
+              <span class="overlay-text-separator text-[10px]">/</span>
               <span>{{ t('panel.rightClick') }}</span>
             </span>
-            <span class="text-white/50 text-[10.5px] text-right min-w-[48px]">{{ t('panel.switchColor') }}</span>
+            <span class="overlay-text-secondary text-[10.5px] text-right min-w-[48px]">{{
+              t('panel.switchColor')
+            }}</span>
           </div>
         </div>
       </div>

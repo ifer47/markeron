@@ -877,7 +877,7 @@ function exitDrawing() {
             </button>
           </div>
           <div class="flex items-center justify-center gap-3 mt-1.5 pt-1.5 ui-divider-h">
-            <span class="text-[10px] text-white/50 font-sans tracking-wider">{{ t('panel.colorSwitch') }}</span>
+            <span class="text-[10px] overlay-text-caption font-sans tracking-wider">{{ t('panel.colorSwitch') }}</span>
           </div>
         </div>
       </div>

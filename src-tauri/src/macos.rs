@@ -1,5 +1,5 @@
+use tauri::window::Color;
 use tauri::{AppHandle, Manager, TitleBarStyle, Theme, WebviewWindow};
-use tauri_utils::config::Color;
 
 const SETTINGS_BG: Color = Color(30, 30, 32, 255);
 

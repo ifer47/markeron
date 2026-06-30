@@ -179,7 +179,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="flex h-screen w-screen font-text text-white select-none overflow-hidden">
+  <div class="flex h-full w-full font-text text-white select-none overflow-hidden">
     <!-- Sidebar -->
     <div class="w-[154px] shrink-0 bg-[#161618] flex flex-col border-r border-white/5">
       <div class="flex items-center gap-2.5 px-4 pt-5 pb-5">

@@ -33,6 +33,9 @@ arboard = { version = "3", features = ["image-data"] }
 base64 = "0.22"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+
 [profile.release]
 opt-level = 3
 lto = true

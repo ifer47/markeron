@@ -16,16 +16,19 @@
 
   html.settings,
   html.settings body {
+    height: 100%;
     background: #1e1e20 !important;
+    color-scheme: dark;
   }
 
   #app {
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     background: transparent;
   }
 
   html.settings #app {
+    height: 100%;
     background: #1e1e20;
   }
 
@@ -38,4 +41,12 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+/* macOS transparent overlay: avoid white bleed at rounded corners */
+.overlay-panel-surface {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  isolation: isolate;
+  contain: paint;
 }

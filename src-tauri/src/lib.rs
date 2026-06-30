@@ -5,6 +5,8 @@ mod error;
 mod i18n;
 mod monitor;
 mod shortcuts;
+#[cfg(target_os = "macos")]
+mod macos;
 #[cfg(target_os = "windows")]
 mod win32;
 
@@ -155,8 +157,15 @@ fn open_settings_tab(app: &AppHandle, tab: Option<&str>) {
         .center()
         .visible(true);
 
-    if let Err(e) = builder.build() {
-        warn!("Failed to open settings window: {}", e);
+    #[cfg(target_os = "macos")]
+    let builder = macos::style_settings_builder(builder);
+
+    match builder.build() {
+        #[cfg(target_os = "macos")]
+        Ok(window) => macos::configure_settings_window(&window),
+        #[cfg(not(target_os = "macos"))]
+        Ok(_) => {}
+        Err(e) => warn!("Failed to open settings window: {}", e),
     }
 }
 
@@ -212,6 +221,9 @@ pub fn run() {
             }
 
             setup_overlay_size(&handle);
+
+            #[cfg(target_os = "macos")]
+            macos::configure_overlay_window(&handle);
 
             rebuild_tray_menu(&handle).ok();
 

@@ -847,7 +847,7 @@ function exitDrawing() {
         @contextmenu.prevent="showQuickColors = false"
       >
         <div
-          class="absolute bg-[rgba(30,30,32,0.97)] rounded-xl border border-white/8 shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-2.5 select-none"
+          class="overlay-panel-surface absolute bg-[#1e1e20] rounded-xl border border-white/8 shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-2.5 select-none overflow-hidden"
           :style="quickColorsPanelStyle"
           @mousedown.stop
         >

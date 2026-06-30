@@ -1,0 +1,53 @@
+---
+description: Cross-platform UI styling for Tauri (macOS WebKit vs Windows WebView2). Use when editing Vue/CSS in src/.
+globs: src/**/*.{vue,css}
+alwaysApply: false
+---
+
+# Cross-Platform UI Styles (Tauri)
+
+## Root cause
+
+macOS uses **WKWebView (WebKit)**; Windows uses **WebView2 (Chromium)**. Tailwind opacity modifiers (`/5`, `/45`, `/70`, etc.) composite differently on WebKit:
+
+| Pattern | macOS symptom | Windows |
+|---------|---------------|---------|
+| `border-white/5`, `border-white/8` | Thick white borders | Subtle border |
+| `text-white/45`, `text-white/70` | Text too faint | Correct contrast |
+| `bg-white/10`, `bg-white/4` | Background nearly invisible | Visible highlight |
+| `text-green-400/70`, `bg-accent/30` | Color washed out / grey | Correct color |
+
+Solid utilities (`text-white`, `bg-[#1e1e20]`, `text-accent`) are safe.
+
+## Rules
+
+1. **Do not** use Tailwind opacity classes for borders, text, or backgrounds in Vue templates.
+   - Avoid: `border-white/*`, `text-white/*`, `bg-white/*`, `border-accent/*`, `bg-accent/*`, `text-green-*/*`, `bg-emerald-*/*`
+2. **Do** use semantic classes from `src/style.css`:
+   - Settings: `settings-text-*`, `settings-nav-item*`, `settings-toggle-*`, `settings-card`, `ui-divider-*`
+   - Overlay panels: `overlay-panel`, `overlay-text-*`, `overlay-tool-btn*`, `ui-kbd`, `color-swatch-ring`
+3. **New styles**: add reusable class in `style.css` with explicit `rgba()` — do not inline Tailwind opacity in components.
+4. **Mac-only tweaks**: use `html.platform-macos` in CSS only when Windows already looks correct and Mac needs a boost (overlay text).
+5. **Transparent windows**: keep `overlay-panel-surface`; set window background via Tauri (`macos.rs`), not only CSS.
+
+## Before commit (frontend UI changes)
+
+```bash
+# Should return no matches in components (style.css may define rgba equivalents)
+rg "border-white/|text-white/|bg-white/|bg-accent/|text-accent/|text-green-|bg-emerald-" src/components
+```
+
+Test on **both** macOS and Windows when changing settings window or overlay UI.
+
+## Quick mapping
+
+| Instead of | Use |
+|------------|-----|
+| `text-white/70` | `settings-text-label` |
+| `text-white/45` | `settings-text-muted` or `overlay-text-section` |
+| `bg-white/10` + active nav | `settings-nav-item--active` |
+| `border-white/5` | `ui-divider-h` / `settings-card` border |
+| `text-green-400/70` | `settings-status-success` |
+| `bg-accent/80` toggle on | `settings-toggle-on` |
+
+See `.cursor/skills/cross-platform-tauri-ui/SKILL.md` for full class list and overlay/macOS window notes.

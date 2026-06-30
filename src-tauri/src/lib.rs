@@ -60,15 +60,34 @@ fn setup_overlay_size(app: &AppHandle) {
         } else if let Some(mon) = app.primary_monitor().ok().flatten() {
             let size = mon.size();
             let pos = mon.position();
-            window
-                .set_size(tauri::PhysicalSize::new(
-                    size.width,
-                    size.height.saturating_sub(1),
-                ))
-                .ok();
-            window
-                .set_position(tauri::PhysicalPosition::new(pos.x, pos.y))
-                .ok();
+            #[cfg(target_os = "macos")]
+            {
+                let scale = mon.scale_factor();
+                window
+                    .set_size(tauri::LogicalSize::new(
+                        size.width as f64 / scale,
+                        size.height as f64 / scale,
+                    ))
+                    .ok();
+                window
+                    .set_position(tauri::LogicalPosition::new(
+                        pos.x as f64 / scale,
+                        pos.y as f64 / scale,
+                    ))
+                    .ok();
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                window
+                    .set_size(tauri::PhysicalSize::new(
+                        size.width,
+                        size.height.saturating_sub(1),
+                    ))
+                    .ok();
+                window
+                    .set_position(tauri::PhysicalPosition::new(pos.x, pos.y))
+                    .ok();
+            }
         }
         window.set_ignore_cursor_events(true).ok();
     }

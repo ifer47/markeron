@@ -22,18 +22,7 @@ pub fn configure_overlay_window(app: &AppHandle) {
         return;
     };
 
+    // Use Tauri's API only. Wry already disables WKWebView's white background for
+    // transparent windows; calling Objective-C selectors on WryWebView will crash.
     window.set_background_color(Some(Color(0, 0, 0, 0))).ok();
-
-    window
-        .with_webview(|webview| {
-            use objc2::msg_send;
-            use objc2::runtime::AnyObject;
-
-            unsafe {
-                let view = webview.inner() as *mut AnyObject;
-                let _: () = msg_send![view, setDrawsBackground: false];
-                let _: () = msg_send![view, setOpaque: false];
-            }
-        })
-        .ok();
 }

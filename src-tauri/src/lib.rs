@@ -3,10 +3,10 @@ mod commands;
 mod config;
 mod error;
 mod i18n;
-mod monitor;
-mod shortcuts;
 #[cfg(target_os = "macos")]
 mod macos;
+mod monitor;
+mod shortcuts;
 #[cfg(target_os = "windows")]
 mod win32;
 

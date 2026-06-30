@@ -31,8 +31,8 @@ pub fn configure_overlay_window(app: &AppHandle) {
 
             unsafe {
                 let view = webview.inner() as *mut AnyObject;
-                let _: () = msg_send![view, setDrawsBackground, false];
-                let _: () = msg_send![view, setOpaque, false];
+                let _: () = msg_send![view, setDrawsBackground: false];
+                let _: () = msg_send![view, setOpaque: false];
             }
         })
         .ok();

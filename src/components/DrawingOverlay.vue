@@ -825,7 +825,7 @@ function exitDrawing() {
       >
         <span
           v-if="toolTipColor"
-          class="w-4 h-4 rounded-full border border-white/20 shrink-0"
+          class="w-4 h-4 rounded-full color-dot-ring shrink-0"
           :style="{ backgroundColor: toolTipColor }"
         />
         <span
@@ -847,7 +847,7 @@ function exitDrawing() {
         @contextmenu.prevent="showQuickColors = false"
       >
         <div
-          class="overlay-panel-surface absolute bg-[#1e1e20] rounded-xl border border-white/8 shadow-[0_8px_32px_rgba(0,0,0,0.4)] p-2.5 select-none overflow-hidden"
+          class="overlay-panel-surface overlay-panel overlay-panel--compact absolute p-2.5"
           :style="quickColorsPanelStyle"
           @mousedown.stop
         >
@@ -860,12 +860,8 @@ function exitDrawing() {
               @click="selectQuickColor(color)"
             >
               <span
-                class="w-[22px] h-[22px] rounded-full border-[1.5px] transition-[border-color] duration-100"
-                :class="
-                  currentColor === color
-                    ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.1)]'
-                    : 'border-white/10'
-                "
+                class="w-[22px] h-[22px] rounded-full color-swatch-ring color-swatch-ring--compact transition-[border-color] duration-100"
+                :class="{ 'color-swatch-ring--active': currentColor === color }"
                 :style="{ backgroundColor: color }"
               />
               <span
@@ -880,7 +876,7 @@ function exitDrawing() {
               >
             </button>
           </div>
-          <div class="flex items-center justify-center gap-3 mt-1.5 pt-1.5 border-t border-white/5">
+          <div class="flex items-center justify-center gap-3 mt-1.5 pt-1.5 ui-divider-h">
             <span class="text-[10px] text-white/50 font-sans tracking-wider">{{ t('panel.colorSwitch') }}</span>
           </div>
         </div>

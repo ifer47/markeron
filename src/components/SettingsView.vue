@@ -181,7 +181,7 @@ onUnmounted(() => {
 <template>
   <div class="flex h-full w-full font-text text-white select-none overflow-hidden">
     <!-- Sidebar -->
-    <div class="w-[154px] shrink-0 bg-[#161618] flex flex-col border-r border-white/5">
+    <div class="w-[154px] shrink-0 bg-[#161618] flex flex-col ui-divider-v">
       <div class="flex items-center gap-2.5 px-4 pt-5 pb-5">
         <svg class="w-7 h-7 shrink-0" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
           <path
@@ -294,7 +294,7 @@ onUnmounted(() => {
               <path d="M12 8h.01"></path>
             </svg>
             <div
-              class="absolute left-full top-1/2 -translate-y-1/2 ml-2 mt-4 w-[248px] p-2.5 bg-[#2a2a2c] border border-white/10 rounded-[8px] shadow-[0_4px_24px_rgba(0,0,0,0.4)] opacity-0 scale-95 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none origin-left"
+              class="absolute left-full top-1/2 -translate-y-1/2 ml-2 mt-4 w-[248px] p-2.5 ui-tooltip rounded-[8px] opacity-0 scale-95 invisible group-hover:opacity-100 group-hover:scale-100 group-hover:visible transition-all duration-200 z-50 pointer-events-none origin-left"
             >
               <p class="text-[10.5px] text-white/75 leading-[1.6] m-0 text-left font-sans">
                 {{ t('settings.comboRequirement', { mod: modLabel }) }}
@@ -318,20 +318,18 @@ onUnmounted(() => {
                   {{ capturedKeys || t('settings.pressComboHint') }}
                 </span>
                 <button
-                  class="px-2.5 py-[4px] rounded-md bg-white/10 text-white/60 text-[11px] border border-white/10 cursor-pointer hover:bg-white/20 hover:text-white transition-colors duration-120"
+                  class="px-2.5 py-[4px] rounded-md ui-btn-outline text-white/60 text-[11px] cursor-pointer"
                   @click="cancelCapture"
                 >
                   {{ t('settings.cancel') }}
                 </button>
               </template>
               <template v-else>
-                <kbd
-                  class="inline-flex items-center px-2 py-[3px] rounded-[5px] bg-white/5 border border-white/10 text-[11px] text-white/50 font-mono tracking-wider shadow-sm"
-                >
+                <kbd class="ui-kbd--shortcut">
                   {{ shortcuts[action] }}
                 </kbd>
                 <button
-                  class="px-2.5 py-[4px] rounded-md bg-white/10 text-white/70 text-[11px] border border-white/10 cursor-pointer hover:bg-white/20 hover:text-white transition-colors duration-120 shadow-sm"
+                  class="px-2.5 py-[4px] rounded-md ui-btn-outline text-white/70 text-[11px] cursor-pointer shadow-sm"
                   @click="startCapture(action)"
                 >
                   {{ t('settings.edit') }}
@@ -359,7 +357,7 @@ onUnmounted(() => {
           </div>
 
           <button
-            class="px-3.5 py-[5px] rounded-[6px] bg-white/4 border border-white/10 text-white/60 text-[11.5px] cursor-pointer hover:bg-white/10 hover:text-white transition-all duration-120 shadow-sm ml-auto"
+            class="px-3.5 py-[5px] rounded-[6px] ui-btn-outline ui-btn-outline--subtle text-white/60 text-[11.5px] cursor-pointer shadow-sm ml-auto"
             @click="resetDefaults"
           >
             {{ t('settings.restoreDefaults') }}

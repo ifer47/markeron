@@ -165,7 +165,7 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
           <span class="text-[12.5px] text-white/70">{{ t('settings.language') }}</span>
           <div ref="localeDropdownRef" class="relative">
             <button
-              class="flex items-center gap-1.5 px-3 py-[5px] rounded-md bg-white/6 border border-white/8 text-[12px] text-white/75 cursor-pointer outline-none hover:bg-white/10 hover:border-white/15 transition-all duration-150"
+              class="flex items-center gap-1.5 px-3 py-[5px] rounded-md ui-select text-[12px] text-white/75 cursor-pointer outline-none"
               @click="toggleLocaleDropdown"
             >
               {{ localeLabels[locale.locale] || locale.locale }}
@@ -185,7 +185,7 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
             <Transition name="dropdown">
               <div
                 v-if="localeOpen"
-                class="absolute right-0 top-full mt-1 min-w-[120px] py-1 rounded-lg bg-[#2a2a2c] border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-50 overflow-hidden"
+                class="absolute right-0 top-full mt-1 min-w-[120px] py-1 rounded-lg ui-popover z-50 overflow-hidden"
               >
                 <button
                   v-for="loc in availableLocales"
@@ -265,12 +265,8 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
             <button
               v-for="step in snapStepOptions"
               :key="step"
-              class="px-2.5 py-[4px] rounded-md border text-[10.5px] leading-none transition-colors duration-120"
-              :class="
-                angleSnapStep === step
-                  ? 'bg-accent/15 border-accent/40 text-accent'
-                  : 'bg-white/6 border-white/8 text-white/65 hover:bg-white/10 hover:text-white/85'
-              "
+              class="px-2.5 py-[4px] rounded-md ui-segment text-[10.5px] leading-none transition-colors duration-120"
+              :class="{ 'ui-segment--active': angleSnapStep === step }"
               @click="toggleAngleSnapStep(step)"
             >
               {{ step }}°

@@ -89,3 +89,159 @@
   background: rgba(10, 132, 255, 0.05);
   box-shadow: 0 0 0 1px rgba(10, 132, 255, 0.2);
 }
+
+/* Floating overlay panels (space settings panel, quick colors) */
+.overlay-panel {
+  background: #1e1e20;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.45),
+    0 4px 16px rgba(0, 0, 0, 0.25),
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  user-select: none;
+}
+
+.overlay-panel--compact {
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.ui-divider-h {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ui-divider-v {
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ui-divider-b {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ui-kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 9.5px;
+  font-family: inherit;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+}
+
+.ui-kbd--shortcut {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.05em;
+}
+
+.ui-btn-outline {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+
+.ui-btn-outline:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 1);
+}
+
+.ui-btn-outline--subtle {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.ui-btn-outline--subtle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 1);
+}
+
+.ui-select {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.ui-select:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ui-popover {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #2a2a2c;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.ui-tooltip {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #2a2a2c;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.ui-segment {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    color 0.12s;
+}
+
+.ui-segment:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ui-segment--active {
+  border-color: rgba(10, 132, 255, 0.4);
+  background: rgba(10, 132, 255, 0.15);
+  color: rgb(10, 132, 255);
+}
+
+.color-swatch-ring {
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: border-color 0.12s;
+}
+
+.color-swatch-ring--active {
+  border-color: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+}
+
+.color-swatch-ring--compact {
+  border-width: 1.5px;
+}
+
+.color-swatch-ring--compact.color-swatch-ring--active {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+}
+
+.color-picker-ring {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition:
+    border-color 0.12s,
+    transform 0.12s;
+}
+
+.group:hover .color-picker-ring {
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+}
+
+.color-dot-ring {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}

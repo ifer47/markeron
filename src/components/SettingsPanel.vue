@@ -134,9 +134,7 @@ onUnmounted(() => {
       }"
       @mousedown.stop
     >
-      <div
-        class="overlay-panel-surface w-full bg-[#1e1e20] rounded-2xl border border-white/8 shadow-[0_24px_48px_rgba(0,0,0,0.45),0_4px_16px_rgba(0,0,0,0.25),inset_0_0.5px_0_rgba(255,255,255,0.08)] select-none overflow-hidden"
-      >
+      <div class="overlay-panel-surface overlay-panel w-full">
         <div class="h-2.5 cursor-default" @mousedown="startDrag" />
 
         <!-- Tools -->
@@ -174,7 +172,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Colors -->
-        <div class="px-3.5 py-2.5 border-t border-white/5">
+        <div class="px-3.5 py-2.5 ui-divider-h">
           <div class="flex items-center justify-between mb-2">
             <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{
               t('panel.colors')
@@ -190,12 +188,8 @@ onUnmounted(() => {
                 @click="selectColorAndClose(color)"
               >
                 <span
-                  class="w-6 h-6 rounded-full border-2 transition-[border-color] duration-120"
-                  :class="
-                    currentColor === color
-                      ? 'border-white/75 shadow-[0_0_0_2px_rgba(255,255,255,0.12)]'
-                      : 'border-white/10'
-                  "
+                  class="w-6 h-6 rounded-full color-swatch-ring transition-[border-color] duration-120"
+                  :class="{ 'color-swatch-ring--active': currentColor === color }"
                   :style="{ backgroundColor: color }"
                 />
                 <span
@@ -221,7 +215,7 @@ onUnmounted(() => {
               @input="emit('selectColor', ($event.target as HTMLInputElement).value)"
             />
             <span
-              class="w-[20px] h-[20px] rounded-full border border-white/20 transition-[border-color,transform] duration-120 pointer-events-none group-hover:border-white/40 group-hover:scale-105 flex items-center justify-center shadow-[inset_0_0_2px_rgba(0,0,0,0.5)]"
+              class="w-[20px] h-[20px] rounded-full color-picker-ring pointer-events-none flex items-center justify-center shadow-[inset_0_0_2px_rgba(0,0,0,0.5)]"
               style="
                 background: conic-gradient(
                   from 90deg,
@@ -252,7 +246,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Stroke width -->
-        <div class="px-3.5 py-2.5 border-t border-white/5">
+        <div class="px-3.5 py-2.5 ui-divider-h">
           <div class="flex items-center justify-between mb-2">
             <span class="text-[11px] font-semibold text-white/45 tracking-[0.5px] font-sans">{{
               t('panel.strokeWidth')
@@ -283,13 +277,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Shortcut hints -->
-        <div class="flex flex-col gap-1.5 pt-3 px-3.5 pb-3 border-t border-white/5">
+        <div class="flex flex-col gap-1.5 pt-3 px-3.5 pb-3 ui-divider-h">
           <div class="flex items-center justify-between text-[10.5px] font-sans">
             <span class="flex items-center gap-1.5 text-white/45">
-              <kbd
-                class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
-                >{{ modKeyLabel }}</kbd
-              >
+              <kbd class="ui-kbd">{{ modKeyLabel }}</kbd>
               <span class="text-white/30 text-[10px]">+</span>
               <span>{{ t('panel.drag') }}</span>
             </span>
@@ -297,10 +288,7 @@ onUnmounted(() => {
           </div>
           <div class="flex items-center justify-between text-[10.5px] font-sans">
             <span class="flex items-center gap-1.5 text-white/45">
-              <kbd
-                class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
-                >Shift</kbd
-              >
+              <kbd class="ui-kbd">Shift</kbd>
               <span class="text-white/30 text-[10px]">+</span>
               <span>{{ t('panel.drag') }}</span>
             </span>
@@ -308,15 +296,9 @@ onUnmounted(() => {
           </div>
           <div class="flex items-center justify-between text-[10.5px] font-sans">
             <span class="flex items-center gap-1.5 text-white/45">
-              <kbd
-                class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
-                >{{ modKeyLabel }}</kbd
-              >
+              <kbd class="ui-kbd">{{ modKeyLabel }}</kbd>
               <span class="text-white/30 text-[10px]">+</span>
-              <kbd
-                class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
-                >Shift</kbd
-              >
+              <kbd class="ui-kbd">Shift</kbd>
               <span class="text-white/30 text-[10px]">+</span>
               <span>{{ t('panel.drag') }}</span>
             </span>
@@ -324,15 +306,9 @@ onUnmounted(() => {
           </div>
           <div class="flex items-center justify-between text-[10.5px] font-sans">
             <span class="flex items-center gap-1.5 text-white/45">
-              <kbd
-                class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
-                >Q</kbd
-              >
+              <kbd class="ui-kbd">Q</kbd>
               <span class="text-white/30 text-[10px]">/</span>
-              <kbd
-                class="inline-block px-1.5 py-px rounded-[4px] bg-white/10 border border-white/10 text-[9.5px] font-sans text-white/70 leading-[1.4] shadow-sm"
-                >E</kbd
-              >
+              <kbd class="ui-kbd">E</kbd>
               <span class="text-white/30 text-[10px]">/</span>
               <span>{{ t('panel.rightClick') }}</span>
             </span>

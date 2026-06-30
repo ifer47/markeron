@@ -78,14 +78,12 @@ async function openUrl(url: string) {
     </div>
 
     <div class="settings-card w-full max-w-[340px]">
-      <div
-        class="flex items-center justify-between px-4 py-3 border-b border-white/5 hover:bg-white/3 transition-colors"
-      >
+      <div class="flex items-center justify-between px-4 py-3 ui-divider-b hover:bg-white/3 transition-colors">
         <span class="text-[12px] text-white/45">{{ t('about.license') }}</span>
         <span class="text-[12px] text-white/65">MIT License</span>
       </div>
       <button
-        class="w-full flex items-center justify-between px-4 py-3 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer bg-transparent border-x-0 border-t-0"
+        class="w-full flex items-center justify-between px-4 py-3 ui-divider-b hover:bg-white/5 transition-colors cursor-pointer bg-transparent border-x-0 border-t-0"
         @click="openUrl('https://github.com/ifer47/markeron')"
       >
         <span class="text-[12px] text-white/45">GitHub</span>

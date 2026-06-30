@@ -50,3 +50,42 @@
   isolation: isolate;
   contain: paint;
 }
+
+/* Settings panel cards — explicit rgba avoids macOS WebKit border rendering issues */
+.settings-card {
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.settings-card:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.settings-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+}
+
+.settings-card-desc {
+  margin: 0;
+  padding: 8px 16px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.25);
+  line-height: 1.625;
+}
+
+.settings-card--active {
+  border-color: rgba(10, 132, 255, 0.5);
+  background: rgba(10, 132, 255, 0.05);
+  box-shadow: 0 0 0 1px rgba(10, 132, 255, 0.2);
+}

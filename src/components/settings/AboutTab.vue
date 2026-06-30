@@ -77,7 +77,7 @@ async function openUrl(url: string) {
       </span>
     </div>
 
-    <div class="w-full max-w-[340px] rounded-xl border border-white/5 bg-white/2 overflow-hidden">
+    <div class="settings-card w-full max-w-[340px]">
       <div
         class="flex items-center justify-between px-4 py-3 border-b border-white/5 hover:bg-white/3 transition-colors"
       >

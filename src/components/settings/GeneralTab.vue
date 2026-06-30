@@ -160,10 +160,8 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
     <h2 class="text-[14px] font-semibold text-white/75 mb-4">{{ t('settings.generalTitle') }}</h2>
 
     <div class="flex flex-col gap-2">
-      <div
-        class="flex flex-col gap-3 px-4 py-3.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10 transition-all duration-200"
-      >
-        <div class="flex items-center justify-between">
+      <div class="settings-card">
+        <div class="settings-card-row">
           <span class="text-[12.5px] text-white/70">{{ t('settings.language') }}</span>
           <div ref="localeDropdownRef" class="relative">
             <button
@@ -221,10 +219,8 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
         </div>
       </div>
 
-      <div
-        class="flex flex-col gap-3 px-4 py-3.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10 transition-all duration-200"
-      >
-        <div class="flex items-center justify-between">
+      <div class="settings-card">
+        <div class="settings-card-row">
           <span class="text-[12.5px] text-white/70">{{ t('settings.autoStart') }}</span>
           <button
             role="switch"
@@ -242,10 +238,8 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
         </div>
       </div>
 
-      <div
-        class="flex flex-col gap-3 px-4 py-3.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10 transition-all duration-200"
-      >
-        <div class="flex items-center justify-between">
+      <div class="settings-card">
+        <div class="settings-card-row">
           <span class="text-[12.5px] text-white/70">{{ t('settings.enableDragging') }}</span>
           <button
             role="switch"
@@ -261,16 +255,11 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
             />
           </button>
         </div>
-
-        <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
-          {{ t('settings.enableDraggingDesc') }}
-        </p>
+        <p class="settings-card-desc">{{ t('settings.enableDraggingDesc') }}</p>
       </div>
 
-      <div
-        class="flex flex-col gap-3 px-4 py-3.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10 transition-all duration-200"
-      >
-        <div class="flex items-center justify-between gap-4">
+      <div class="settings-card">
+        <div class="settings-card-row">
           <span class="text-[12.5px] text-white/70">{{ t('settings.angleSnapStep') }}</span>
           <div class="flex items-center gap-1.5 shrink-0">
             <button
@@ -288,16 +277,11 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
             </button>
           </div>
         </div>
-
-        <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
-          {{ t('settings.angleSnapStepDesc') }}
-        </p>
+        <p class="settings-card-desc">{{ t('settings.angleSnapStepDesc') }}</p>
       </div>
 
-      <div
-        class="flex flex-col gap-3 px-4 py-3.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10 transition-all duration-200"
-      >
-        <div class="flex items-center justify-between">
+      <div class="settings-card">
+        <div class="settings-card-row">
           <span class="text-[12.5px] text-white/70">{{ t('settings.preserveDrawings') }}</span>
           <button
             role="switch"
@@ -313,16 +297,11 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
             />
           </button>
         </div>
-
-        <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
-          {{ t('settings.preserveDrawingsDesc') }}
-        </p>
+        <p class="settings-card-desc">{{ t('settings.preserveDrawingsDesc') }}</p>
       </div>
 
-      <div
-        class="flex flex-col gap-3 px-4 py-3.5 rounded-lg border border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10 transition-all duration-200"
-      >
-        <div class="flex items-center justify-between">
+      <div class="settings-card">
+        <div class="settings-card-row">
           <span class="text-[12.5px] text-white/70">{{ t('settings.whiteboardPreserveDrawings') }}</span>
           <button
             role="switch"
@@ -338,10 +317,7 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
             />
           </button>
         </div>
-
-        <p class="text-[10px] text-white/25 leading-relaxed m-0 border-t border-white/5 pt-2">
-          {{ t('settings.whiteboardPreserveDrawingsDesc') }}
-        </p>
+        <p class="settings-card-desc">{{ t('settings.whiteboardPreserveDrawingsDesc') }}</p>
       </div>
     </div>
   </div>

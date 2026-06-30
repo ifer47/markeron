@@ -307,12 +307,8 @@ onUnmounted(() => {
           <div
             v-for="(label, action) in labels"
             :key="action"
-            class="flex items-center justify-between px-4 py-3.5 rounded-lg border transition-all duration-200"
-            :class="[
-              capturing === action
-                ? 'border-accent/50 bg-accent/5 shadow-[0_0_0_1px_rgba(10,132,255,0.2)]'
-                : 'border-white/5 bg-white/2 hover:bg-white/4 hover:border-white/10',
-            ]"
+            class="settings-card settings-card-row"
+            :class="{ 'settings-card--active': capturing === action }"
           >
             <span class="text-[12.5px] text-white/70">{{ label }}</span>
 
@@ -390,7 +386,7 @@ onUnmounted(() => {
 
         <div class="flex flex-col gap-2">
           <!-- Intro card -->
-          <div class="help-card">
+          <div class="settings-card help-card">
             <div class="px-4 py-3 text-[11.5px] text-white/50 leading-[1.8]">
               <p class="m-0" v-html="t('help.basicDesc1')" />
               <p class="m-0 mt-1" v-html="t('help.basicDesc2')" />
@@ -398,7 +394,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Global shortcuts -->
-          <div class="help-card">
+          <div class="settings-card help-card">
             <div class="help-card-header">{{ t('help.globalShortcuts') }}</div>
             <div class="help-rows">
               <div class="help-row">
@@ -419,7 +415,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Tool switch -->
-          <div class="help-card">
+          <div class="settings-card help-card">
             <div class="help-card-header">{{ t('help.toolSwitch') }}</div>
             <div class="help-rows">
               <div class="help-row">
@@ -474,7 +470,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Modifier drawing -->
-          <div class="help-card">
+          <div class="settings-card help-card">
             <div class="help-card-header">{{ t('help.modifierDraw') }}</div>
             <div class="help-rows">
               <div class="help-row">
@@ -523,7 +519,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Color & edit operations -->
-          <div class="help-card">
+          <div class="settings-card help-card">
             <div class="help-card-header">{{ t('help.colorSwitch') }}</div>
             <div class="help-rows">
               <div class="help-row">
@@ -538,7 +534,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Edit & other -->
-          <div class="help-card">
+          <div class="settings-card help-card">
             <div class="help-card-header">{{ t('help.editAndOther') }}</div>
             <div class="help-rows">
               <div class="help-row">
@@ -583,7 +579,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Drag & text -->
-          <div class="help-card">
+          <div class="settings-card help-card">
             <div class="help-card-header">{{ t('help.dragAndText') }}</div>
             <div class="help-rows">
               <div class="help-row help-row-block">
@@ -636,21 +632,6 @@ onUnmounted(() => {
 .help-scroll::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 2px;
-}
-
-.help-card {
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
-  overflow: hidden;
-  transition:
-    background 0.2s,
-    border-color 0.2s;
-}
-
-.help-card:hover {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .help-card-header {

@@ -21,7 +21,18 @@
   <img src="assets/MarkerOn_en.png" width="720" alt="MarkerOn" />
 </p>
 
-**Contents:** [Download](#download) · [Quick Start](#quick-start) · [Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Feedback](#feedback--issues) · [Development](#development)
+**Contents:** [What's New](#whats-new-in-v150) · [Download](#download) · [Quick Start](#quick-start) · [Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Feedback](#feedback--issues) · [Development](#development)
+
+## What's New in v1.5.0
+
+The macOS version now exposes its three global annotation actions as clickable native menu items, so you no longer need to memorize their shortcuts:
+
+- Use **Toggle annotation**, **Clear annotations**, and **Toggle click-through** from the menu bar tray menu.
+- The same three actions are available by right-clicking MarkerOn in the Dock.
+- Existing Settings, Help, About, and Quit entries remain available without crowding the menus with drawing-tool controls.
+- Separate installers are provided for Apple Silicon (`aarch64`) and Intel (`x64`) Macs.
+
+See the [v1.5.0 release and downloads](https://github.com/a1024053774/markeron/releases/tag/v1.5.0).
 
 ## Download
 

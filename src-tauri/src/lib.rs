@@ -35,11 +35,21 @@ pub use overlay::{
 pub fn rebuild_tray_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let s = i18n::strings();
     if let Some(tray) = app.tray_by_id("main") {
+        let toggle_drawing_item =
+            MenuItemBuilder::with_id("toggle_drawing", s.toggle_drawing).build(app)?;
+        let clear_drawing_item =
+            MenuItemBuilder::with_id("clear_drawing", s.clear_drawing).build(app)?;
+        let toggle_penetration_item =
+            MenuItemBuilder::with_id("toggle_penetration", s.toggle_penetration).build(app)?;
         let settings_item = MenuItemBuilder::with_id("settings", s.settings).build(app)?;
         let help_item = MenuItemBuilder::with_id("help", s.help).build(app)?;
         let about_item = MenuItemBuilder::with_id("about", s.about).build(app)?;
         let quit_item = MenuItemBuilder::with_id("quit", s.quit).build(app)?;
         let menu = MenuBuilder::new(app)
+            .item(&toggle_drawing_item)
+            .item(&clear_drawing_item)
+            .item(&toggle_penetration_item)
+            .separator()
             .item(&settings_item)
             .item(&help_item)
             .item(&about_item)
@@ -49,6 +59,29 @@ pub fn rebuild_tray_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Erro
         tray.set_menu(Some(menu))?;
     }
     Ok(())
+}
+
+fn handle_system_menu_action(app: &AppHandle, id: &str, reason: &'static str) {
+    let state = app.state::<AppState>();
+    match id {
+        "toggle_drawing" => {
+            log_backend_event(
+                &state,
+                "session",
+                "toggle drawing requested",
+                Some(serde_json::json!({ "reason": reason })),
+                "info",
+            );
+            toggle_drawing(app);
+        }
+        "clear_drawing" => clear_drawing(app, &state),
+        "toggle_penetration" => toggle_penetration_mode(app, &state),
+        "settings" => open_settings(app),
+        "help" => open_settings_tab(app, Some("help")),
+        "about" => open_settings_tab(app, Some("about")),
+        "quit" => app.exit(0),
+        _ => {}
+    }
 }
 
 fn open_settings(app: &AppHandle) {
@@ -174,17 +207,16 @@ pub fn run() {
             setup_overlay_size(&handle);
 
             #[cfg(target_os = "macos")]
-            macos::configure_overlay_window(&handle);
+            {
+                macos::configure_overlay_window(&handle);
+                macos::install_dock_menu(&handle);
+            }
 
             rebuild_tray_menu(&handle).ok();
 
             if let Some(tray) = app.tray_by_id("main") {
-                tray.on_menu_event(move |app, event| match event.id().as_ref() {
-                    "settings" => open_settings(app),
-                    "help" => open_settings_tab(app, Some("help")),
-                    "about" => open_settings_tab(app, Some("about")),
-                    "quit" => app.exit(0),
-                    _ => {}
+                tray.on_menu_event(move |app, event| {
+                    handle_system_menu_action(app, event.id().as_ref(), "tray-menu");
                 });
                 let handle_click = handle.clone();
                 tray.on_tray_icon_event(move |_tray, event| {

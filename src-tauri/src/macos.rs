@@ -11,6 +11,10 @@ use std::sync::OnceLock;
 const SETTINGS_BG: Color = Color(30, 30, 32, 255);
 static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
 
+unsafe extern "C" {
+    fn object_setClass(object: *mut Object, class: *const Class) -> *const Class;
+}
+
 unsafe fn nsstring(value: &str) -> *mut Object {
     let string: *mut Object = msg_send![class!(NSString), alloc];
     let string: *mut Object = msg_send![string, initWithBytes:value.as_ptr()
@@ -62,19 +66,19 @@ extern "C" fn dock_menu(this: &Object, _: Sel, _: *mut Object) -> *mut Object {
 
 extern "C" fn toggle_drawing(_: &Object, _: Sel, _: *mut Object) {
     if let Some(app) = APP_HANDLE.get() {
-        crate::handle_system_menu_action(app, "toggle_drawing", "dock-menu");
+        crate::dispatch_system_menu_action(app, "toggle_drawing", "dock-menu");
     }
 }
 
 extern "C" fn clear_drawing(_: &Object, _: Sel, _: *mut Object) {
     if let Some(app) = APP_HANDLE.get() {
-        crate::handle_system_menu_action(app, "clear_drawing", "dock-menu");
+        crate::dispatch_system_menu_action(app, "clear_drawing", "dock-menu");
     }
 }
 
 extern "C" fn toggle_penetration(_: &Object, _: Sel, _: *mut Object) {
     if let Some(app) = APP_HANDLE.get() {
-        crate::handle_system_menu_action(app, "toggle_penetration", "dock-menu");
+        crate::dispatch_system_menu_action(app, "toggle_penetration", "dock-menu");
     }
 }
 
@@ -113,7 +117,7 @@ pub fn install_dock_menu(app: &AppHandle) {
             );
             decl.register()
         };
-        let _: *const Class = msg_send![delegate, setClass:subclass];
+        object_setClass(delegate, subclass);
     }
 }
 

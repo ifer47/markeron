@@ -84,6 +84,17 @@ fn handle_system_menu_action(app: &AppHandle, id: &str, reason: &'static str) {
     }
 }
 
+fn dispatch_system_menu_action(app: &AppHandle, id: &str, reason: &'static str) {
+    let app = app.clone();
+    let id = id.to_owned();
+    std::thread::spawn(move || {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        let action_app = app.clone();
+        app.run_on_main_thread(move || handle_system_menu_action(&action_app, &id, reason))
+            .ok();
+    });
+}
+
 fn open_settings(app: &AppHandle) {
     open_settings_tab(app, None);
 }
@@ -216,7 +227,7 @@ pub fn run() {
 
             if let Some(tray) = app.tray_by_id("main") {
                 tray.on_menu_event(move |app, event| {
-                    handle_system_menu_action(app, event.id().as_ref(), "tray-menu");
+                    dispatch_system_menu_action(app, event.id().as_ref(), "tray-menu");
                 });
                 let handle_click = handle.clone();
                 tray.on_tray_icon_event(move |_tray, event| {

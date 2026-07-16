@@ -249,6 +249,7 @@ export default {
     defaultIssueTitle: 'Bug report',
   },
   tray: {
+    toggle_toolbar: 'Show toolbar',
     settings: 'Settings',
     help: 'Help',
     about: 'About',

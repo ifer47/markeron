@@ -243,6 +243,7 @@ export default {
     defaultIssueTitle: 'Bug 反馈',
   },
   tray: {
+    toggle_toolbar: '显示工具栏',
     settings: '设置',
     help: '使用帮助',
     about: '关于',

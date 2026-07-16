@@ -16,6 +16,7 @@ mod shortcuts;
 #[cfg(target_os = "windows")]
 mod win32;
 
+
 use std::sync::Mutex;
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
@@ -35,11 +36,21 @@ pub use overlay::{
 pub fn rebuild_tray_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let s = i18n::strings();
     if let Some(tray) = app.tray_by_id("main") {
+        let toggle_drawing_item = MenuItemBuilder::with_id("toggle_drawing",s.toggle_drawing).build(app)?;
+        let toggle_penetration_item = MenuItemBuilder::with_id("toggle_penetration",s.toggle_penetration).build(app)?;
+        let clear_drawing_item = MenuItemBuilder::with_id("clear_drawing",s.clear_drawing).build(app)?;
+        let toolbar_item = MenuItemBuilder::with_id("toggle_toolbar",s.toggle_toolbar).build(app)?;
         let settings_item = MenuItemBuilder::with_id("settings", s.settings).build(app)?;
         let help_item = MenuItemBuilder::with_id("help", s.help).build(app)?;
         let about_item = MenuItemBuilder::with_id("about", s.about).build(app)?;
         let quit_item = MenuItemBuilder::with_id("quit", s.quit).build(app)?;
         let menu = MenuBuilder::new(app)
+            .item(&toggle_drawing_item)
+            .item(&toggle_penetration_item)
+            .item(&clear_drawing_item)
+            .separator()
+            .item(&toolbar_item)
+            .separator()
             .item(&settings_item)
             .item(&help_item)
             .item(&about_item)
@@ -197,12 +208,19 @@ pub fn run() {
             rebuild_tray_menu(&handle).ok();
 
             if let Some(tray) = app.tray_by_id("main") {
-                tray.on_menu_event(move |app, event| match event.id().as_ref() {
-                    "settings" => open_settings(app),
-                    "help" => open_settings_tab(app, Some("help")),
-                    "about" => open_settings_tab(app, Some("about")),
-                    "quit" => app.exit(0),
-                    _ => {}
+                tray.on_menu_event(move |app, event| {
+                    let state = app.state::<AppState>();
+                    match event.id().as_ref() {
+                        "toggle_drawing" => {toggle_drawing(app);}
+                        "toggle_penetration" => {toggle_penetration_mode(app, &state);}
+                        "clear_drawing" => {clear_drawing(app, &state);}
+                        "toggle_toolbar" => {app.emit("toggle-toolbar-popup-request", ()).ok();}
+                        "settings" => open_settings(app),
+                        "help" => open_settings_tab(app, Some("help")),
+                        "about" => open_settings_tab(app, Some("about")),
+                        "quit" => app.exit(0),
+                        _ => {}
+                    }
                 });
                 let handle_click = handle.clone();
                 tray.on_tray_icon_event(move |_tray, event| {

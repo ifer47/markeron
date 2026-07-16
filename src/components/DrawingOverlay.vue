@@ -1448,6 +1448,17 @@ onMounted(async () => {
   )
 
   unlisteners.push(
+    await listen('toggle-toolbar-popup-request', () => {
+      mousePos.value = {
+        x: lastPointerX,
+        y: lastPointerY,
+      }
+      logActionEvent('toolbar popup toggled', { reason: 'tray' })
+      toggleToolbarPopupVisible()
+    }),
+  )
+
+  unlisteners.push(
     await listen<boolean>(TOOLBAR_PANEL_HOVER_EVENT, (event) => {
       if (isMacOS()) return
       if (!event.payload && toolbarPanelDragging.value) return

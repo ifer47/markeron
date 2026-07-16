@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 
 pub struct Strings {
+    pub toggle_toolbar: &'static str,
     pub settings: &'static str,
     pub help: &'static str,
     pub about: &'static str,
@@ -12,6 +13,7 @@ pub struct Strings {
 }
 
 const ZH: Strings = Strings {
+    toggle_toolbar: "显示工具栏",
     settings: "设置",
     help: "使用帮助",
     about: "关于",
@@ -23,6 +25,7 @@ const ZH: Strings = Strings {
 };
 
 const EN: Strings = Strings {
+    toggle_toolbar: "Show toolbar",
     settings: "Settings",
     help: "Help",
     about: "About",

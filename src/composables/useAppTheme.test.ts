@@ -6,6 +6,19 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => invoke(...args),
 }))
 
+function mockDocument() {
+  const dataset: Record<string, string> = {}
+  const style: Record<string, string> = {}
+  const el = {
+    dataset,
+    style,
+  }
+  vi.stubGlobal('document', {
+    documentElement: el,
+  })
+  return el
+}
+
 function mockMatchMedia(matchesDark: boolean) {
   const listeners: Array<(e: MediaQueryListEvent) => void> = []
   const mql = {
@@ -31,8 +44,7 @@ describe('useAppTheme', () => {
   beforeEach(() => {
     invoke.mockReset()
     invoke.mockResolvedValue(undefined)
-    document.documentElement.dataset.theme = ''
-    document.documentElement.style.colorScheme = ''
+    mockDocument()
   })
 
   afterEach(() => {
@@ -53,19 +65,21 @@ describe('useAppTheme', () => {
 
   it('applyTheme sets dataset and color-scheme and invokes Rust', async () => {
     mockMatchMedia(true)
+    const el = mockDocument()
     const resolved = await applyTheme('light')
     expect(resolved).toBe('light')
-    expect(document.documentElement.dataset.theme).toBe('light')
-    expect(document.documentElement.style.colorScheme).toBe('light')
+    expect(el.dataset.theme).toBe('light')
+    expect(el.style.colorScheme).toBe('light')
     expect(invoke).toHaveBeenCalledWith('apply_app_theme', { preference: 'light' })
   })
 
   it('watchSystemTheme re-applies when OS theme changes', async () => {
     const mql = mockMatchMedia(true)
+    const el = mockDocument()
     const stop = watchSystemTheme(() => 'system')
     mql.dispatch(false)
     await Promise.resolve()
-    expect(document.documentElement.dataset.theme).toBe('light')
+    expect(el.dataset.theme).toBe('light')
     expect(invoke).toHaveBeenCalledWith('apply_app_theme', { preference: 'system' })
     stop()
   })

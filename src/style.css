@@ -5,6 +5,216 @@
   --font-text: 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
 }
 
+/* Theme tokens — explicit rgba for macOS WebKit parity */
+html,
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --ui-bg: #1e1e20;
+  --ui-bg-sidebar: #161618;
+  --ui-bg-elevated: #2a2a2c;
+  --ui-bg-subtle: rgba(255, 255, 255, 0.02);
+  --ui-bg-subtle-hover: rgba(255, 255, 255, 0.03);
+  --ui-border: rgba(255, 255, 255, 0.05);
+  --ui-border-strong: rgba(255, 255, 255, 0.08);
+  --ui-border-panel: rgba(255, 255, 255, 0.08);
+  --ui-divider: rgba(255, 255, 255, 0.05);
+  --ui-text-brand: rgba(255, 255, 255, 0.85);
+  --ui-text-title: rgba(255, 255, 255, 0.75);
+  --ui-text-heading: rgba(255, 255, 255, 0.85);
+  --ui-text-label: rgba(255, 255, 255, 0.7);
+  --ui-text-value: rgba(255, 255, 255, 0.65);
+  --ui-text-muted: rgba(255, 255, 255, 0.45);
+  --ui-text-subtle: rgba(255, 255, 255, 0.4);
+  --ui-text-faint: rgba(255, 255, 255, 0.3);
+  --ui-text-dim: rgba(255, 255, 255, 0.25);
+  --ui-text-footer: rgba(255, 255, 255, 0.32);
+  --ui-text-body: rgba(255, 255, 255, 0.5);
+  --ui-text-icon: rgba(255, 255, 255, 0.35);
+  --ui-text-icon-hover: rgba(255, 255, 255, 0.6);
+  --ui-text-btn: rgba(255, 255, 255, 0.6);
+  --ui-text-btn-strong: rgba(255, 255, 255, 0.7);
+  --ui-text-tooltip: rgba(255, 255, 255, 0.75);
+  --ui-text-select: rgba(255, 255, 255, 0.75);
+  --ui-text-capture: rgb(10, 132, 255);
+  --ui-text-overlay-section: rgba(255, 255, 255, 0.45);
+  --ui-text-overlay-hint: rgba(255, 255, 255, 0.2);
+  --ui-text-overlay-label: rgba(255, 255, 255, 0.5);
+  --ui-text-overlay-body: rgba(255, 255, 255, 0.45);
+  --ui-text-overlay-secondary: rgba(255, 255, 255, 0.5);
+  --ui-text-overlay-separator: rgba(255, 255, 255, 0.3);
+  --ui-text-overlay-caption: rgba(255, 255, 255, 0.5);
+  --ui-text-overlay-key: rgba(255, 255, 255, 0.4);
+  --ui-text-overlay-key-active: rgba(255, 255, 255, 0.6);
+  --ui-control-bg: rgba(255, 255, 255, 0.06);
+  --ui-control-bg-hover: rgba(255, 255, 255, 0.1);
+  --ui-control-bg-strong: rgba(255, 255, 255, 0.2);
+  --ui-control-bg-soft: rgba(255, 255, 255, 0.04);
+  --ui-control-border: rgba(255, 255, 255, 0.08);
+  --ui-control-border-hover: rgba(255, 255, 255, 0.15);
+  --ui-control-text: rgba(255, 255, 255, 0.65);
+  --ui-control-text-hover: rgba(255, 255, 255, 0.85);
+  --ui-kbd-bg: rgba(255, 255, 255, 0.1);
+  --ui-kbd-bg-soft: rgba(255, 255, 255, 0.05);
+  --ui-kbd-border: rgba(255, 255, 255, 0.1);
+  --ui-kbd-text: rgba(255, 255, 255, 0.7);
+  --ui-kbd-text-soft: rgba(255, 255, 255, 0.5);
+  --ui-accent: rgb(10, 132, 255);
+  --ui-accent-soft: rgba(10, 132, 255, 0.15);
+  --ui-accent-border: rgba(10, 132, 255, 0.4);
+  --ui-accent-border-strong: rgba(10, 132, 255, 0.5);
+  --ui-accent-bg-active: rgba(10, 132, 255, 0.3);
+  --ui-accent-bg-card: rgba(10, 132, 255, 0.05);
+  --ui-accent-ring: rgba(10, 132, 255, 0.2);
+  --ui-accent-text: rgba(10, 132, 255, 0.8);
+  --ui-accent-link: rgba(10, 132, 255, 0.7);
+  --ui-shadow-panel:
+    0 24px 48px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+  --ui-shadow-panel-compact: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --ui-shadow-popover: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --ui-shadow-tooltip: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --ui-nav-text: rgba(255, 255, 255, 0.4);
+  --ui-nav-text-hover: rgba(255, 255, 255, 0.6);
+  --ui-nav-text-active: rgba(255, 255, 255, 0.9);
+  --ui-nav-bg-hover: rgba(255, 255, 255, 0.05);
+  --ui-nav-bg-active: rgba(255, 255, 255, 0.1);
+  --ui-toggle-off: rgba(255, 255, 255, 0.2);
+  --ui-toggle-off-hover: rgba(255, 255, 255, 0.3);
+  --ui-toggle-on: rgba(10, 132, 255, 0.8);
+  --ui-swatch-ring: rgba(255, 255, 255, 0.1);
+  --ui-swatch-ring-active: rgba(255, 255, 255, 0.75);
+  --ui-swatch-ring-glow: rgba(255, 255, 255, 0.12);
+  --ui-picker-ring: rgba(255, 255, 255, 0.2);
+  --ui-picker-ring-hover: rgba(255, 255, 255, 0.4);
+  --ui-width-line: rgba(255, 255, 255, 0.4);
+  --ui-width-line-active: #ffffff;
+  --ui-tool-text: rgba(255, 255, 255, 0.7);
+  --ui-tool-text-hover: #ffffff;
+  --ui-tool-text-active: #ffffff;
+  --ui-status-success: rgba(74, 222, 128, 0.7);
+  --ui-msg-success-bg: rgba(16, 185, 129, 0.1);
+  --ui-msg-success-text: rgba(52, 211, 153, 0.8);
+  --ui-msg-error-bg: rgba(239, 68, 68, 0.1);
+  --ui-msg-error-text: rgba(248, 113, 113, 0.8);
+  --ui-footer-version: rgba(255, 255, 255, 0.36);
+  --ui-footer-version-hover: rgba(255, 255, 255, 0.5);
+  --ui-footer-version-shake: rgba(10, 132, 255, 0.72);
+  --ui-focus-ring: rgba(10, 132, 255, 0.35);
+  --ui-credits-name: rgba(228, 210, 180, 0.72);
+  --ui-credits-sponsor-name: rgba(242, 228, 200, 0.92);
+  --ui-credits-sponsor-meta: rgba(195, 170, 135, 0.72);
+  --ui-credits-closing: rgba(210, 190, 160, 0.62);
+  --ui-credits-border: rgba(210, 185, 150, 0.1);
+  --ui-credits-border-strong: rgba(210, 185, 150, 0.14);
+  --ui-panel-border-standalone: rgba(255, 255, 255, 0.1);
+  --ui-card-row-divider: rgba(255, 255, 255, 0.04);
+  --ui-locale-hover: rgba(255, 255, 255, 0.06);
+  --ui-locale-active: rgba(10, 132, 255, 0.12);
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+  --ui-bg: #f5f5f7;
+  --ui-bg-sidebar: #ebebef;
+  --ui-bg-elevated: #ffffff;
+  --ui-bg-subtle: rgba(0, 0, 0, 0.02);
+  --ui-bg-subtle-hover: rgba(0, 0, 0, 0.04);
+  --ui-border: rgba(0, 0, 0, 0.06);
+  --ui-border-strong: rgba(0, 0, 0, 0.1);
+  --ui-border-panel: rgba(0, 0, 0, 0.1);
+  --ui-divider: rgba(0, 0, 0, 0.06);
+  --ui-text-brand: rgba(0, 0, 0, 0.88);
+  --ui-text-title: rgba(0, 0, 0, 0.82);
+  --ui-text-heading: rgba(0, 0, 0, 0.88);
+  --ui-text-label: rgba(0, 0, 0, 0.75);
+  --ui-text-value: rgba(0, 0, 0, 0.7);
+  --ui-text-muted: rgba(0, 0, 0, 0.5);
+  --ui-text-subtle: rgba(0, 0, 0, 0.45);
+  --ui-text-faint: rgba(0, 0, 0, 0.35);
+  --ui-text-dim: rgba(0, 0, 0, 0.28);
+  --ui-text-footer: rgba(0, 0, 0, 0.38);
+  --ui-text-body: rgba(0, 0, 0, 0.55);
+  --ui-text-icon: rgba(0, 0, 0, 0.4);
+  --ui-text-icon-hover: rgba(0, 0, 0, 0.65);
+  --ui-text-btn: rgba(0, 0, 0, 0.6);
+  --ui-text-btn-strong: rgba(0, 0, 0, 0.7);
+  --ui-text-tooltip: rgba(0, 0, 0, 0.8);
+  --ui-text-select: rgba(0, 0, 0, 0.75);
+  --ui-text-capture: rgb(10, 132, 255);
+  --ui-text-overlay-section: rgba(0, 0, 0, 0.5);
+  --ui-text-overlay-hint: rgba(0, 0, 0, 0.35);
+  --ui-text-overlay-label: rgba(0, 0, 0, 0.55);
+  --ui-text-overlay-body: rgba(0, 0, 0, 0.5);
+  --ui-text-overlay-secondary: rgba(0, 0, 0, 0.55);
+  --ui-text-overlay-separator: rgba(0, 0, 0, 0.35);
+  --ui-text-overlay-caption: rgba(0, 0, 0, 0.55);
+  --ui-text-overlay-key: rgba(0, 0, 0, 0.45);
+  --ui-text-overlay-key-active: rgba(0, 0, 0, 0.65);
+  --ui-control-bg: rgba(0, 0, 0, 0.04);
+  --ui-control-bg-hover: rgba(0, 0, 0, 0.08);
+  --ui-control-bg-strong: rgba(0, 0, 0, 0.12);
+  --ui-control-bg-soft: rgba(0, 0, 0, 0.03);
+  --ui-control-border: rgba(0, 0, 0, 0.1);
+  --ui-control-border-hover: rgba(0, 0, 0, 0.16);
+  --ui-control-text: rgba(0, 0, 0, 0.7);
+  --ui-control-text-hover: rgba(0, 0, 0, 0.85);
+  --ui-kbd-bg: rgba(0, 0, 0, 0.06);
+  --ui-kbd-bg-soft: rgba(0, 0, 0, 0.04);
+  --ui-kbd-border: rgba(0, 0, 0, 0.1);
+  --ui-kbd-text: rgba(0, 0, 0, 0.7);
+  --ui-kbd-text-soft: rgba(0, 0, 0, 0.55);
+  --ui-accent: rgb(10, 132, 255);
+  --ui-accent-soft: rgba(10, 132, 255, 0.12);
+  --ui-accent-border: rgba(10, 132, 255, 0.45);
+  --ui-accent-border-strong: rgba(10, 132, 255, 0.5);
+  --ui-accent-bg-active: rgba(10, 132, 255, 0.22);
+  --ui-accent-bg-card: rgba(10, 132, 255, 0.06);
+  --ui-accent-ring: rgba(10, 132, 255, 0.2);
+  --ui-accent-text: rgba(10, 132, 255, 0.9);
+  --ui-accent-link: rgba(10, 132, 255, 0.85);
+  --ui-shadow-panel:
+    0 24px 48px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 0.5px 0 rgba(255, 255, 255, 0.8);
+  --ui-shadow-panel-compact: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --ui-shadow-popover: 0 8px 32px rgba(0, 0, 0, 0.14);
+  --ui-shadow-tooltip: 0 4px 24px rgba(0, 0, 0, 0.12);
+  --ui-nav-text: rgba(0, 0, 0, 0.45);
+  --ui-nav-text-hover: rgba(0, 0, 0, 0.65);
+  --ui-nav-text-active: rgba(0, 0, 0, 0.9);
+  --ui-nav-bg-hover: rgba(0, 0, 0, 0.04);
+  --ui-nav-bg-active: rgba(0, 0, 0, 0.08);
+  --ui-toggle-off: rgba(0, 0, 0, 0.18);
+  --ui-toggle-off-hover: rgba(0, 0, 0, 0.28);
+  --ui-toggle-on: rgba(10, 132, 255, 0.85);
+  --ui-swatch-ring: rgba(0, 0, 0, 0.12);
+  --ui-swatch-ring-active: rgba(0, 0, 0, 0.55);
+  --ui-swatch-ring-glow: rgba(0, 0, 0, 0.1);
+  --ui-picker-ring: rgba(0, 0, 0, 0.18);
+  --ui-picker-ring-hover: rgba(0, 0, 0, 0.35);
+  --ui-width-line: rgba(0, 0, 0, 0.4);
+  --ui-width-line-active: #111111;
+  --ui-tool-text: rgba(0, 0, 0, 0.7);
+  --ui-tool-text-hover: rgba(0, 0, 0, 0.95);
+  --ui-tool-text-active: #ffffff;
+  --ui-status-success: rgba(22, 163, 74, 0.85);
+  --ui-msg-success-bg: rgba(16, 185, 129, 0.12);
+  --ui-msg-success-text: rgba(4, 120, 87, 0.9);
+  --ui-msg-error-bg: rgba(239, 68, 68, 0.1);
+  --ui-msg-error-text: rgba(185, 28, 28, 0.9);
+  --ui-footer-version: rgba(0, 0, 0, 0.4);
+  --ui-footer-version-hover: rgba(0, 0, 0, 0.55);
+  --ui-footer-version-shake: rgba(10, 132, 255, 0.8);
+  --ui-focus-ring: rgba(10, 132, 255, 0.4);
+  --ui-credits-name: rgba(120, 95, 55, 0.85);
+  --ui-credits-sponsor-name: rgba(90, 70, 40, 0.92);
+  --ui-credits-sponsor-meta: rgba(110, 90, 60, 0.75);
+  --ui-credits-closing: rgba(100, 80, 50, 0.7);
+  --ui-credits-border: rgba(140, 110, 70, 0.18);
+  --ui-credits-border-strong: rgba(140, 110, 70, 0.22);
+  --ui-panel-border-standalone: rgba(0, 0, 0, 0.12);
+  --ui-card-row-divider: rgba(0, 0, 0, 0.05);
+  --ui-locale-hover: rgba(0, 0, 0, 0.05);
+  --ui-locale-active: rgba(10, 132, 255, 0.1);
+}
+
 @layer base {
   html,
   body {
@@ -17,8 +227,7 @@
   html.settings,
   html.settings body {
     height: 100%;
-    background: #1e1e20 !important;
-    color-scheme: dark;
+    background: var(--ui-bg) !important;
   }
 
   #app {
@@ -29,7 +238,7 @@
 
   html.settings #app {
     height: 100%;
-    background: #1e1e20;
+    background: var(--ui-bg);
   }
 
   /* Settings window typography scale (settings webview only; overlay unchanged)
@@ -70,8 +279,8 @@
 /* Settings panel cards — explicit rgba avoids macOS WebKit border rendering issues */
 .settings-card {
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--ui-border);
+  background: var(--ui-bg-subtle);
   overflow: hidden;
   transition:
     background 0.2s,
@@ -79,8 +288,8 @@
 }
 
 .settings-card:hover {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: var(--ui-bg-subtle-hover);
+  border-color: var(--ui-border-strong);
 }
 
 .settings-card-row {
@@ -92,7 +301,7 @@
 }
 
 .settings-card-row--divided {
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--ui-card-row-divider);
 }
 
 .settings-card-header {
@@ -102,16 +311,16 @@
 .settings-card-desc {
   margin: 0;
   padding: 8px 16px 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid var(--ui-card-row-divider);
   font-size: var(--settings-fs-caption, 12.5px);
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--ui-text-dim);
   line-height: 1.625;
 }
 
 .settings-card--active {
-  border-color: rgba(10, 132, 255, 0.5);
-  background: rgba(10, 132, 255, 0.05);
-  box-shadow: 0 0 0 1px rgba(10, 132, 255, 0.2);
+  border-color: var(--ui-accent-border-strong);
+  background: var(--ui-accent-bg-card);
+  box-shadow: 0 0 0 1px var(--ui-accent-ring);
 }
 
 /* Allow popovers (e.g. language select) to extend outside the card */
@@ -121,49 +330,46 @@
 
 /* Floating overlay panels (space settings panel, quick colors) */
 .overlay-panel {
-  background: #1e1e20;
+  background: var(--ui-bg);
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 24px 48px rgba(0, 0, 0, 0.45),
-    0 4px 16px rgba(0, 0, 0, 0.25),
-    inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--ui-border-panel);
+  box-shadow: var(--ui-shadow-panel);
   overflow: hidden;
   user-select: none;
 }
 
 .overlay-panel--compact {
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--ui-shadow-panel-compact);
 }
 
 /* Standalone toolbar window: no outer drop shadow (avoids bleed on transparent window) */
 .overlay-panel--standalone {
   box-shadow: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--ui-panel-border-standalone);
 }
 
 .ui-divider-h {
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid var(--ui-divider);
 }
 
 .ui-divider-v {
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid var(--ui-divider);
 }
 
 .ui-divider-b {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid var(--ui-divider);
 }
 
 .ui-kbd {
   display: inline-block;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ui-kbd-bg);
+  border: 1px solid var(--ui-kbd-border);
   font-size: 9.5px;
   font-family: inherit;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--ui-kbd-text);
   line-height: 1.4;
 }
 
@@ -172,11 +378,11 @@
   align-items: center;
   padding: 3px 8px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ui-kbd-bg-soft);
+  border: 1px solid var(--ui-kbd-border);
   font-size: 11px;
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ui-kbd-text-soft);
   letter-spacing: 0.05em;
 }
 
@@ -197,57 +403,57 @@ html.settings .ui-select {
 }
 
 .ui-btn-outline {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--ui-kbd-border);
+  background: var(--ui-kbd-bg);
   transition:
     background 0.12s,
     color 0.12s;
 }
 
 .ui-btn-outline:hover {
-  background: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 1);
+  background: var(--ui-control-bg-strong);
+  color: var(--ui-tool-text-hover);
 }
 
 .ui-btn-outline--subtle {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ui-control-bg-soft);
 }
 
 .ui-btn-outline--subtle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 1);
+  background: var(--ui-control-bg-hover);
+  color: var(--ui-tool-text-hover);
 }
 
 .ui-select {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--ui-control-border);
+  background: var(--ui-control-bg);
+  color: var(--ui-text-select);
   transition:
     background 0.15s,
     border-color 0.15s;
 }
 
 .ui-select:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--ui-control-border-hover);
+  background: var(--ui-control-bg-hover);
 }
 
 .ui-popover {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #2a2a2c;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--ui-kbd-border);
+  background: var(--ui-bg-elevated);
+  box-shadow: var(--ui-shadow-popover);
 }
 
 .ui-tooltip {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: #2a2a2c;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--ui-kbd-border);
+  background: var(--ui-bg-elevated);
+  box-shadow: var(--ui-shadow-tooltip);
 }
 
 .ui-segment {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--ui-control-border);
+  background: var(--ui-control-bg);
+  color: var(--ui-control-text);
   transition:
     background 0.12s,
     border-color 0.12s,
@@ -255,24 +461,24 @@ html.settings .ui-select {
 }
 
 .ui-segment:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.85);
+  background: var(--ui-control-bg-hover);
+  color: var(--ui-control-text-hover);
 }
 
 .ui-segment--active {
-  border-color: rgba(10, 132, 255, 0.4);
-  background: rgba(10, 132, 255, 0.15);
-  color: rgb(10, 132, 255);
+  border-color: var(--ui-accent-border);
+  background: var(--ui-accent-soft);
+  color: var(--ui-accent);
 }
 
 .color-swatch-ring {
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  border: 2px solid var(--ui-swatch-ring);
   transition: border-color 0.12s;
 }
 
 .color-swatch-ring--active {
-  border-color: rgba(255, 255, 255, 0.75);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.12);
+  border-color: var(--ui-swatch-ring-active);
+  box-shadow: 0 0 0 2px var(--ui-swatch-ring-glow);
 }
 
 .color-swatch-ring--compact {
@@ -280,65 +486,65 @@ html.settings .ui-select {
 }
 
 .color-swatch-ring--compact.color-swatch-ring--active {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 0 2px var(--ui-swatch-ring);
 }
 
 .color-picker-ring {
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--ui-picker-ring);
   transition:
     border-color 0.12s,
     transform 0.12s;
 }
 
 .group:hover .color-picker-ring {
-  border-color: rgba(255, 255, 255, 0.4);
+  border-color: var(--ui-picker-ring-hover);
   transform: scale(1.05);
 }
 
 .color-dot-ring {
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--ui-picker-ring);
 }
 
 /* Overlay panel typography — explicit rgba avoids macOS WebKit opacity text issues */
 .overlay-text-section {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--ui-text-overlay-section);
 }
 
 .overlay-text-hint {
-  color: rgba(255, 255, 255, 0.2);
+  color: var(--ui-text-overlay-hint);
 }
 
 .overlay-text-label {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ui-text-overlay-label);
 }
 
 .overlay-text-body {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--ui-text-overlay-body);
 }
 
 .overlay-text-secondary {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ui-text-overlay-secondary);
 }
 
 .overlay-text-separator {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--ui-text-overlay-separator);
 }
 
 .overlay-text-caption {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ui-text-overlay-caption);
 }
 
 .overlay-text-key {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--ui-text-overlay-key);
 }
 
 .overlay-text-key--active {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--ui-text-overlay-key-active);
 }
 
 .overlay-tool-btn {
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.7);
+  background: var(--ui-control-bg-soft);
+  color: var(--ui-tool-text);
   outline: none;
 }
 
@@ -348,144 +554,144 @@ html.settings .ui-select {
 }
 
 .overlay-tool-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 1);
+  background: var(--ui-control-bg-hover);
+  color: var(--ui-tool-text-hover);
 }
 
 .overlay-width-btn {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--ui-control-bg-soft);
 }
 
 .overlay-width-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--ui-control-bg-hover);
 }
 
 .overlay-width-line {
-  background-color: rgba(255, 255, 255, 0.4);
+  background-color: var(--ui-width-line);
 }
 
 .overlay-width-line--active {
-  background-color: #ffffff;
+  background-color: var(--ui-width-line-active);
 }
 
 .overlay-tool-btn--active {
-  background: rgba(10, 132, 255, 0.3);
-  color: #ffffff;
-  box-shadow: inset 0 0 0 1px rgba(10, 132, 255, 0.45);
+  background: var(--ui-accent-bg-active);
+  color: var(--ui-tool-text-active);
+  box-shadow: inset 0 0 0 1px var(--ui-accent-border);
 }
 
 .overlay-width-btn--active {
-  background: rgba(10, 132, 255, 0.3);
-  box-shadow: inset 0 0 0 1px rgba(10, 132, 255, 0.45);
+  background: var(--ui-accent-bg-active);
+  box-shadow: inset 0 0 0 1px var(--ui-accent-border);
 }
 
 .overlay-panel .ui-kbd {
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--ui-kbd-text);
+  background: var(--ui-kbd-bg);
+  border-color: var(--ui-kbd-border);
 }
 
 /* Settings window — explicit rgba for macOS WebKit parity with Windows */
 .settings-text-brand {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--ui-text-brand);
   font-size: var(--settings-fs-brand, 14.5px);
 }
 
 .settings-text-title {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--ui-text-title);
   font-size: var(--settings-fs-title, 16px);
 }
 
 .settings-text-heading {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--ui-text-heading);
   font-size: var(--settings-fs-heading, 19px);
 }
 
 .settings-text-label {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--ui-text-label);
   font-size: var(--settings-fs-label, 14.5px);
 }
 
 .settings-text-value {
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--ui-text-value);
   font-size: var(--settings-fs-body, 13.5px);
 }
 
 .settings-text-muted {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--ui-text-muted);
   font-size: var(--settings-fs-body, 13.5px);
 }
 
 /* Secondary hint / status copy (privacy notes, update progress) */
 .settings-text-subtle {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--ui-text-subtle);
   font-size: var(--settings-fs-caption, 12.5px);
 }
 
 /* Meta row key on the left (About card) — same size as labels, muted color */
 .settings-text-row-key {
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--ui-text-muted);
   font-size: var(--settings-fs-label, 14.5px);
 }
 
 .settings-text-faint {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--ui-text-faint);
   font-size: var(--settings-fs-footer, 12.5px);
 }
 
 .settings-text-dim {
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--ui-text-dim);
 }
 
 .settings-text-footer {
-  color: rgba(255, 255, 255, 0.32);
+  color: var(--ui-text-footer);
   font-size: var(--settings-fs-footer, 12.5px);
 }
 
 .settings-text-body {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ui-text-body);
   font-size: var(--settings-fs-body, 13.5px);
 }
 
 .settings-text-tooltip {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--ui-text-tooltip);
   font-size: var(--settings-fs-caption, 12.5px);
 }
 
 .settings-text-btn {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--ui-text-btn);
   font-size: var(--settings-fs-btn, 12.5px);
 }
 
 .settings-text-btn-strong {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--ui-text-btn-strong);
   font-size: var(--settings-fs-btn, 12.5px);
 }
 
 .settings-text-select {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--ui-text-select);
 }
 
 .settings-text-icon {
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--ui-text-icon);
 }
 
 .settings-text-icon-hover:hover {
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--ui-text-icon-hover);
 }
 
 .settings-text-accent {
-  color: rgba(10, 132, 255, 0.8);
+  color: var(--ui-accent-text);
   font-size: var(--settings-fs-caption, 12.5px);
 }
 
 .settings-text-accent-link {
-  color: rgba(10, 132, 255, 0.7);
+  color: var(--ui-accent-link);
   font-size: var(--settings-fs-body, 13.5px);
 }
 
 .settings-text-capture {
-  color: rgb(10, 132, 255);
+  color: var(--ui-text-capture);
   font-size: var(--settings-fs-body, 13.5px);
 }
 
@@ -514,7 +720,7 @@ html.settings .ui-select {
   font-size: inherit;
   letter-spacing: 0.04em;
   line-height: inherit;
-  color: rgba(255, 255, 255, 0.36);
+  color: var(--ui-footer-version);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
@@ -524,27 +730,27 @@ html.settings .ui-select {
 }
 
 .settings-sidebar-footer__version-btn:hover {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--ui-footer-version-hover);
 }
 
 .settings-sidebar-footer__version-btn:focus-visible {
-  outline: 1px solid rgba(10, 132, 255, 0.35);
+  outline: 1px solid var(--ui-focus-ring);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
 .settings-sidebar-footer__version-btn.is-shaking {
-  color: rgba(10, 132, 255, 0.72);
+  color: var(--ui-footer-version-shake);
 }
 
 .settings-sidebar-footer__open {
   letter-spacing: 0.02em;
-  color: rgba(255, 255, 255, 0.32);
+  color: var(--ui-text-footer);
   white-space: nowrap;
 }
 
 .settings-sidebar-footer__sep {
-  color: rgba(255, 255, 255, 0.18);
+  color: var(--ui-text-dim);
   font-size: inherit;
   line-height: 1;
   flex-shrink: 0;
@@ -553,7 +759,7 @@ html.settings .ui-select {
 .settings-sidebar-footer__license {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   letter-spacing: 0.06em;
-  color: rgba(10, 132, 255, 0.48);
+  color: var(--ui-accent-link);
   white-space: nowrap;
 }
 
@@ -683,7 +889,7 @@ html.settings .ui-select {
   text-align: center;
   font-size: 12px;
   line-height: 1.55;
-  color: rgba(228, 210, 180, 0.72);
+  color: var(--ui-credits-name);
 }
 
 .settings-sidebar-credits__sponsor {
@@ -695,7 +901,7 @@ html.settings .ui-select {
 }
 
 .settings-sidebar-credits__sponsor + .settings-sidebar-credits__sponsor {
-  border-top: 1px solid rgba(210, 185, 150, 0.1);
+  border-top: 1px solid var(--ui-credits-border);
 }
 
 .settings-sidebar-credits__sponsor-name {
@@ -703,7 +909,7 @@ html.settings .ui-select {
   font-size: 12.5px;
   line-height: 1.35;
   font-weight: 600;
-  color: rgba(242, 228, 200, 0.92);
+  color: var(--ui-credits-sponsor-name);
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -716,7 +922,7 @@ html.settings .ui-select {
   line-height: 1.35;
   font-weight: 500;
   letter-spacing: 0.02em;
-  color: rgba(195, 170, 135, 0.72);
+  color: var(--ui-credits-sponsor-meta);
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -726,57 +932,57 @@ html.settings .ui-select {
 .settings-sidebar-credits__closing {
   margin: 16px 8px 0;
   padding: 12px 4px 16px;
-  border-top: 1px solid rgba(210, 185, 150, 0.14);
+  border-top: 1px solid var(--ui-credits-border-strong);
   text-align: center;
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: rgba(210, 190, 160, 0.62);
+  color: var(--ui-credits-closing);
 }
 
 .settings-status-success {
-  color: rgba(74, 222, 128, 0.7);
+  color: var(--ui-status-success);
   font-size: var(--settings-fs-caption, 12.5px);
 }
 
 .settings-msg-success {
-  background: rgba(16, 185, 129, 0.1);
-  color: rgba(52, 211, 153, 0.8);
+  background: var(--ui-msg-success-bg);
+  color: var(--ui-msg-success-text);
   font-size: var(--settings-fs-caption, 12.5px);
 }
 
 .settings-msg-error {
-  background: rgba(239, 68, 68, 0.1);
-  color: rgba(248, 113, 113, 0.8);
+  background: var(--ui-msg-error-bg);
+  color: var(--ui-msg-error-text);
   font-size: var(--settings-fs-caption, 12.5px);
 }
 
 .settings-nav-item {
   background: transparent;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--ui-nav-text);
   font-size: var(--settings-fs-nav, 14.5px);
 }
 
 .settings-nav-item:hover {
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.6);
+  background: var(--ui-nav-bg-hover);
+  color: var(--ui-nav-text-hover);
 }
 
 .settings-nav-item--active {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
+  background: var(--ui-nav-bg-active);
+  color: var(--ui-nav-text-active);
   font-size: var(--settings-fs-nav, 14.5px);
 }
 
 .settings-toggle-on {
-  background: rgba(10, 132, 255, 0.8);
+  background: var(--ui-toggle-on);
 }
 
 .settings-toggle-off {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--ui-toggle-off);
 }
 
 .settings-toggle-off:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--ui-toggle-off-hover);
 }
 
 .about-card-scroll::-webkit-scrollbar {
@@ -788,73 +994,77 @@ html.settings .ui-select {
 }
 
 .about-card-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--ui-control-bg-hover);
   border-radius: 2px;
 }
 
 .settings-app-icon {
-  background: linear-gradient(to bottom right, rgba(10, 132, 255, 0.2), rgba(10, 132, 255, 0.05));
-  border: 1px solid rgba(10, 132, 255, 0.1);
-  box-shadow: 0 10px 15px -3px rgba(10, 132, 255, 0.05);
+  background: linear-gradient(to bottom right, var(--ui-accent-ring), var(--ui-accent-bg-card));
+  border: 1px solid var(--ui-accent-ring);
+  box-shadow: 0 10px 15px -3px var(--ui-accent-bg-card);
 }
 
 .settings-btn-accent-outline {
-  color: rgba(10, 132, 255, 0.8);
-  background: rgba(10, 132, 255, 0.08);
-  border: 1px solid rgba(10, 132, 255, 0.15);
+  color: var(--ui-accent-text);
+  background: var(--ui-accent-bg-card);
+  border: 1px solid var(--ui-accent-soft);
   font-size: var(--settings-fs-btn, 12.5px);
   transition: background 0.15s;
 }
 
 .settings-btn-accent-outline:hover {
-  background: rgba(10, 132, 255, 0.15);
+  background: var(--ui-accent-soft);
 }
 
 .settings-btn-accent-primary {
-  color: rgba(255, 255, 255, 0.85);
-  background: rgba(10, 132, 255, 0.2);
-  border: 1px solid rgba(10, 132, 255, 0.25);
+  color: var(--ui-text-brand);
+  background: var(--ui-accent-ring);
+  border: 1px solid var(--ui-accent-soft);
   font-size: var(--settings-fs-btn, 12.5px);
   transition: background 0.15s;
 }
 
 .settings-btn-accent-primary:hover {
-  background: rgba(10, 132, 255, 0.3);
+  background: var(--ui-accent-bg-active);
 }
 
 .settings-row-hover:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--ui-bg-subtle-hover);
 }
 
 .settings-row-hover-strong:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--ui-nav-bg-hover);
 }
 
 .settings-locale-item {
-  color: rgba(255, 255, 255, 0.65);
+  color: var(--ui-text-value);
 }
 
 .settings-locale-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.9);
+  background: var(--ui-border-strong);
+  color: var(--ui-nav-text-active);
 }
 
 .settings-locale-item--active {
-  background: rgba(10, 132, 255, 0.12);
-  color: rgb(10, 132, 255);
+  background: var(--ui-locale-active);
+  color: var(--ui-accent);
 }
 
 .settings-progress-track {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--ui-nav-bg-hover);
 }
 
 .settings-progress-fill {
-  background: rgba(10, 132, 255, 0.6);
+  background: var(--ui-toggle-on);
 }
 
 .settings-text-body :is(strong, b) {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--ui-text-label);
   font-weight: 600;
+}
+
+.settings-sidebar {
+  background: var(--ui-bg-sidebar);
 }
 
 .textbox-input {

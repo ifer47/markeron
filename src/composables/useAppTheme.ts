@@ -4,7 +4,7 @@ export type ThemePreference = 'dark' | 'light' | 'system'
 export type ResolvedTheme = 'dark' | 'light'
 
 function systemPrefersDark(): boolean {
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
+  return globalThis.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
 export function resolveTheme(preference: ThemePreference): ResolvedTheme {
@@ -28,7 +28,7 @@ export function watchSystemTheme(
   getPreference: () => ThemePreference,
   onResolved?: (resolved: ResolvedTheme) => void,
 ): () => void {
-  const mql = window.matchMedia('(prefers-color-scheme: dark)')
+  const mql = globalThis.matchMedia('(prefers-color-scheme: dark)')
   const handler = () => {
     if (getPreference() !== 'system') return
     void applyTheme('system').then((resolved) => onResolved?.(resolved))

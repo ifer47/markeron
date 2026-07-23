@@ -1,6 +1,7 @@
 use crate::config::ThemePreference;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
+#[cfg(target_os = "windows")]
 use tracing::warn;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

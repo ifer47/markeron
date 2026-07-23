@@ -4,7 +4,10 @@ use dispatch2::DispatchQueue;
 use tauri::window::Color;
 use tauri::{ActivationPolicy, AppHandle, Manager, Theme, TitleBarStyle, WebviewWindow};
 
-const SETTINGS_BG: Color = Color(30, 30, 32, 255);
+use crate::theme::ResolvedTheme;
+
+const SETTINGS_BG_DARK: Color = Color(30, 30, 32, 255); // #1e1e20
+const SETTINGS_BG_LIGHT: Color = Color(245, 245, 247, 255); // #f5f5f7
 
 /// `NSWindowAbove` — place the receiver above the other window / as an ordered child.
 const NS_WINDOW_ABOVE: isize = 1;
@@ -291,12 +294,62 @@ pub fn style_settings_builder(
     builder
         .title_bar_style(TitleBarStyle::Transparent)
         .theme(Some(Theme::Dark))
-        .background_color(SETTINGS_BG)
+        .background_color(SETTINGS_BG_DARK)
 }
 
-pub fn configure_settings_window(window: &WebviewWindow) {
-    window.set_theme(Some(Theme::Dark)).ok();
-    window.set_background_color(Some(SETTINGS_BG)).ok();
+/// Reads `AppleInterfaceStyle` via CFPreferences (`"Dark"` → dark).
+pub fn system_appearance_is_dark() -> bool {
+    unsafe {
+        extern "C" {
+            fn CFPreferencesCopyAppValue(key: *const c_void, app_id: *const c_void) -> *mut c_void;
+            fn CFRelease(cf: *const c_void);
+            fn CFStringCreateWithCString(
+                alloc: *const c_void,
+                c_str: *const std::ffi::c_char,
+                encoding: u32,
+            ) -> *mut c_void;
+            fn CFStringCompare(
+                the_string1: *const c_void,
+                the_string2: *const c_void,
+                compare_options: u64,
+            ) -> i32;
+        }
+        const K_CF_STRING_ENCODING_UTF8: u32 = 0x0800_0100;
+        let key = CFStringCreateWithCString(
+            std::ptr::null(),
+            c"AppleInterfaceStyle".as_ptr(),
+            K_CF_STRING_ENCODING_UTF8,
+        );
+        let app = CFStringCreateWithCString(
+            std::ptr::null(),
+            c"Apple Global Domain".as_ptr(),
+            K_CF_STRING_ENCODING_UTF8,
+        );
+        let value = CFPreferencesCopyAppValue(key, app);
+        CFRelease(key);
+        CFRelease(app);
+        if value.is_null() {
+            return false; // missing → light
+        }
+        let dark = CFStringCreateWithCString(
+            std::ptr::null(),
+            c"Dark".as_ptr(),
+            K_CF_STRING_ENCODING_UTF8,
+        );
+        let cmp = CFStringCompare(value, dark, 0);
+        CFRelease(dark);
+        CFRelease(value);
+        cmp == 0 // kCFCompareEqualTo
+    }
+}
+
+pub fn configure_settings_window(window: &WebviewWindow, resolved: ResolvedTheme) {
+    let (theme, bg) = match resolved {
+        ResolvedTheme::Dark => (Theme::Dark, SETTINGS_BG_DARK),
+        ResolvedTheme::Light => (Theme::Light, SETTINGS_BG_LIGHT),
+    };
+    window.set_theme(Some(theme)).ok();
+    window.set_background_color(Some(bg)).ok();
 }
 
 pub fn configure_overlay_window(app: &AppHandle) {

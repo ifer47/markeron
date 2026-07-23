@@ -40,6 +40,9 @@ image = { version = "0.25", default-features = false, features = ["png"] }
 # Same GCD queue tao uses for setLevel / ignoresMouseEvents — keep toolbar restack ordered after those.
 dispatch2 = "0.3"
 
+[target.'cfg(target_os = "windows")'.dependencies]
+winreg = "0.55"
+
 [profile.release]
 opt-level = 3
 lto = true

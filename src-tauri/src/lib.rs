@@ -15,6 +15,7 @@ mod monitor;
 mod overlay;
 mod portable;
 mod shortcuts;
+mod theme;
 #[cfg(target_os = "windows")]
 mod win32;
 
@@ -120,10 +121,14 @@ fn open_settings_tab(app: &AppHandle, tab: Option<&str>) {
         #[cfg(target_os = "macos")]
         Ok(window) => {
             macos::activate_for_settings(app);
-            macos::configure_settings_window(&window);
+            let preference = lock_or_recover(&app.state::<AppState>().config).general.theme;
+            macos::configure_settings_window(&window, theme::resolve_theme(&preference));
         }
         #[cfg(not(target_os = "macos"))]
-        Ok(_) => {}
+        Ok(_) => {
+            let preference = lock_or_recover(&app.state::<AppState>().config).general.theme;
+            theme::apply_app_theme(app, &preference);
+        }
         Err(e) => warn!("Failed to open settings window: {}", e),
     }
 }
@@ -162,6 +167,7 @@ pub fn run() {
             commands::save_general,
             commands::save_line_widths,
             commands::save_locale,
+            commands::apply_app_theme,
             commands::exit_drawing,
             commands::enter_penetration_mode,
             commands::exit_penetration_mode,
@@ -200,6 +206,8 @@ pub fn run() {
                 *lock_or_recover(&state.config) = loaded.clone();
             }
             config::sync_autostart(&handle, loaded.general.auto_start);
+
+            theme::apply_app_theme(&handle, &loaded.general.theme);
 
             setup_overlay_size(&handle);
 

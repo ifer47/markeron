@@ -166,6 +166,7 @@ pub fn save_general(
         cfg.clone()
     };
     let auto_start = snapshot.general.auto_start;
+    let theme = snapshot.general.theme;
     if let Err(e) = app.emit("config-changed", snapshot) {
         warn!("Failed to emit config-changed: {}", e);
     }
@@ -173,6 +174,7 @@ pub fn save_general(
     if crate::overlay::current_mode(&state) != crate::overlay::OverlayMode::Hidden {
         crate::overlay::ensure_toolbar_window(&app, &state);
     }
+    crate::theme::apply_app_theme(&app, &theme);
     info!("General config saved");
     Ok(())
 }
@@ -224,6 +226,15 @@ pub fn save_locale(
     }
 
     info!("Locale changed to {}", locale);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn apply_app_theme(
+    app: AppHandle,
+    preference: crate::config::ThemePreference,
+) -> AppResult<()> {
+    crate::theme::apply_app_theme(&app, &preference);
     Ok(())
 }
 

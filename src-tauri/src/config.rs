@@ -124,6 +124,15 @@ pub enum DefaultEntryMode {
     Whiteboard,
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "camelCase")]
+pub enum ThemePreference {
+    #[default]
+    Dark,
+    Light,
+    System,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
     #[serde(default, rename = "dragMode")]
@@ -150,6 +159,8 @@ pub struct GeneralConfig {
     pub line_widths: LineWidthsConfig,
     #[serde(default = "default_auto_start", rename = "autoStart")]
     pub auto_start: bool,
+    #[serde(default, rename = "theme")]
+    pub theme: ThemePreference,
 }
 
 impl Default for GeneralConfig {
@@ -167,6 +178,7 @@ impl Default for GeneralConfig {
             eraser_mode: EraserMode::Stroke,
             line_widths: LineWidthsConfig::default(),
             auto_start: default_auto_start(),
+            theme: ThemePreference::Dark,
         }
     }
 }
@@ -410,6 +422,7 @@ mod tests {
             parsed.general.angle_snap_step,
             config.general.angle_snap_step
         );
+        assert_eq!(parsed.general.theme, ThemePreference::Dark);
     }
 
     #[test]
@@ -775,5 +788,53 @@ mod tests {
         config.general.locale = Some("en".to_string());
         let json = serde_json::to_string(&config).unwrap();
         assert!(json.contains("\"locale\":\"en\""));
+    }
+
+    #[test]
+    fn theme_defaults_to_dark() {
+        let config = AppConfig::default();
+        assert_eq!(config.general.theme, ThemePreference::Dark);
+    }
+
+    #[test]
+    fn theme_deserializes_missing_as_dark() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {}
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.general.theme, ThemePreference::Dark);
+    }
+
+    #[test]
+    fn theme_roundtrip_light_and_system() {
+        for theme in [ThemePreference::Light, ThemePreference::System] {
+            let mut config = AppConfig::default();
+            config.general.theme = theme;
+            let json = serde_json::to_string(&config).unwrap();
+            let parsed: AppConfig = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed.general.theme, theme);
+        }
+        let light_json = serde_json::to_string(&AppConfig {
+            general: GeneralConfig {
+                theme: ThemePreference::Light,
+                ..GeneralConfig::default()
+            },
+            ..AppConfig::default()
+        })
+        .unwrap();
+        assert!(light_json.contains("\"theme\":\"light\""));
+    }
+
+    #[test]
+    fn normalized_preserves_system_theme() {
+        let g = GeneralConfig {
+            theme: ThemePreference::System,
+            ..GeneralConfig::default()
+        };
+        assert_eq!(g.normalized().theme, ThemePreference::System);
     }
 }

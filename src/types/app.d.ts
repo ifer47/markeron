@@ -26,6 +26,7 @@ export interface AppConfig {
       text: number
     }
     autoStart?: boolean
+    theme?: 'dark' | 'light' | 'system'
   }
 }
 

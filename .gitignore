@@ -57,3 +57,4 @@ src-tauri/.cargo/
 NUL
 # Brainstorm / agent session artifacts
 .superpowers/
+.worktrees/

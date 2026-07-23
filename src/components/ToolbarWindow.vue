@@ -28,6 +28,7 @@ import { isMacOS } from '../utils/platform'
 import { isCopyShortcut } from '../composables/useOverlayKeyboard'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { AppConfig } from '../types/app'
+import { applyTheme, watchSystemTheme, type ThemePreference } from '../composables/useAppTheme'
 
 const currentTool = ref<Tool>('pen')
 const currentColor = ref('#FFCC02')
@@ -45,6 +46,13 @@ const pointerX = ref(0)
 const pointerY = ref(0)
 
 const unlisteners: UnlistenFn[] = []
+let currentTheme: ThemePreference = 'dark'
+let stopThemeWatch: (() => void) | null = null
+
+function resolveThemePref(general?: AppConfig['general']): ThemePreference {
+  const value = general?.theme
+  return value === 'light' || value === 'system' || value === 'dark' ? value : 'dark'
+}
 
 function applyOverlayState(state: OverlayStateSync) {
   currentTool.value = state.currentTool
@@ -126,6 +134,9 @@ onMounted(async () => {
   try {
     const cfg = await invoke<AppConfig>('get_config')
     toolbarVisibility.value = resolveToolbarVisibility(cfg.general)
+    currentTheme = resolveThemePref(cfg.general)
+    await applyTheme(currentTheme)
+    stopThemeWatch = watchSystemTheme(() => currentTheme)
     // Space-triggered popup positions the window at the cursor; only restore saved
     // placement when the toolbar is pinned always-on.
     if (isToolbarPinned(toolbarVisibility.value)) {
@@ -166,6 +177,8 @@ onMounted(async () => {
   unlisteners.push(
     await listen<AppConfig>('config-changed', (event) => {
       toolbarVisibility.value = resolveToolbarVisibility(event.payload.general)
+      currentTheme = resolveThemePref(event.payload.general)
+      void applyTheme(currentTheme)
     }),
   )
 
@@ -194,6 +207,8 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('pointermove', onPointerMove)
   window.removeEventListener('keydown', onToolbarKeyDown)
+  stopThemeWatch?.()
+  stopThemeWatch = null
   unlisteners.forEach((fn) => fn())
 })
 </script>

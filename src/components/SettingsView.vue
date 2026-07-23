@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import type { AppConfig, SaveResult } from '../types/app'
 import { resolveDragMode, type DragMode } from '../utils/dragMode'
+import { applyTheme, watchSystemTheme, type ThemePreference } from '../composables/useAppTheme'
 import { resolveDefaultEntryMode, type DefaultEntryMode } from '../utils/entryMode'
 import { resolveEraserMode, type EraserMode } from '../utils/eraserMode'
 import { resolveAutoStart } from '../utils/autoStart'
@@ -209,12 +210,18 @@ async function resetDefaults() {
 }
 
 const autoStartEnabled = ref(true)
+const theme = ref<ThemePreference>('dark')
 const dragMode = ref<DragMode>('off')
 const defaultEntryMode = ref<DefaultEntryMode>('screen')
 const eraserMode = ref<EraserMode>('stroke')
 const preserveDrawings = ref(false)
 const whiteboardPreserveDrawings = ref(true)
 const angleSnapStep = ref<15 | 30 | 45>(15)
+
+function resolveThemePref(general?: AppConfig['general']): ThemePreference {
+  const value = general?.theme
+  return value === 'light' || value === 'system' || value === 'dark' ? value : 'dark'
+}
 
 async function openOnlineHelp() {
   try {
@@ -226,10 +233,14 @@ async function openOnlineHelp() {
 
 let unlistenSwitchTab: (() => void) | null = null
 let unlistenConfigChanged: (() => void) | null = null
+let stopThemeWatch: (() => void) | null = null
 
 onMounted(async () => {
   const cfg = await invoke<AppConfig>('get_config')
   Object.assign(shortcuts, cfg.shortcuts)
+  theme.value = resolveThemePref(cfg.general)
+  await applyTheme(theme.value)
+  stopThemeWatch = watchSystemTheme(() => theme.value)
   dragMode.value = resolveDragMode(cfg.general)
   defaultEntryMode.value = resolveDefaultEntryMode(cfg.general)
   eraserMode.value = resolveEraserMode(cfg.general)
@@ -246,6 +257,8 @@ onMounted(async () => {
 
   unlistenConfigChanged = await listen<AppConfig>('config-changed', (event) => {
     autoStartEnabled.value = resolveAutoStart(event.payload.general)
+    theme.value = resolveThemePref(event.payload.general)
+    void applyTheme(theme.value)
   })
 })
 
@@ -253,13 +266,14 @@ onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown, true)
   unlistenSwitchTab?.()
   unlistenConfigChanged?.()
+  stopThemeWatch?.()
 })
 </script>
 
 <template>
-  <div class="flex h-full w-full font-text text-white select-none overflow-hidden">
+  <div class="flex h-full w-full font-text select-none overflow-hidden settings-text-label">
     <!-- Sidebar -->
-    <div class="relative z-10 w-41 shrink-0 bg-[#161618] flex flex-col ui-divider-v">
+    <div class="relative z-10 w-41 shrink-0 settings-sidebar flex flex-col ui-divider-v">
       <div class="flex items-center gap-2.5 px-4 pt-5 pb-5">
         <svg class="w-7 h-7 shrink-0" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
           <path
@@ -365,7 +379,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Content -->
-    <div class="flex-1 bg-[#1e1e20] flex flex-col overflow-hidden">
+    <div class="flex-1 flex flex-col overflow-hidden" style="background: var(--ui-bg)">
       <div v-if="activeTab === 'shortcuts'" class="flex-1 flex flex-col px-7 py-6 overflow-y-auto settings-scroll">
         <div class="flex items-center gap-2 mb-4">
           <h2 class="font-semibold settings-text-title">{{ t('settings.shortcutsTitle') }}</h2>
@@ -458,6 +472,7 @@ onUnmounted(() => {
 
       <GeneralTab
         v-else-if="activeTab === 'general'"
+        :theme="theme"
         :drag-mode="dragMode"
         :default-entry-mode="defaultEntryMode"
         :eraser-mode="eraserMode"
@@ -465,6 +480,7 @@ onUnmounted(() => {
         :whiteboard-preserve-drawings="whiteboardPreserveDrawings"
         :auto-start-enabled="autoStartEnabled"
         :angle-snap-step="angleSnapStep"
+        @update:theme="theme = $event"
         @update:drag-mode="dragMode = $event"
         @update:default-entry-mode="defaultEntryMode = $event"
         @update:eraser-mode="eraserMode = $event"
@@ -691,7 +707,7 @@ onUnmounted(() => {
 
 .settings-scroll::-webkit-scrollbar-thumb,
 .help-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--ui-control-bg-hover);
   border-radius: 2px;
 }
 
@@ -699,8 +715,8 @@ onUnmounted(() => {
   padding: 7px 14px;
   font-size: var(--settings-fs-caption, 12.5px);
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.3);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--ui-text-faint);
+  border-bottom: 1px solid var(--ui-card-row-divider);
   letter-spacing: 0.03em;
 }
 
@@ -714,7 +730,7 @@ onUnmounted(() => {
   align-items: center;
   justify-content: space-between;
   padding: 7px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--ui-bg-subtle-hover);
   min-height: 32px;
   gap: 14px;
 }
@@ -737,7 +753,7 @@ onUnmounted(() => {
 
 .help-label {
   font-size: var(--settings-fs-label, 14.5px);
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--ui-text-label);
   display: flex;
   align-items: center;
   white-space: nowrap;
@@ -746,7 +762,7 @@ onUnmounted(() => {
 
 .help-desc {
   font-size: var(--settings-fs-caption, 12.5px);
-  color: rgba(255, 255, 255, 0.32);
+  color: var(--ui-text-footer);
   text-align: left;
   line-height: 1.45;
   min-width: 0;
@@ -762,13 +778,13 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 4px;
   font-size: var(--settings-fs-caption, 12.5px);
-  color: rgba(255, 255, 255, 0.35);
+  color: var(--ui-text-icon);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .help-keys-plain {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--ui-text-subtle);
   font-size: var(--settings-fs-caption, 12.5px);
 }
 
@@ -776,11 +792,11 @@ onUnmounted(() => {
   display: inline-block;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--ui-control-bg);
+  border: 1px solid var(--ui-kbd-border);
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   font-size: var(--settings-fs-kbd, 12px);
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--ui-text-body);
   line-height: 1.5;
   white-space: nowrap;
 }

@@ -26,6 +26,7 @@ import {
   type ToolbarAction,
 } from '../composables/overlayBridge'
 import type { AppConfig } from '../types/app'
+import { applyTheme, watchSystemTheme, type ThemePreference } from '../composables/useAppTheme'
 import TextBox from './TextBox.vue'
 import { TOOL_ICON_MAP, WIDTH_PRESETS, eraserLineWidth, resolveLineWidths } from '../constants/tools'
 import {
@@ -1403,6 +1404,13 @@ function onKeyUp(e: KeyboardEvent) {
 }
 
 const unlisteners: UnlistenFn[] = []
+let currentTheme: ThemePreference = 'dark'
+let stopThemeWatch: (() => void) | null = null
+
+function resolveThemePref(general?: AppConfig['general']): ThemePreference {
+  const value = general?.theme
+  return value === 'light' || value === 'system' || value === 'dark' ? value : 'dark'
+}
 
 onMounted(async () => {
   void scheduleOverlayResize()
@@ -1442,6 +1450,9 @@ onMounted(async () => {
     preserveDrawings.value = cfg.general?.preserveDrawings ?? false
     whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
     setAngleSnapStep((cfg.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15)
+    currentTheme = resolveThemePref(cfg.general)
+    await applyTheme(currentTheme)
+    stopThemeWatch = watchSystemTheme(() => currentTheme)
   } catch (error) {
     console.error('Failed to get initial config:', error)
   }
@@ -1457,6 +1468,8 @@ onMounted(async () => {
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
       whiteboardPreserveDrawings.value = event.payload.general?.whiteboardPreserveDrawings ?? true
       setAngleSnapStep((event.payload.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15)
+      currentTheme = resolveThemePref(event.payload.general)
+      void applyTheme(currentTheme)
     }),
   )
 
@@ -1589,6 +1602,8 @@ onUnmounted(() => {
   window.removeEventListener('pointerup', onGlobalPointerUp)
   window.removeEventListener('pointercancel', onGlobalPointerUp)
   window.removeEventListener('resize', debouncedResize)
+  stopThemeWatch?.()
+  stopThemeWatch = null
   if (resizeTimer) {
     clearTimeout(resizeTimer)
     resizeTimer = null

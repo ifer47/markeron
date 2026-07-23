@@ -895,32 +895,32 @@ onUnmounted(() => {
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.65);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--ui-control-text);
+  background: var(--ui-control-bg);
   transition:
     background 0.12s,
     color 0.12s;
 }
 
 .overlay-toolbar-action:hover {
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 1);
+  background: var(--ui-control-bg-strong);
+  color: var(--ui-tool-text-hover);
 }
 
 .overlay-toolbar-action:disabled {
   opacity: 0.32;
   cursor: default;
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.35);
+  background: var(--ui-bg-subtle-hover);
+  color: var(--ui-text-icon);
 }
 
 .overlay-toolbar-action:disabled:hover {
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.35);
+  background: var(--ui-bg-subtle-hover);
+  color: var(--ui-text-icon);
 }
 
 .overlay-toolbar-action--active {
-  background: rgba(255, 255, 255, 0.18);
-  color: rgba(255, 255, 255, 1);
+  background: var(--ui-control-bg-strong);
+  color: var(--ui-tool-text-hover);
 }
 </style>

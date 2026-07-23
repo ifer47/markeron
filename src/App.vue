@@ -2,6 +2,8 @@
 import { ref, onMounted, defineAsyncComponent, markRaw, nextTick, shallowRef, type Component } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useUpdater } from './composables/useUpdater'
+import { applyTheme, type ThemePreference } from './composables/useAppTheme'
+import type { AppConfig } from './types/app'
 import { isInstalledMode } from './utils/portable'
 
 const DrawingOverlay = defineAsyncComponent(() => import('./components/DrawingOverlay.vue'))
@@ -15,11 +17,17 @@ function resolveAppMode(): AppMode {
   return 'overlay'
 }
 
+function resolveThemePref(general?: AppConfig['general']): ThemePreference {
+  const value = general?.theme
+  return value === 'light' || value === 'system' || value === 'dark' ? value : 'dark'
+}
+
 const mode = ref<AppMode>(resolveAppMode())
 const SettingsView = shallowRef<Component | null>(null)
 
 if (mode.value === 'settings') {
   document.documentElement.classList.add('settings')
+  document.documentElement.dataset.theme = 'dark'
 }
 
 function afterAnimationFrame() {
@@ -48,7 +56,13 @@ async function revealSettingsWindow() {
 
 onMounted(async () => {
   if (mode.value === 'settings') {
-    // Show the dark settings shell immediately; load tab content afterward.
+    try {
+      const cfg = await invoke<AppConfig>('get_config')
+      await applyTheme(resolveThemePref(cfg.general))
+    } catch {
+      /* keep FOUC dark guard */
+    }
+    // Show the settings shell; load tab content afterward.
     await revealSettingsWindow()
     try {
       const module = await import('./components/SettingsView.vue')

@@ -9,6 +9,7 @@ import type { DefaultEntryMode } from '../../utils/entryMode'
 import { DEFAULT_ENTRY_MODE_OPTIONS } from '../../utils/entryMode'
 import type { EraserMode } from '../../utils/eraserMode'
 import { ERASER_MODE_OPTIONS } from '../../utils/eraserMode'
+import { applyTheme, type ThemePreference } from '../../composables/useAppTheme'
 import { useI18n } from '../../i18n'
 import { isMacOS } from '../../utils/platform'
 import { isInstalledMode, resolvePortableMode } from '../../utils/portable'
@@ -26,10 +27,17 @@ const localeOpen = ref(false)
 const localeDropdownRef = ref<HTMLElement | null>(null)
 
 const snapStepOptions = [15, 30, 45] as const
+const themeOptions = ['dark', 'light', 'system'] as const
 const dragModeOptions = DRAG_MODE_OPTIONS
 const defaultEntryModeOptions = DEFAULT_ENTRY_MODE_OPTIONS
 const eraserModeOptions = ERASER_MODE_OPTIONS
 const modKeyLabel = computed(() => (isMacOS() ? 'Command' : 'Ctrl'))
+
+function themeLabelKey(opt: ThemePreference): string {
+  if (opt === 'dark') return 'settings.themeDark'
+  if (opt === 'light') return 'settings.themeLight'
+  return 'settings.themeSystem'
+}
 
 const dragModeDescKey = computed(() => {
   switch (props.dragMode) {
@@ -43,6 +51,7 @@ const dragModeDescKey = computed(() => {
 })
 
 const props = defineProps<{
+  theme: ThemePreference
   dragMode: DragMode
   defaultEntryMode: DefaultEntryMode
   eraserMode: EraserMode
@@ -53,6 +62,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  'update:theme': [value: ThemePreference]
   'update:dragMode': [value: DragMode]
   'update:defaultEntryMode': [value: DefaultEntryMode]
   'update:eraserMode': [value: EraserMode]
@@ -144,6 +154,27 @@ async function setDragMode(mode: DragMode) {
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
     console.error('Failed to save drag mode:', error)
+  }
+}
+
+async function setTheme(next: ThemePreference) {
+  if (next === props.theme) return
+  emit('update:theme', next)
+  await applyTheme(next)
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general)
+      cfg.general = {
+        dragMode: props.dragMode,
+        preserveDrawings: props.preserveDrawings,
+        whiteboardPreserveDrawings: props.whiteboardPreserveDrawings,
+        angleSnapStep: props.angleSnapStep,
+        theme: next,
+      }
+    cfg.general.theme = next
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save theme:', error)
   }
 }
 
@@ -304,6 +335,24 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
                 </button>
               </div>
             </Transition>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-row">
+          <span class="settings-text-label">{{ t('settings.theme') }}</span>
+          <div class="flex items-center gap-1">
+            <button
+              v-for="opt in themeOptions"
+              :key="opt"
+              type="button"
+              class="px-2 py-1 rounded-md ui-segment leading-none transition-colors duration-120 whitespace-nowrap"
+              :class="{ 'ui-segment--active': theme === opt }"
+              @click="setTheme(opt)"
+            >
+              {{ t(themeLabelKey(opt)) }}
+            </button>
           </div>
         </div>
       </div>

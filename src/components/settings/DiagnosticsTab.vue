@@ -121,12 +121,12 @@ async function openGithubIssue() {
 
 <style scoped>
 .diag-textarea {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--ui-control-bg-soft);
+  border: 1px solid var(--ui-control-border);
 }
 
 .diag-textarea:focus {
-  border-color: rgba(59, 130, 246, 0.45);
+  border-color: var(--ui-accent-border);
 }
 
 .msg-enter-active,

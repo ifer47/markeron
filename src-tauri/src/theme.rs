@@ -114,7 +114,9 @@ fn update_windows_chrome_icons(
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(tray) = app.tray_by_id("main") {
         // Always black (`icon.png`) so the glyph stays visible on light flyouts.
-        tray.set_icon(Some(load_icon_from_png(include_bytes!("../icons/icon.png"))?))?;
+        tray.set_icon(Some(load_icon_from_png(include_bytes!(
+            "../icons/icon.png"
+        ))?))?;
     }
     if let Some(win) = app.get_webview_window("settings") {
         win.set_icon(load_windows_theme_icon(resolved)?)?;

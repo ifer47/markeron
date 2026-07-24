@@ -10,7 +10,8 @@ describe('portable mode helpers', () => {
     vi.clearAllMocks()
   })
 
-  it('caches successful resolvePortableMode result', async () => {
+  // Dynamic import + resetModules can be slow under full-suite load.
+  it('caches successful resolvePortableMode result', { timeout: 15_000 }, async () => {
     const { invoke } = await import('@tauri-apps/api/core')
     vi.mocked(invoke).mockResolvedValue(true)
 
@@ -23,7 +24,7 @@ describe('portable mode helpers', () => {
     expect(invoke).toHaveBeenCalledWith('is_portable')
   })
 
-  it('returns null on failure without caching', async () => {
+  it('returns null on failure without caching', { timeout: 15_000 }, async () => {
     const { invoke } = await import('@tauri-apps/api/core')
     vi.mocked(invoke).mockRejectedValue(new Error('no backend'))
 

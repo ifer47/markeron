@@ -42,7 +42,13 @@ dispatch2 = "0.3"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 winreg = "0.55"
-windows-sys = { version = "0.59", features = ["Win32_System_Registry", "Win32_Foundation"] }
+windows-sys = { version = "0.59", features = [
+  "Win32_System_Registry",
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Accessibility",
+  "Win32_Graphics_Gdi",
+] }
 
 [profile.release]
 opt-level = 3

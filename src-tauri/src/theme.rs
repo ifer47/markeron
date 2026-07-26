@@ -73,37 +73,71 @@ pub fn apply_app_theme(app: &AppHandle, preference: &ThemePreference) {
 
     #[cfg(target_os = "windows")]
     {
-        if let Err(e) = update_windows_chrome_icons(app, resolved) {
-            warn!("Failed to update Windows theme icons: {}", e);
-        }
+        apply_windows_shell_icons(app);
     }
 }
 
-/// `SystemUsesLightTheme` under Personalize — `1` = light taskbar/flyout,
-/// `0` = dark. Missing key → treat as light (prefer dark glyph visibility).
+/// Taskbar / tray flyout shell is light (needs a dark glyph).
+///
+/// Order: high contrast → sample menu background luminance; else
+/// `SystemUsesLightTheme` (`1` light, `0` dark). Missing key → dark shell
+/// (matches Windows fallback when the value is absent).
 #[cfg(target_os = "windows")]
 pub fn windows_system_shell_is_light() -> bool {
+    if let Some(light) = windows_high_contrast_shell_is_light() {
+        return light;
+    }
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let Ok(key) = hkcu.open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
     else {
-        return true;
+        return false;
     };
-    let light: u32 = key.get_value("SystemUsesLightTheme").unwrap_or(1);
+    let light: u32 = key.get_value("SystemUsesLightTheme").unwrap_or(0);
     light != 0
 }
 
-/// Settings window title-bar icon only (not tray).
-/// Dark chrome needs a light glyph; light chrome needs a dark glyph.
+/// When high contrast is on, derive shell lightness from `COLOR_MENU`.
+/// `None` = high contrast off or query failed → fall back to registry.
 #[cfg(target_os = "windows")]
-fn windows_theme_icon_png(resolved: ResolvedTheme) -> &'static [u8] {
-    match resolved {
-        ResolvedTheme::Dark => include_bytes!("../icons/icon-light.png"),
-        ResolvedTheme::Light => include_bytes!("../icons/icon.png"),
+fn windows_high_contrast_shell_is_light() -> Option<bool> {
+    use windows_sys::Win32::Graphics::Gdi::{GetSysColor, COLOR_MENU};
+    use windows_sys::Win32::UI::Accessibility::{HCF_HIGHCONTRASTON, HIGHCONTRASTW};
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SystemParametersInfoW, SPI_GETHIGHCONTRAST};
+
+    let mut hc = HIGHCONTRASTW {
+        cbSize: std::mem::size_of::<HIGHCONTRASTW>() as u32,
+        dwFlags: 0,
+        lpszDefaultScheme: std::ptr::null_mut(),
+    };
+    let ok = unsafe {
+        SystemParametersInfoW(
+            SPI_GETHIGHCONTRAST,
+            hc.cbSize,
+            &mut hc as *mut _ as *mut _,
+            0,
+        )
+    };
+    if ok == 0 || (hc.dwFlags & HCF_HIGHCONTRASTON) == 0 {
+        return None;
     }
+    let color = unsafe { GetSysColor(COLOR_MENU) };
+    Some(colorref_is_light(color))
 }
 
+#[cfg(target_os = "windows")]
+fn colorref_is_light(color: u32) -> bool {
+    let r = color & 0xff;
+    let g = (color >> 8) & 0xff;
+    let b = (color >> 16) & 0xff;
+    // Rec. 601 luma; threshold mid-grey.
+    (r * 299 + g * 587 + b * 114) >= 128_000
+}
+
+/// Settings window title-bar / taskbar button icon follows the **shell**
+/// (taskbar) theme — same glyph as the tray — not the in-app appearance.
+/// Mixed modes (dark settings UI + light taskbar) prioritize taskbar contrast.
 #[cfg(target_os = "windows")]
 fn tray_icon_png_for_shell_light(shell_is_light: bool) -> &'static [u8] {
     if shell_is_light {
@@ -114,6 +148,11 @@ fn tray_icon_png_for_shell_light(shell_is_light: bool) -> &'static [u8] {
 }
 
 #[cfg(target_os = "windows")]
+fn shell_chrome_icon_png() -> &'static [u8] {
+    tray_icon_png_for_shell_light(windows_system_shell_is_light())
+}
+
+#[cfg(any(target_os = "windows", target_os = "macos"))]
 fn load_icon_from_png(
     bytes: &'static [u8],
 ) -> Result<tauri::image::Image<'static>, Box<dyn std::error::Error>> {
@@ -123,44 +162,40 @@ fn load_icon_from_png(
     Ok(Image::new_owned(rgba.into_raw(), width, height))
 }
 
-#[cfg(target_os = "windows")]
-fn load_windows_theme_icon(
-    resolved: ResolvedTheme,
-) -> Result<tauri::image::Image<'static>, Box<dyn std::error::Error>> {
-    load_icon_from_png(windows_theme_icon_png(resolved))
+/// Initial tray glyph: Windows follows shell theme; macOS uses the template source.
+pub fn main_tray_icon() -> Result<tauri::image::Image<'static>, Box<dyn std::error::Error>> {
+    #[cfg(target_os = "windows")]
+    {
+        load_icon_from_png(shell_chrome_icon_png())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        load_icon_from_png(include_bytes!("../icons/icon.png"))
+    }
 }
 
+/// Refresh tray + settings window icons from the current taskbar / shell theme.
 #[cfg(target_os = "windows")]
-pub fn apply_windows_tray_icon(app: &AppHandle) {
-    if let Err(e) = apply_windows_tray_icon_inner(app) {
-        warn!("Failed to update Windows tray icon: {}", e);
+pub fn apply_windows_shell_icons(app: &AppHandle) {
+    if let Err(e) = apply_windows_shell_icons_inner(app) {
+        warn!("Failed to update Windows shell icons: {}", e);
     }
 }
 
 #[cfg(target_os = "windows")]
-fn apply_windows_tray_icon_inner(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(tray) = app.tray_by_id("main") else {
-        return Ok(());
-    };
-    let bytes = tray_icon_png_for_shell_light(windows_system_shell_is_light());
-    tray.set_icon(Some(load_icon_from_png(bytes)?))?;
-    Ok(())
-}
-
-/// Settings window icon only — tray follows `SystemUsesLightTheme` separately.
-#[cfg(target_os = "windows")]
-fn update_windows_chrome_icons(
-    app: &AppHandle,
-    resolved: ResolvedTheme,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn apply_windows_shell_icons_inner(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let icon = load_icon_from_png(shell_chrome_icon_png())?;
+    if let Some(tray) = app.tray_by_id("main") {
+        tray.set_icon(Some(icon.clone()))?;
+    }
     if let Some(win) = app.get_webview_window("settings") {
-        win.set_icon(load_windows_theme_icon(resolved)?)?;
+        win.set_icon(icon)?;
     }
     Ok(())
 }
 
-/// Watch Personalize registry values and refresh the tray icon when the
-/// taskbar / system shell theme changes. Fire-and-forget daemon thread.
+/// Watch Personalize; refresh tray + settings taskbar icon only when shell
+/// lightness actually changes.
 #[cfg(target_os = "windows")]
 pub fn start_windows_tray_theme_watcher(app: &AppHandle) {
     let app = app.clone();
@@ -181,6 +216,8 @@ pub fn start_windows_tray_theme_watcher(app: &AppHandle) {
                 return;
             };
 
+            let mut last_light = windows_system_shell_is_light();
+
             loop {
                 let status = unsafe {
                     RegNotifyChangeKeyValue(
@@ -198,7 +235,11 @@ pub fn start_windows_tray_theme_watcher(app: &AppHandle) {
                     );
                     break;
                 }
-                apply_windows_tray_icon(&app);
+                let now_light = windows_system_shell_is_light();
+                if last_light != now_light {
+                    last_light = now_light;
+                    apply_windows_shell_icons(&app);
+                }
             }
         })
         .ok();
@@ -226,5 +267,14 @@ mod tests {
     fn tray_png_light_shell_uses_dark_glyph() {
         let bytes = tray_icon_png_for_shell_light(true);
         assert_eq!(bytes, include_bytes!("../icons/icon.png") as &[u8]);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn colorref_mid_grey_and_extremes() {
+        assert!(colorref_is_light(0x00ff_ffff)); // white
+        assert!(!colorref_is_light(0x0000_0000)); // black
+        assert!(colorref_is_light(0x00c0_c0c0)); // light grey
+        assert!(!colorref_is_light(0x0040_4040)); // dark grey
     }
 }

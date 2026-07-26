@@ -28,13 +28,6 @@
     ],
     "security": {
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost data:"
-    },
-    "trayIcon": {
-      "id": "main",
-      "iconPath": "icons/icon.png",
-      "iconAsTemplate": true,
-      "tooltip": "MarkerOn - Screen annotation",
-      "menuOnLeftClick": false
     }
   },
   "plugins": {

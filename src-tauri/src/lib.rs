@@ -22,7 +22,7 @@ mod win32;
 use std::sync::Mutex;
 use tauri::{
     menu::{MenuBuilder, MenuItemBuilder},
-    tray::TrayIconEvent,
+    tray::{TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder,
 };
 use tracing::{info, warn};
@@ -52,6 +52,21 @@ pub fn rebuild_tray_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Erro
         tray.set_menu(Some(menu))?;
         tray.set_tooltip(Some(s.tray_tooltip))?;
     }
+    Ok(())
+}
+
+/// Create the tray with the correct glyph up front (avoids a flash from a
+/// conf-default icon that may not match the Windows taskbar / flyout).
+fn install_main_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    let icon = theme::main_tray_icon()?;
+    let s = i18n::strings();
+    let builder = TrayIconBuilder::with_id("main")
+        .icon(icon)
+        .tooltip(s.tray_tooltip)
+        .show_menu_on_left_click(false);
+    #[cfg(target_os = "macos")]
+    let builder = builder.icon_as_template(true);
+    let _tray = builder.build(app)?;
     Ok(())
 }
 
@@ -211,13 +226,8 @@ pub fn run() {
                 config::apply_autostart_preference(&handle, &state, loaded.general.auto_start);
             }
 
-            theme::apply_app_theme(&handle, &loaded.general.theme);
-
-            setup_overlay_size(&handle);
-
-            #[cfg(target_os = "macos")]
-            macos::configure_overlay_window(&handle);
-
+            // Tray before other chrome so Windows never shows a mismatched default glyph.
+            install_main_tray(&handle)?;
             rebuild_tray_menu(&handle).ok();
 
             if let Some(tray) = app.tray_by_id("main") {
@@ -250,10 +260,14 @@ pub fn run() {
             }
 
             #[cfg(target_os = "windows")]
-            {
-                theme::apply_windows_tray_icon(&handle);
-                theme::start_windows_tray_theme_watcher(&handle);
-            }
+            theme::start_windows_tray_theme_watcher(&handle);
+
+            theme::apply_app_theme(&handle, &loaded.general.theme);
+
+            setup_overlay_size(&handle);
+
+            #[cfg(target_os = "macos")]
+            macos::configure_overlay_window(&handle);
 
             shortcuts::register_shortcuts(&handle);
 

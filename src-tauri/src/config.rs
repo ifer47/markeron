@@ -347,27 +347,55 @@ pub fn load_config(app: &AppHandle) -> AppConfig {
     }
 }
 
-pub fn sync_autostart(app: &AppHandle, enabled: bool) {
+/// Sync OS autostart with the desired preference.
+///
+/// Returns `None` in portable mode (no OS registration). Otherwise returns the
+/// actual enabled state after the attempt — callers should persist when this
+/// differs from `enabled` (e.g. security software blocked registry writes).
+pub fn sync_autostart(app: &AppHandle, enabled: bool) -> Option<bool> {
     use tauri_plugin_autostart::ManagerExt;
 
     // Portable builds should not touch OS autostart / registry entries.
     if crate::portable::is_portable() {
         info!("Portable mode: skipping autostart sync");
-        return;
+        return None;
     }
 
     let manager = app.autolaunch();
     let current = manager.is_enabled().unwrap_or(false);
     if current == enabled {
-        return;
+        return Some(current);
     }
     if enabled {
         if let Err(e) = manager.enable() {
             warn!("Failed to enable autostart: {}", e);
+            return Some(manager.is_enabled().unwrap_or(false));
         }
     } else if let Err(e) = manager.disable() {
         warn!("Failed to disable autostart: {}", e);
+        return Some(manager.is_enabled().unwrap_or(true));
     }
+    Some(enabled)
+}
+
+/// Apply autostart preference and rewrite config when the OS state diverges.
+pub fn apply_autostart_preference(app: &AppHandle, state: &AppState, enabled: bool) {
+    let Some(actual) = sync_autostart(app, enabled) else {
+        return;
+    };
+    if actual == enabled {
+        return;
+    }
+    let mut cfg = lock_or_recover(&state.config);
+    if cfg.general.auto_start == actual {
+        return;
+    }
+    info!(
+        "Autostart preference {} diverged from OS state {}; updating config",
+        enabled, actual
+    );
+    cfg.general.auto_start = actual;
+    save_config(app, &cfg);
 }
 
 pub fn save_config(app: &AppHandle, config: &AppConfig) {

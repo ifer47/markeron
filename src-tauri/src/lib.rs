@@ -208,8 +208,8 @@ pub fn run() {
             {
                 let state = handle.state::<AppState>();
                 *lock_or_recover(&state.config) = loaded.clone();
+                config::apply_autostart_preference(&handle, &state, loaded.general.auto_start);
             }
-            config::sync_autostart(&handle, loaded.general.auto_start);
 
             theme::apply_app_theme(&handle, &loaded.general.theme);
 

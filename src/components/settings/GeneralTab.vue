@@ -14,6 +14,19 @@ import { useI18n } from '../../i18n'
 import { isMacOS } from '../../utils/platform'
 import { isInstalledMode, resolvePortableMode } from '../../utils/portable'
 
+const autoStartBusy = ref(false)
+const autoStartError = ref<string | null>(null)
+let autoStartErrorTimer: ReturnType<typeof setTimeout> | null = null
+
+function showAutoStartError(text: string) {
+  autoStartError.value = text
+  if (autoStartErrorTimer) clearTimeout(autoStartErrorTimer)
+  autoStartErrorTimer = setTimeout(() => {
+    autoStartError.value = null
+    autoStartErrorTimer = null
+  }, 5000)
+}
+
 const { t, locale, setLocale, availableLocales } = useI18n()
 
 const portableMode = ref<boolean | null>(null)
@@ -104,8 +117,10 @@ function closeLocaleDropdown(e: MouseEvent) {
 
 async function toggleAutoStart() {
   // Never touch OS autostart unless we confirmed a normal install.
-  if (portableMode.value !== false || !(await isInstalledMode())) return
+  if (autoStartBusy.value || portableMode.value !== false || !(await isInstalledMode())) return
   const nextValue = !props.autoStartEnabled
+  autoStartBusy.value = true
+  autoStartError.value = null
   try {
     if (nextValue) {
       await enable()
@@ -126,6 +141,9 @@ async function toggleAutoStart() {
     emit('update:autoStartEnabled', nextValue)
   } catch (error) {
     console.error('Failed to toggle auto start:', error)
+    showAutoStartError(nextValue ? t('settings.autoStartFailedEnable') : t('settings.autoStartFailedDisable'))
+  } finally {
+    autoStartBusy.value = false
   }
 }
 
@@ -364,7 +382,8 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
             role="switch"
             :aria-checked="autoStartEnabled"
             :aria-label="t('settings.autoStart')"
-            class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
+            :disabled="autoStartBusy"
+            class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner disabled:opacity-50 disabled:cursor-wait"
             :class="autoStartEnabled ? 'settings-toggle-on' : 'settings-toggle-off'"
             @click="toggleAutoStart"
           >
@@ -374,6 +393,13 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
             />
           </button>
         </div>
+        <Transition name="msg">
+          <div v-if="autoStartError" class="px-3.5 pb-2.5 -mt-1">
+            <div class="px-3 py-1.5 rounded-md settings-msg-error text-xs leading-snug">
+              {{ autoStartError }}
+            </div>
+          </div>
+        </Transition>
       </div>
 
       <div class="settings-card">

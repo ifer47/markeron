@@ -7,7 +7,9 @@ import { resolveDragMode, type DragMode } from '../utils/dragMode'
 import { applyTheme, watchSystemTheme, type ThemePreference } from '../composables/useAppTheme'
 import { resolveDefaultEntryMode, type DefaultEntryMode } from '../utils/entryMode'
 import { resolveEraserMode, type EraserMode } from '../utils/eraserMode'
-import { resolveAutoStart } from '../utils/autoStart'
+import { isEnabled } from '@tauri-apps/plugin-autostart'
+import { reconcileAutoStartState, resolveAutoStart } from '../utils/autoStart'
+import { isInstalledMode } from '../utils/portable'
 import { isMacOS } from '../utils/platform'
 import { useI18n, syncLocaleFromConfig } from '../i18n'
 import GeneralTab from './settings/GeneralTab.vue'
@@ -248,6 +250,7 @@ onMounted(async () => {
   whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
   angleSnapStep.value = (cfg.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15
   autoStartEnabled.value = resolveAutoStart(cfg.general)
+  await reconcileAutoStartWithOs(cfg)
   syncLocaleFromConfig(cfg.general?.locale)
   window.addEventListener('keydown', onKeyDown, true)
 
@@ -261,6 +264,24 @@ onMounted(async () => {
     void applyTheme(theme.value)
   })
 })
+
+/** Align the toggle with OS registration; persist when config.json is stale. */
+async function reconcileAutoStartWithOs(cfg: AppConfig) {
+  if (!(await isInstalledMode())) return
+  try {
+    const osEnabled = await isEnabled()
+    const { enabled, configOutOfSync } = reconcileAutoStartState({
+      configEnabled: autoStartEnabled.value,
+      osEnabled,
+    })
+    autoStartEnabled.value = enabled
+    if (!configOutOfSync || !cfg.general) return
+    cfg.general.autoStart = enabled
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to reconcile autostart with OS:', error)
+  }
+}
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onKeyDown, true)

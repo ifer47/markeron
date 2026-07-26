@@ -108,6 +108,9 @@ export default {
     themeSystem: '跟随系统',
     autoStart: '开机自动启动',
     autoStartDesc: '开启后，应用程序会在系统启动时自动在后台静默运行。',
+    autoStartFailedEnable:
+      '无法开启开机自启。请在系统登录项/启动项中允许 MarkerOn（若有安全软件拦截也请放行），然后重试。',
+    autoStartFailedDisable: '无法关闭开机自启。请检查系统登录项/启动项权限后重试。',
     dragMode: '元素拖拽',
     dragModeOff: '关闭',
     dragModeHover: '悬停拖动',

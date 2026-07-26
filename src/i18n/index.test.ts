@@ -85,6 +85,16 @@ describe('useI18n', () => {
       expect(t('settings.shortcutsSavedPartial', { keys: '清除标注: Ctrl+C' })).toContain('已保存')
     })
 
+    it('exposes autostart failure copy in both locales', () => {
+      const { locale, t } = useI18n()
+      locale.locale = 'en'
+      expect(t('settings.autoStartFailedEnable')).toContain('login/startup')
+      expect(t('settings.autoStartFailedDisable')).toContain('login/startup')
+      locale.locale = 'zh-CN'
+      expect(t('settings.autoStartFailedEnable')).toContain('登录项')
+      expect(t('settings.autoStartFailedDisable')).toContain('登录项')
+    })
+
     it('replaces {mod} placeholder in comboRequirement', () => {
       const { locale, t } = useI18n()
       locale.locale = 'zh-CN'

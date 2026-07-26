@@ -159,18 +159,18 @@ pub fn save_general(
     state: tauri::State<'_, AppState>,
     general: GeneralConfig,
 ) -> AppResult<()> {
-    let snapshot = {
+    let auto_start = {
         let mut cfg = lock_or_recover(&state.config);
         cfg.general = general.normalized();
         crate::config::save_config(&app, &cfg);
-        cfg.clone()
+        cfg.general.auto_start
     };
-    let auto_start = snapshot.general.auto_start;
+    crate::config::apply_autostart_preference(&app, &state, auto_start);
+    let snapshot = lock_or_recover(&state.config).clone();
     let theme = snapshot.general.theme;
     if let Err(e) = app.emit("config-changed", snapshot) {
         warn!("Failed to emit config-changed: {}", e);
     }
-    crate::config::sync_autostart(&app, auto_start);
     if crate::overlay::current_mode(&state) != crate::overlay::OverlayMode::Hidden {
         crate::overlay::ensure_toolbar_window(&app, &state);
     }

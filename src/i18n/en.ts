@@ -108,6 +108,10 @@ export default {
     themeSystem: 'System',
     autoStart: 'Launch at startup',
     autoStartDesc: 'When enabled, the app runs silently in the background on system startup.',
+    autoStartFailedEnable:
+      'Could not enable launch at startup. Allow MarkerOn in your system login/startup items (and any security software that may have blocked it), then try again.',
+    autoStartFailedDisable:
+      'Could not disable launch at startup. Check your system login/startup item permissions, then try again.',
     dragMode: 'Element dragging',
     dragModeOff: 'Off',
     dragModeHover: 'Hover',

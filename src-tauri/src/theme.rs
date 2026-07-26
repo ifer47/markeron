@@ -86,8 +86,7 @@ pub fn windows_system_shell_is_light() -> bool {
     use winreg::enums::HKEY_CURRENT_USER;
     use winreg::RegKey;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
-    let Ok(key) =
-        hkcu.open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+    let Ok(key) = hkcu.open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
     else {
         return true;
     };
@@ -139,9 +138,7 @@ pub fn apply_windows_tray_icon(app: &AppHandle) {
 }
 
 #[cfg(target_os = "windows")]
-fn apply_windows_tray_icon_inner(
-    app: &AppHandle,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn apply_windows_tray_icon_inner(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let Some(tray) = app.tray_by_id("main") else {
         return Ok(());
     };
@@ -162,6 +159,51 @@ fn update_windows_chrome_icons(
     Ok(())
 }
 
+/// Watch Personalize registry values and refresh the tray icon when the
+/// taskbar / system shell theme changes. Fire-and-forget daemon thread.
+#[cfg(target_os = "windows")]
+pub fn start_windows_tray_theme_watcher(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::Builder::new()
+        .name("windows-tray-theme".into())
+        .spawn(move || {
+            use windows_sys::Win32::Foundation::ERROR_SUCCESS;
+            use windows_sys::Win32::System::Registry::{
+                RegNotifyChangeKeyValue, REG_NOTIFY_CHANGE_LAST_SET, REG_NOTIFY_CHANGE_NAME,
+            };
+            use winreg::enums::{HKEY_CURRENT_USER, KEY_NOTIFY, KEY_READ};
+            use winreg::RegKey;
+
+            let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+            let path = r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize";
+            let Ok(key) = hkcu.open_subkey_with_flags(path, KEY_READ | KEY_NOTIFY) else {
+                warn!("Tray theme watcher: cannot open Personalize key");
+                return;
+            };
+
+            loop {
+                let status = unsafe {
+                    RegNotifyChangeKeyValue(
+                        key.raw_handle(),
+                        0, // no subtree
+                        REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET,
+                        std::ptr::null_mut(),
+                        0, // synchronous
+                    )
+                };
+                if status != ERROR_SUCCESS {
+                    warn!(
+                        "Tray theme watcher: RegNotifyChangeKeyValue failed ({})",
+                        status
+                    );
+                    break;
+                }
+                apply_windows_tray_icon(&app);
+            }
+        })
+        .ok();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,10 +218,7 @@ mod tests {
     #[test]
     fn tray_png_dark_shell_uses_light_glyph() {
         let bytes = tray_icon_png_for_shell_light(false);
-        assert_eq!(
-            bytes,
-            include_bytes!("../icons/icon-light.png") as &[u8]
-        );
+        assert_eq!(bytes, include_bytes!("../icons/icon-light.png") as &[u8]);
     }
 
     #[cfg(target_os = "windows")]

@@ -249,6 +249,12 @@ pub fn run() {
                 });
             }
 
+            #[cfg(target_os = "windows")]
+            {
+                theme::apply_windows_tray_icon(&handle);
+                theme::start_windows_tray_theme_watcher(&handle);
+            }
+
             shortcuts::register_shortcuts(&handle);
 
             let ctrlc_handle = handle.clone();

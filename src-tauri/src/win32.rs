@@ -142,3 +142,81 @@ pub fn get_cursor_monitor_rect_win32() -> Option<(i32, i32, u32, u32)> {
 pub fn get_monitor_rect_at_point_win32(x: i32, y: i32) -> Option<(i32, i32, u32, u32)> {
     monitor_rect_from_point(x, y)
 }
+
+/// Create an `HICON` from premultiplied-capable RGBA bytes (row-major).
+/// Caller owns the handle and must eventually `DestroyIcon`.
+pub fn create_hicon_from_rgba(
+    rgba: &[u8],
+    width: u32,
+    height: u32,
+) -> Option<*mut std::ffi::c_void> {
+    use windows_sys::Win32::UI::WindowsAndMessaging::CreateIcon;
+
+    if width == 0 || height == 0 {
+        return None;
+    }
+    let pixel_count = (width as usize).checked_mul(height as usize)?;
+    if rgba.len() < pixel_count * 4 {
+        return None;
+    }
+
+    let mut bgra = rgba[..pixel_count * 4].to_vec();
+    let mut and_mask = Vec::with_capacity(pixel_count);
+    for chunk in bgra.chunks_exact_mut(4) {
+        and_mask.push(chunk[3].wrapping_sub(u8::MAX));
+        chunk.swap(0, 2); // RGBA → BGRA
+    }
+
+    let handle = unsafe {
+        CreateIcon(
+            std::ptr::null_mut(),
+            width as i32,
+            height as i32,
+            1,
+            32,
+            and_mask.as_ptr(),
+            bgra.as_ptr(),
+        )
+    };
+    if handle.is_null() {
+        None
+    } else {
+        Some(handle)
+    }
+}
+
+/// Set title-bar (`ICON_SMALL`) icon. Does not touch `ICON_BIG`.
+pub fn set_window_small_icon(hwnd: isize, small: *mut std::ffi::c_void) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageW, ICON_SMALL, WM_SETICON};
+    let hwnd = hwnd as windows_sys::Win32::Foundation::HWND;
+    unsafe {
+        SendMessageW(hwnd, WM_SETICON, ICON_SMALL as usize, small as isize);
+    }
+}
+
+/// Set taskbar/Alt-Tab (`ICON_BIG`) icon. Does not touch `ICON_SMALL`.
+pub fn set_window_big_icon(hwnd: isize, big: *mut std::ffi::c_void) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{SendMessageW, ICON_BIG, WM_SETICON};
+    let hwnd = hwnd as windows_sys::Win32::Foundation::HWND;
+    unsafe {
+        SendMessageW(hwnd, WM_SETICON, ICON_BIG as usize, big as isize);
+    }
+}
+
+/// Set title-bar (`ICON_SMALL`) and taskbar/Alt-Tab (`ICON_BIG`) icons separately.
+pub fn set_window_small_and_big_icons(
+    hwnd: isize,
+    small: *mut std::ffi::c_void,
+    big: *mut std::ffi::c_void,
+) {
+    set_window_small_icon(hwnd, small);
+    set_window_big_icon(hwnd, big);
+}
+
+pub fn destroy_hicon(handle: *mut std::ffi::c_void) {
+    if !handle.is_null() {
+        unsafe {
+            windows_sys::Win32::UI::WindowsAndMessaging::DestroyIcon(handle);
+        }
+    }
+}

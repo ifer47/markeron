@@ -146,7 +146,12 @@ fn open_settings_tab(app: &AppHandle, tab: Option<&str>) {
             let preference = lock_or_recover(&app.state::<AppState>().config)
                 .general
                 .theme;
+            let resolved = theme::resolve_theme(&preference);
             theme::apply_app_theme(app, &preference);
+            // First open: sync title-bar + taskbar icons (subsequent appearance
+            // toggles only swap the cached title-bar HICON).
+            #[cfg(target_os = "windows")]
+            theme::apply_windows_settings_window_icons(app, resolved);
         }
         Err(e) => warn!("Failed to open settings window: {}", e),
     }

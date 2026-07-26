@@ -79,9 +79,24 @@ pub fn apply_app_theme(app: &AppHandle, preference: &ThemePreference) {
     }
 }
 
+/// `SystemUsesLightTheme` under Personalize — `1` = light taskbar/flyout,
+/// `0` = dark. Missing key → treat as light (prefer dark glyph visibility).
+#[cfg(target_os = "windows")]
+pub fn windows_system_shell_is_light() -> bool {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+    let hkcu = RegKey::predef(HKEY_CURRENT_USER);
+    let Ok(key) =
+        hkcu.open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")
+    else {
+        return true;
+    };
+    let light: u32 = key.get_value("SystemUsesLightTheme").unwrap_or(1);
+    light != 0
+}
+
+/// Settings window title-bar icon only (not tray).
 /// Dark chrome needs a light glyph; light chrome needs a dark glyph.
-/// `icon.png` stays black (macOS template + light Windows surfaces).
-/// `icon-light.png` is the white invert for dark Windows title bar / tray.
 #[cfg(target_os = "windows")]
 fn windows_theme_icon_png(resolved: ResolvedTheme) -> &'static [u8] {
     match resolved {
@@ -91,24 +106,56 @@ fn windows_theme_icon_png(resolved: ResolvedTheme) -> &'static [u8] {
 }
 
 #[cfg(target_os = "windows")]
-fn load_windows_theme_icon(
-    resolved: ResolvedTheme,
+fn tray_icon_png_for_shell_light(shell_is_light: bool) -> &'static [u8] {
+    if shell_is_light {
+        include_bytes!("../icons/icon.png")
+    } else {
+        include_bytes!("../icons/icon-light.png")
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn load_icon_from_png(
+    bytes: &'static [u8],
 ) -> Result<tauri::image::Image<'static>, Box<dyn std::error::Error>> {
     use tauri::image::Image;
-    let bytes = windows_theme_icon_png(resolved);
     let rgba = image::load_from_memory(bytes)?.to_rgba8();
     let (width, height) = rgba.dimensions();
     Ok(Image::new_owned(rgba.into_raw(), width, height))
 }
 
 #[cfg(target_os = "windows")]
+fn load_windows_theme_icon(
+    resolved: ResolvedTheme,
+) -> Result<tauri::image::Image<'static>, Box<dyn std::error::Error>> {
+    load_icon_from_png(windows_theme_icon_png(resolved))
+}
+
+#[cfg(target_os = "windows")]
+pub fn apply_windows_tray_icon(app: &AppHandle) {
+    if let Err(e) = apply_windows_tray_icon_inner(app) {
+        warn!("Failed to update Windows tray icon: {}", e);
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn apply_windows_tray_icon_inner(
+    app: &AppHandle,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let Some(tray) = app.tray_by_id("main") else {
+        return Ok(());
+    };
+    let bytes = tray_icon_png_for_shell_light(windows_system_shell_is_light());
+    tray.set_icon(Some(load_icon_from_png(bytes)?))?;
+    Ok(())
+}
+
+/// Settings window icon only — tray follows `SystemUsesLightTheme` separately.
+#[cfg(target_os = "windows")]
 fn update_windows_chrome_icons(
     app: &AppHandle,
     resolved: ResolvedTheme,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if let Some(tray) = app.tray_by_id("main") {
-        tray.set_icon(Some(load_windows_theme_icon(resolved)?))?;
-    }
     if let Some(win) = app.get_webview_window("settings") {
         win.set_icon(load_windows_theme_icon(resolved)?)?;
     }
@@ -123,5 +170,22 @@ mod tests {
     fn resolve_dark_and_light_are_fixed() {
         assert_eq!(resolve_theme(&ThemePreference::Dark), ResolvedTheme::Dark);
         assert_eq!(resolve_theme(&ThemePreference::Light), ResolvedTheme::Light);
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn tray_png_dark_shell_uses_light_glyph() {
+        let bytes = tray_icon_png_for_shell_light(false);
+        assert_eq!(
+            bytes,
+            include_bytes!("../icons/icon-light.png") as &[u8]
+        );
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn tray_png_light_shell_uses_dark_glyph() {
+        let bytes = tray_icon_png_for_shell_light(true);
+        assert_eq!(bytes, include_bytes!("../icons/icon.png") as &[u8]);
     }
 }

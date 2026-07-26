@@ -79,9 +79,9 @@ pub fn apply_app_theme(app: &AppHandle, preference: &ThemePreference) {
     }
 }
 
-/// Settings window title bar: dark chrome needs a light glyph.
-/// Tray always stays black — Windows overflow / flyout backgrounds are light
-/// even when apps use dark theme, so a white tray icon disappears.
+/// Dark chrome needs a light glyph; light chrome needs a dark glyph.
+/// `icon.png` stays black (macOS template + light Windows surfaces).
+/// `icon-light.png` is the white invert for dark Windows title bar / tray.
 #[cfg(target_os = "windows")]
 fn windows_theme_icon_png(resolved: ResolvedTheme) -> &'static [u8] {
     match resolved {
@@ -91,20 +91,14 @@ fn windows_theme_icon_png(resolved: ResolvedTheme) -> &'static [u8] {
 }
 
 #[cfg(target_os = "windows")]
-fn load_icon_from_png(
-    bytes: &'static [u8],
-) -> Result<tauri::image::Image<'static>, Box<dyn std::error::Error>> {
-    use tauri::image::Image;
-    let rgba = image::load_from_memory(bytes)?.to_rgba8();
-    let (width, height) = rgba.dimensions();
-    Ok(Image::new_owned(rgba.into_raw(), width, height))
-}
-
-#[cfg(target_os = "windows")]
 fn load_windows_theme_icon(
     resolved: ResolvedTheme,
 ) -> Result<tauri::image::Image<'static>, Box<dyn std::error::Error>> {
-    load_icon_from_png(windows_theme_icon_png(resolved))
+    use tauri::image::Image;
+    let bytes = windows_theme_icon_png(resolved);
+    let rgba = image::load_from_memory(bytes)?.to_rgba8();
+    let (width, height) = rgba.dimensions();
+    Ok(Image::new_owned(rgba.into_raw(), width, height))
 }
 
 #[cfg(target_os = "windows")]
@@ -113,10 +107,7 @@ fn update_windows_chrome_icons(
     resolved: ResolvedTheme,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(tray) = app.tray_by_id("main") {
-        // Always black (`icon.png`) so the glyph stays visible on light flyouts.
-        tray.set_icon(Some(load_icon_from_png(include_bytes!(
-            "../icons/icon.png"
-        ))?))?;
+        tray.set_icon(Some(load_windows_theme_icon(resolved)?))?;
     }
     if let Some(win) = app.get_webview_window("settings") {
         win.set_icon(load_windows_theme_icon(resolved)?)?;

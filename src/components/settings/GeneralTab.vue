@@ -12,7 +12,7 @@ import { ERASER_MODE_OPTIONS } from '../../utils/eraserMode'
 import { applyTheme, type ThemePreference } from '../../composables/useAppTheme'
 import { useI18n } from '../../i18n'
 import { isMacOS } from '../../utils/platform'
-import { isInstalledMode, resolvePortableMode } from '../../utils/portable'
+import { isInstalledMode, resolvePortableMode, supportsAutostart } from '../../utils/portable'
 
 const autoStartBusy = ref(false)
 const autoStartError = ref<string | null>(null)
@@ -30,6 +30,7 @@ function showAutoStartError(text: string) {
 const { t, locale, setLocale, availableLocales } = useI18n()
 
 const portableMode = ref<boolean | null>(null)
+const autostartAvailable = ref(false)
 
 const localeLabels: Record<string, string> = {
   en: 'English',
@@ -117,7 +118,8 @@ function closeLocaleDropdown(e: MouseEvent) {
 
 async function toggleAutoStart() {
   // Never touch OS autostart unless we confirmed a normal install.
-  if (autoStartBusy.value || portableMode.value !== false || !(await isInstalledMode())) return
+  if (autoStartBusy.value || !autostartAvailable.value || portableMode.value !== false || !(await isInstalledMode()))
+    return
   const nextValue = !props.autoStartEnabled
   autoStartBusy.value = true
   autoStartError.value = null
@@ -149,6 +151,7 @@ async function toggleAutoStart() {
 
 onMounted(async () => {
   portableMode.value = await resolvePortableMode()
+  autostartAvailable.value = await supportsAutostart()
 })
 
 function dragModeLabel(mode: DragMode): string {
@@ -375,7 +378,7 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
         </div>
       </div>
 
-      <div v-if="portableMode === false" class="settings-card">
+      <div v-if="autostartAvailable" class="settings-card">
         <div class="settings-card-row">
           <span class="settings-text-label">{{ t('settings.autoStart') }}</span>
           <button

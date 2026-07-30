@@ -9,7 +9,7 @@ import { resolveDefaultEntryMode, type DefaultEntryMode } from '../utils/entryMo
 import { resolveEraserMode, type EraserMode } from '../utils/eraserMode'
 import { isEnabled } from '@tauri-apps/plugin-autostart'
 import { reconcileAutoStartState, resolveAutoStart } from '../utils/autoStart'
-import { isInstalledMode } from '../utils/portable'
+import { isInstalledMode, supportsAutostart } from '../utils/portable'
 import { isMacOS } from '../utils/platform'
 import { useI18n, syncLocaleFromConfig } from '../i18n'
 import GeneralTab from './settings/GeneralTab.vue'
@@ -267,7 +267,7 @@ onMounted(async () => {
 
 /** Align the toggle with OS registration; persist when config.json is stale. */
 async function reconcileAutoStartWithOs(cfg: AppConfig) {
-  if (!(await isInstalledMode())) return
+  if (!(await isInstalledMode()) || !(await supportsAutostart())) return
   try {
     const osEnabled = await isEnabled()
     const { enabled, configOutOfSync } = reconcileAutoStartState({

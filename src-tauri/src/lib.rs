@@ -204,6 +204,7 @@ pub fn run() {
             commands::open_url,
             commands::reveal_settings_window,
             commands::is_portable,
+            commands::supports_autostart,
             diagnostics::export_diagnostics,
             diagnostics::open_github_issue_report,
             diagnostics::append_diagnostic_event,

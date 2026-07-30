@@ -347,17 +347,34 @@ pub fn load_config(app: &AppHandle) -> AppConfig {
     }
 }
 
+/// Whether this executable may register OS autostart (installed release only).
+pub fn supports_autostart() -> bool {
+    !crate::portable::is_portable() && !cfg!(debug_assertions)
+}
+
 /// Sync OS autostart with the desired preference.
 ///
-/// Returns `None` in portable mode (no OS registration). Otherwise returns the
-/// actual enabled state after the attempt — callers should persist when this
-/// differs from `enabled` (e.g. security software blocked registry writes).
+/// Returns `None` in portable or debug builds (no OS registration). Otherwise
+/// returns the actual enabled state after the attempt — callers should persist
+/// when this differs from `enabled` (e.g. security software blocked registry writes).
 pub fn sync_autostart(app: &AppHandle, enabled: bool) -> Option<bool> {
     use tauri_plugin_autostart::ManagerExt;
 
-    // Portable builds should not touch OS autostart / registry entries.
-    if crate::portable::is_portable() {
-        info!("Portable mode: skipping autostart sync");
+    if !supports_autostart() {
+        if crate::portable::is_portable() {
+            info!("Portable mode: skipping autostart sync");
+        } else {
+            // Debug builds load the UI from localhost; clear stale OS entries that
+            // were registered during a dev session so boot does not launch this exe.
+            let manager = app.autolaunch();
+            if manager.is_enabled().unwrap_or(false) {
+                if let Err(e) = manager.disable() {
+                    warn!("Failed to disable autostart from debug build: {}", e);
+                } else {
+                    info!("Removed OS autostart registration (debug build)");
+                }
+            }
+        }
         return None;
     }
 
@@ -619,6 +636,12 @@ mod tests {
     fn general_config_defaults_toolbar_visibility() {
         let general = GeneralConfig::default();
         assert_eq!(general.toolbar_visibility, ToolbarVisibility::Space);
+    }
+
+    #[test]
+    fn supports_autostart_false_in_debug_tests() {
+        // Unit tests run with debug_assertions; dev builds must not register autostart.
+        assert!(!super::supports_autostart());
     }
 
     #[test]

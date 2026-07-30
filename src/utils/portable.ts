@@ -29,3 +29,15 @@ export async function isPortableMode(): Promise<boolean> {
 export async function isInstalledMode(): Promise<boolean> {
   return (await resolvePortableMode()) === false
 }
+
+/**
+ * True when OS autostart may be registered (installed release build only).
+ * Debug builds load the UI from localhost and must not be added to login items.
+ */
+export async function supportsAutostart(): Promise<boolean> {
+  try {
+    return await invoke<boolean>('supports_autostart')
+  } catch {
+    return false
+  }
+}

@@ -21,9 +21,11 @@ describe('sync-afdian-sponsors', () => {
     assert.equal(typeof body.ts, 'number')
   })
 
-  it('prefers order display name over default Afdian placeholder', () => {
+  it('prefers order display name over sponsor profile name', () => {
     assert.equal(resolveSponsorDisplayName('爱发电用户_36106', '47'), '47')
-    assert.equal(resolveSponsorDisplayName('Alice', '47'), 'Alice')
+    assert.equal(resolveSponsorDisplayName('Alice', '47'), '47')
+    assert.equal(resolveSponsorDisplayName('Alice', ''), 'Alice')
     assert.equal(resolveSponsorDisplayName('', '47'), '47')
+    assert.equal(resolveSponsorDisplayName('', ''), '')
   })
 })

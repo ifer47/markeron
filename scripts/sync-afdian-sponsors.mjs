@@ -8,7 +8,6 @@ const API_SPONSOR = 'https://afdian.com/api/open/query-sponsor'
 const API_ORDER = 'https://afdian.com/api/open/query-order'
 const OUTPUT = join(ROOT, 'src/data/afdian-sponsors.json')
 const ENV_LOCAL = join(ROOT, '.env.local')
-const DEFAULT_AFDIAN_NAME = /^爱发电用户_\d+$/
 
 function loadEnvLocal() {
   if (!existsSync(ENV_LOCAL)) return
@@ -65,19 +64,17 @@ export async function queryOrderPage(userId, token, page) {
   return queryAfdianPage(API_ORDER, userId, token, page)
 }
 
+/** Prefer order display name; fall back to sponsor profile name. */
 /** @param {string | undefined} sponsorName @param {string | undefined} orderName */
 export function resolveSponsorDisplayName(sponsorName, orderName) {
-  const sponsor = sponsorName?.trim() ?? ''
   const order = orderName?.trim() ?? ''
-
-  if (order && (!sponsor || DEFAULT_AFDIAN_NAME.test(sponsor))) return order
-  if (sponsor) return sponsor
-  return order
+  if (order) return order
+  return sponsorName?.trim() ?? ''
 }
 
 /** @param {string} userId @param {string} token */
 export async function fetchAllAfdianSponsors(userId, token) {
-  /** @type {Map<string, { name: string, amount: string, plan: string, remark: string, lastPayTime: number, remarkTime: number }>} */
+  /** @type {Map<string, { name: string, amount: string, plan: string, remark: string, lastPayTime: number, nameTime: number, remarkTime: number }>} */
   const sponsors = new Map()
 
   let sponsorPage = 1
@@ -99,6 +96,7 @@ export async function fetchAllAfdianSponsors(userId, token) {
         plan: item.current_plan?.name?.trim() ?? '',
         remark: '',
         lastPayTime: Number(item.last_pay_time) || 0,
+        nameTime: 0,
         remarkTime: 0,
       })
     }
@@ -134,15 +132,22 @@ export async function fetchAllAfdianSponsors(userId, token) {
           plan: orderPlan,
           remark: orderRemark,
           lastPayTime: createTime,
+          nameTime: orderName ? createTime : 0,
           remarkTime: orderRemark ? createTime : 0,
         })
         continue
       }
 
-      existing.name = resolveSponsorDisplayName(existing.name, orderName)
-      if (orderPlan) existing.plan = orderPlan
-      if (orderAmount) existing.amount = orderAmount
-      if (createTime >= existing.lastPayTime) existing.lastPayTime = createTime
+      // Latest paid order wins for display name / plan / amount.
+      if (orderName && createTime >= existing.nameTime) {
+        existing.name = resolveSponsorDisplayName(existing.name, orderName)
+        existing.nameTime = createTime
+      }
+      if (createTime >= existing.lastPayTime) {
+        if (orderPlan) existing.plan = orderPlan
+        if (orderAmount) existing.amount = orderAmount
+        existing.lastPayTime = createTime
+      }
       if (orderRemark && createTime >= existing.remarkTime) {
         existing.remark = orderRemark
         existing.remarkTime = createTime

@@ -140,6 +140,12 @@ export default {
     eraserModeObject: 'Object',
     eraserModeDesc:
       'Stroke: erase pixels along the drag path (undoable). Object: delete entire shapes or text when you pass over them (undoable). Element dragging is disabled while the eraser is selected, even with hover drag on.',
+    strokeSmoothing: 'Stroke smoothing',
+    strokeSmoothingOff: 'Off',
+    strokeSmoothingStandard: 'Standard',
+    strokeSmoothingStrong: 'Strong',
+    strokeSmoothingDesc:
+      'Smooths freehand pen and highlighter strokes. Standard balances follow and ink quality; Strong softens more; Off keeps raw pointer samples. Pen/touch keep pressure-sensitive width; mouse strokes stay uniform.',
   },
   toolbar: {
     undo: 'Undo',

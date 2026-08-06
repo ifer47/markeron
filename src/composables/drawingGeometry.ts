@@ -53,7 +53,12 @@ export function bboxesIntersect(a: NonNullable<DrawAction['bbox']>, b: NonNullab
 export function cloneActionWithOffset(action: DrawAction, dx: number, dy: number): DrawAction {
   return {
     ...action,
-    points: action.points.map((pt) => ({ x: pt.x + dx, y: pt.y + dy })),
+    points: action.points.map((pt) => ({
+      x: pt.x + dx,
+      y: pt.y + dy,
+      ...(pt.pressure != null ? { pressure: pt.pressure } : {}),
+      ...(pt.t != null ? { t: pt.t } : {}),
+    })),
     bbox: action.bbox
       ? {
           x1: action.bbox.x1 + dx,
@@ -167,11 +172,13 @@ export function hitTestAction(action: DrawAction, p: Point, extraMargin = 0): bo
   }
 
   if (action.tool === 'pen' || action.tool === 'highlighter') {
+    // Variable-width ink can exceed lineWidth/2; keep a slightly generous hit radius.
+    const inkThreshold = Math.max(10, action.lineWidth * 0.65 + 5) + extraMargin
     if (pts.length === 1) {
-      if (Math.hypot(p.x - pts[0].x, p.y - pts[0].y) <= threshold) return true
+      if (Math.hypot(p.x - pts[0].x, p.y - pts[0].y) <= inkThreshold) return true
     } else {
       for (let j = 0, end = pts.length - 1; j < end; j++) {
-        if (distToSeg(p.x, p.y, pts[j].x, pts[j].y, pts[j + 1].x, pts[j + 1].y) <= threshold) return true
+        if (distToSeg(p.x, p.y, pts[j].x, pts[j].y, pts[j + 1].x, pts[j + 1].y) <= inkThreshold) return true
       }
     }
     return false

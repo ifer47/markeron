@@ -19,6 +19,7 @@ export interface AppConfig {
     toolbarVisibility?: ToolbarVisibility
     defaultEntryMode?: DefaultEntryMode
     eraserMode?: EraserMode
+    strokeSmoothing?: StrokeSmoothing
     lineWidths?: {
       stroke: number
       highlighter: number
@@ -33,6 +34,7 @@ export interface AppConfig {
 export type ToolbarVisibility = 'space' | 'always'
 export type DefaultEntryMode = 'screen' | 'whiteboard'
 export type EraserMode = 'stroke' | 'object'
+export type StrokeSmoothing = 'off' | 'standard' | 'strong'
 
 export interface SaveResult {
   ok: boolean

@@ -9,6 +9,7 @@ import type { DefaultEntryMode } from '../../utils/entryMode'
 import { DEFAULT_ENTRY_MODE_OPTIONS } from '../../utils/entryMode'
 import type { EraserMode } from '../../utils/eraserMode'
 import { ERASER_MODE_OPTIONS } from '../../utils/eraserMode'
+import { STROKE_SMOOTHING_OPTIONS, type StrokeSmoothing } from '../../utils/strokeSmoothing'
 import { applyTheme, type ThemePreference } from '../../composables/useAppTheme'
 import { useI18n } from '../../i18n'
 import { isMacOS } from '../../utils/platform'
@@ -45,7 +46,14 @@ const themeOptions = ['dark', 'light', 'system'] as const
 const dragModeOptions = DRAG_MODE_OPTIONS
 const defaultEntryModeOptions = DEFAULT_ENTRY_MODE_OPTIONS
 const eraserModeOptions = ERASER_MODE_OPTIONS
+const strokeSmoothingOptions = STROKE_SMOOTHING_OPTIONS
 const modKeyLabel = computed(() => (isMacOS() ? 'Command' : 'Ctrl'))
+
+function strokeSmoothingLabelKey(level: StrokeSmoothing): string {
+  if (level === 'off') return 'settings.strokeSmoothingOff'
+  if (level === 'strong') return 'settings.strokeSmoothingStrong'
+  return 'settings.strokeSmoothingStandard'
+}
 
 function themeLabelKey(opt: ThemePreference): string {
   if (opt === 'dark') return 'settings.themeDark'
@@ -69,6 +77,7 @@ const props = defineProps<{
   dragMode: DragMode
   defaultEntryMode: DefaultEntryMode
   eraserMode: EraserMode
+  strokeSmoothing: StrokeSmoothing
   preserveDrawings: boolean
   whiteboardPreserveDrawings: boolean
   autoStartEnabled: boolean
@@ -80,6 +89,7 @@ const emit = defineEmits<{
   'update:dragMode': [value: DragMode]
   'update:defaultEntryMode': [value: DefaultEntryMode]
   'update:eraserMode': [value: EraserMode]
+  'update:strokeSmoothing': [value: StrokeSmoothing]
   'update:preserveDrawings': [value: boolean]
   'update:whiteboardPreserveDrawings': [value: boolean]
   'update:autoStartEnabled': [value: boolean]
@@ -209,6 +219,7 @@ async function setEraserMode(mode: EraserMode) {
         dragMode: props.dragMode,
         defaultEntryMode: props.defaultEntryMode,
         eraserMode: mode,
+        strokeSmoothing: props.strokeSmoothing,
         preserveDrawings: false,
         whiteboardPreserveDrawings: true,
         angleSnapStep: props.angleSnapStep,
@@ -217,6 +228,28 @@ async function setEraserMode(mode: EraserMode) {
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
     console.error('Failed to save eraser mode:', error)
+  }
+}
+
+async function setStrokeSmoothing(level: StrokeSmoothing) {
+  if (level === props.strokeSmoothing) return
+  emit('update:strokeSmoothing', level)
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general)
+      cfg.general = {
+        dragMode: props.dragMode,
+        defaultEntryMode: props.defaultEntryMode,
+        eraserMode: props.eraserMode,
+        strokeSmoothing: level,
+        preserveDrawings: false,
+        whiteboardPreserveDrawings: true,
+        angleSnapStep: props.angleSnapStep,
+      }
+    cfg.general.strokeSmoothing = level
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save stroke smoothing:', error)
   }
 }
 
@@ -460,6 +493,25 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
             </button>
           </div>
         </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-row">
+          <span class="settings-text-label">{{ t('settings.strokeSmoothing') }}</span>
+          <div class="flex items-center gap-1 shrink-0 flex-wrap justify-end max-w-[62%]">
+            <button
+              v-for="level in strokeSmoothingOptions"
+              :key="level"
+              class="px-2 py-1 rounded-md ui-segment leading-none transition-colors duration-120 whitespace-nowrap"
+              :class="{ 'ui-segment--active': strokeSmoothing === level }"
+              :aria-pressed="strokeSmoothing === level"
+              @click="setStrokeSmoothing(level)"
+            >
+              {{ t(strokeSmoothingLabelKey(level)) }}
+            </button>
+          </div>
+        </div>
+        <p class="settings-card-desc">{{ t('settings.strokeSmoothingDesc') }}</p>
       </div>
 
       <div class="settings-card">

@@ -127,6 +127,22 @@ describe('cloneActionWithOffset', () => {
     ])
   })
 
+  it('preserves pressure and pointerType when offsetting', () => {
+    const action = makeAction({
+      pointerType: 'pen',
+      points: [
+        { x: 10, y: 20, pressure: 0.4 },
+        { x: 30, y: 40, pressure: 0.8 },
+      ],
+    })
+    const cloned = cloneActionWithOffset(action, 5, -3)
+    expect(cloned.pointerType).toBe('pen')
+    expect(cloned.points).toEqual([
+      { x: 15, y: 17, pressure: 0.4 },
+      { x: 35, y: 37, pressure: 0.8 },
+    ])
+  })
+
   it('offsets bbox', () => {
     const action = makeAction({
       points: [{ x: 0, y: 0 }],

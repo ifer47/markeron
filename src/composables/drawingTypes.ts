@@ -3,8 +3,15 @@ export type Tool = 'pen' | 'highlighter' | 'laser' | 'arrow' | 'rect' | 'ellipse
 export interface Point {
   x: number
   y: number
+  /** Pointer pressure 0–1 when available (pen / freehand ink). */
+  pressure?: number
   /** performance.now() when added — used by laser trail decay. */
   t?: number
+  /**
+   * Pointer that started the gesture (`mouse` | `pen` | `touch`).
+   * Only needed on the first sample passed to startDraw; copied onto DrawAction.
+   */
+  pointerType?: string
 }
 
 export interface InputPointLike {
@@ -12,6 +19,7 @@ export interface InputPointLike {
   y?: number
   clientX?: number
   clientY?: number
+  pressure?: number
 }
 
 export type TextOutlineColorMode = 'auto' | 'fixed'
@@ -29,6 +37,11 @@ export interface DrawAction {
   lineWidth: number
   opacity: number
   points: Point[]
+  /**
+   * Input device for this stroke. Pen/touch use pressure-sensitive ink width;
+   * mouse (and missing) stay uniform. Persisted with the action for redraw.
+   */
+  pointerType?: string
   attachedErasers?: DrawAction[]
   text?: string
   fontSize?: number

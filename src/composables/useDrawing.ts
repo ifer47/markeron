@@ -10,10 +10,12 @@ import {
   hitTestAction,
   snapPointToAngle,
 } from './drawingGeometry'
-import { drawActionDirect, drawLaserTrail } from './drawingRender'
+import { drawActionDirect, drawInkStroke, drawLaserTrail } from './drawingRender'
 import { normalizeTextOutline } from '../constants/textOutline'
 import { stampFontSizeFromWidth } from '../constants/stamp'
 import { isLaserTrailGone, pruneAgedLaserPoints } from '../constants/laser'
+import { computeMinDistSq, normalizePressure, penStrokeStyle, smoothPenPoint } from '../constants/penStroke'
+import { getStrokeSmoothing } from './strokeSmoothingState'
 
 export type { Tool, Point, DrawAction } from './drawingTypes'
 export type { InputPointLike } from './drawingTypes'
@@ -31,21 +33,19 @@ import {
 const HIT_GRID_SIZE = 192
 const HIT_GRID_MAX_CELLS = 64
 
-// Adaptive point sampling: large CSS viewports (e.g. 4K@150%) generate far more
-// pointer events per physical pen-movement than small ones (e.g. 2880×1800@200%).
-// Scale the minimum squared-distance threshold proportionally so the point density
-// stays consistent regardless of viewport size.
-const BASE_VIEWPORT_AREA = 1440 * 900
-const BASE_MIN_DIST_SQ = 4
-let cachedMinDistSq = BASE_MIN_DIST_SQ
-let cachedViewportArea = 0
+// Adaptive point sampling in device-pixel space so density stays consistent across
+// DPR and large CSS viewports (see computeMinDistSq).
+let cachedMinDistSq = 4
+let cachedViewportKey = ''
 
 function getMinDistSq(): number {
-  const area = window.innerWidth * window.innerHeight
-  if (area !== cachedViewportArea) {
-    cachedViewportArea = area
-    const scale = area / BASE_VIEWPORT_AREA
-    cachedMinDistSq = scale > 1.5 ? Math.round(BASE_MIN_DIST_SQ * Math.min(scale, 4)) : BASE_MIN_DIST_SQ
+  const w = window.innerWidth
+  const h = window.innerHeight
+  const dpr = window.devicePixelRatio || 1
+  const key = `${w}x${h}@${dpr}`
+  if (key !== cachedViewportKey) {
+    cachedViewportKey = key
+    cachedMinDistSq = computeMinDistSq(w, h, dpr)
   }
   return cachedMinDistSq
 }
@@ -66,6 +66,9 @@ export function useDrawing(
   const isDrawing = ref(false)
   const angleSnapStep = ref<15 | 30 | 45>(15)
   const eraserMode = ref<EraserMode>('stroke')
+
+  /** Live ink buffer needs rebake (declared early for mid-gesture width sync). */
+  let inkPreviewDirty = true
 
   function setEraserMode(mode: EraserMode) {
     eraserMode.value = mode
@@ -106,7 +109,7 @@ export function useDrawing(
       const pt = tip ?? action.points[action.points.length - 1]
       if (!pt) return
       endDraw()
-      startDraw({ x: pt.x, y: pt.y })
+      startDraw({ x: pt.x, y: pt.y, pointerType: action.pointerType })
       return
     }
 
@@ -115,6 +118,10 @@ export function useDrawing(
     }
     action.lineWidth = next
     previewDirty = true
+    // Ink preview is a baked buffer; mark dirty so Ctrl+wheel width rebakes on next frame.
+    if (action.tool === 'pen' || action.tool === 'highlighter') {
+      inkPreviewDirty = true
+    }
     scheduleRender()
   }
 
@@ -146,9 +153,18 @@ export function useDrawing(
     | { type: 'removeBatch'; removed: { action: DrawAction; index: number }[] }
     | { type: 'clear'; actions: DrawAction[]; prevUndoStack: UndoEntry[] }
 
+  function clonePoint(p: Point): Point {
+    return {
+      x: p.x,
+      y: p.y,
+      ...(p.pressure != null ? { pressure: p.pressure } : {}),
+      ...(p.t != null ? { t: p.t } : {}),
+    }
+  }
+
   function takeDragSnapshot(action: DrawAction, index: number): DragSnapshot {
     return {
-      points: action.points.map((p) => ({ x: p.x, y: p.y })),
+      points: action.points.map(clonePoint),
       index,
       attachedErasers: action.attachedErasers ? [...action.attachedErasers] : undefined,
       bbox: action.bbox ? { ...action.bbox } : undefined,
@@ -158,7 +174,7 @@ export function useDrawing(
   }
 
   function restoreDragSnapshot(action: DrawAction, snap: DragSnapshot) {
-    action.points = snap.points.map((p) => ({ x: p.x, y: p.y }))
+    action.points = snap.points.map(clonePoint)
     action.attachedErasers = snap.attachedErasers ? [...snap.attachedErasers] : undefined
     action.bbox = snap.bbox ? { ...snap.bbox } : undefined
     action.rectHit = snap.rectHit ? { ...snap.rectHit } : undefined
@@ -285,10 +301,9 @@ export function useDrawing(
   let historyDirty = true
   let previewDirty = true
 
-  // Incremental stroke cache for pen only.
+  // Live ink preview buffer (full-stroke redraw; avoids bake/join artifacts with variable width).
   let strokeCanvas: HTMLCanvasElement | null = null
   let strokeCtx: CanvasRenderingContext2D | null = null
-  let lastBakedPtIdx = 0
 
   // Pre-rendered drag element canvas (avoids per-frame path reconstruction)
   let dragCanvas: HTMLCanvasElement | null = null
@@ -507,55 +522,40 @@ export function useDrawing(
     strokeCanvas.width = canvas.width
     strokeCanvas.height = canvas.height
     strokeCtx = strokeCanvas.getContext('2d')
-    const dpr = getEffectiveDpr()
-    if (strokeCtx) strokeCtx.scale(dpr, dpr)
-    lastBakedPtIdx = 0
+    inkPreviewDirty = true
   }
 
   function clearStrokeCanvas() {
     if (strokeCtx && strokeCanvas) {
+      strokeCtx.setTransform(1, 0, 0, 1, 0, 0)
       strokeCtx.clearRect(0, 0, strokeCanvas.width, strokeCanvas.height)
     }
-    lastBakedPtIdx = 0
+    inkPreviewDirty = true
   }
 
-  function bakeIncrementalStroke(action: DrawAction) {
-    if (!strokeCtx) return
-    const pts = action.points
-    const targetIdx = pts.length - 3
-    if (targetIdx <= lastBakedPtIdx || targetIdx < 1) return
+  function isInkTool(tool: Tool): boolean {
+    return tool === 'pen' || tool === 'highlighter'
+  }
 
-    strokeCtx.save()
+  /**
+   * Rasterize the full in-progress ink stroke into strokeCanvas (last:false for
+   * a live tip). Called when points change; preview just blit the buffer.
+   */
+  function bakeIncrementalStroke(action: DrawAction) {
+    if (!strokeCtx || !strokeCanvas) return
+    if (!isInkTool(action.tool)) return
+    const pts = action.points
+    if (pts.length === 0) return
+
+    const dpr = getEffectiveDpr()
+    strokeCtx.setTransform(1, 0, 0, 1, 0, 0)
+    strokeCtx.clearRect(0, 0, strokeCanvas.width, strokeCanvas.height)
+    strokeCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
     strokeCtx.globalCompositeOperation = 'source-over'
     strokeCtx.globalAlpha = action.opacity
-    strokeCtx.strokeStyle = action.color
-    strokeCtx.lineWidth = action.lineWidth
-    strokeCtx.lineCap = 'round'
-    strokeCtx.lineJoin = 'round'
-
-    strokeCtx.beginPath()
-
-    if (lastBakedPtIdx === 0) {
-      strokeCtx.moveTo(pts[0].x, pts[0].y)
-      for (let i = 1; i <= targetIdx; i++) {
-        const midX = (pts[i].x + pts[i + 1].x) / 2
-        const midY = (pts[i].y + pts[i + 1].y) / 2
-        strokeCtx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY)
-      }
-    } else {
-      const mX = (pts[lastBakedPtIdx].x + pts[lastBakedPtIdx + 1].x) / 2
-      const mY = (pts[lastBakedPtIdx].y + pts[lastBakedPtIdx + 1].y) / 2
-      strokeCtx.moveTo(mX, mY)
-      for (let i = lastBakedPtIdx + 1; i <= targetIdx; i++) {
-        const midX = (pts[i].x + pts[i + 1].x) / 2
-        const midY = (pts[i].y + pts[i + 1].y) / 2
-        strokeCtx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY)
-      }
-    }
-
-    strokeCtx.stroke()
-    strokeCtx.restore()
-    lastBakedPtIdx = targetIdx
+    strokeCtx.fillStyle = action.color
+    drawInkStroke(strokeCtx, pts, action.lineWidth, false, action.pointerType)
+    inkPreviewDirty = false
   }
 
   function renderHistoryFrame() {
@@ -616,10 +616,9 @@ export function useDrawing(
       if (action.tool === 'laser') {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         drawLaserTrail(ctx, action.points, action.color, action.lineWidth, performance.now(), true)
-      } else if (action.tool === 'pen' && strokeCanvas && action.points.length > 3) {
+      } else if (isInkTool(action.tool) && strokeCanvas) {
+        if (inkPreviewDirty) bakeIncrementalStroke(action)
         ctx.drawImage(strokeCanvas, 0, 0)
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-        drawFreehandTail(ctx, action)
       } else {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         drawActionOn(ctx, action)
@@ -766,12 +765,19 @@ export function useDrawing(
       markHistoryStacksChanged()
     }
 
-    const useIncrementalStroke = currentTool.value === 'pen'
-    if (useIncrementalStroke) initStrokeCanvas()
+    const useInkBuffer = isInkTool(currentTool.value)
+    if (useInkBuffer) initStrokeCanvas()
 
     const opacity = currentTool.value === 'highlighter' ? 0.35 : 1
     const width = resolveDrawLineWidth(currentTool.value)
-    const startPoint: Point = currentTool.value === 'laser' ? { x: point.x, y: point.y, t: performance.now() } : point
+    const startPoint: Point =
+      currentTool.value === 'laser'
+        ? { x: point.x, y: point.y, t: performance.now() }
+        : {
+            x: point.x,
+            y: point.y,
+            pressure: normalizePressure(point.pressure),
+          }
 
     currentAction.value = {
       tool: currentTool.value,
@@ -779,8 +785,13 @@ export function useDrawing(
       lineWidth: width,
       opacity,
       points: [startPoint],
+      pointerType: point.pointerType ?? 'mouse',
     }
     previewDirty = true
+    if (useInkBuffer) {
+      inkPreviewDirty = true
+      bakeIncrementalStroke(currentAction.value)
+    }
     if (currentTool.value === 'laser') {
       ensureLaserAnimation()
     }
@@ -812,9 +823,8 @@ export function useDrawing(
     if (isFreehand) {
       let last = pts[pts.length - 1]
       let appended = false
-      // Keep laser sampling in line with pen density so high-DPI machines
-      // do not pack 50+ points into a few CSS pixels.
       const minDist = getMinDistSq()
+      const inkStreamline = isInkTool(action.tool) ? penStrokeStyle(getStrokeSmoothing()).inputStreamline : 0
 
       for (let i = 0; i < points.length; i++) {
         const point = points[i]
@@ -825,7 +835,16 @@ export function useDrawing(
         const dx = x - last.x
         const dy = y - last.y
         if (dx * dx + dy * dy < minDist) continue
-        const nextPoint: Point = action.tool === 'laser' ? { x, y, t: performance.now() } : { x, y }
+
+        let nextPoint: Point
+        if (action.tool === 'laser') {
+          nextPoint = { x, y, t: performance.now() }
+        } else if (isInkTool(action.tool)) {
+          const raw: Point = { x, y, pressure: normalizePressure(point.pressure) }
+          nextPoint = smoothPenPoint(last, raw, inkStreamline)
+        } else {
+          nextPoint = { x, y }
+        }
         pts.push(nextPoint)
         last = nextPoint
         appended = true
@@ -834,7 +853,8 @@ export function useDrawing(
       if (!appended) return
       if (action.tool === 'laser') {
         ensureLaserAnimation()
-      } else if (action.tool === 'pen') {
+      } else if (isInkTool(action.tool)) {
+        inkPreviewDirty = true
         bakeIncrementalStroke(action)
       } else if (action.tool === 'eraser' && eraserMode.value === 'object') {
         processObjectEraserHits(action)
@@ -1023,45 +1043,6 @@ export function useDrawing(
       return
     }
     drawActionDirect(ctx, action, pathCache)
-  }
-
-  function drawFreehandTail(ctx: CanvasRenderingContext2D, action: DrawAction) {
-    const pts = action.points
-    if (pts.length < 2) return
-
-    ctx.save()
-    if (action.tool === 'eraser') {
-      ctx.globalCompositeOperation = 'destination-out'
-      ctx.globalAlpha = 1
-    } else {
-      ctx.globalCompositeOperation = 'source-over'
-      ctx.globalAlpha = action.opacity
-    }
-    ctx.strokeStyle = action.color
-    ctx.lineWidth = action.lineWidth
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-
-    ctx.beginPath()
-    if (lastBakedPtIdx === 0) {
-      ctx.moveTo(pts[0].x, pts[0].y)
-    } else {
-      const mX = (pts[lastBakedPtIdx].x + pts[lastBakedPtIdx + 1].x) / 2
-      const mY = (pts[lastBakedPtIdx].y + pts[lastBakedPtIdx + 1].y) / 2
-      ctx.moveTo(mX, mY)
-    }
-
-    const start = Math.max(1, lastBakedPtIdx + 1)
-    for (let i = start; i < pts.length - 1; i++) {
-      const midX = (pts[i].x + pts[i + 1].x) / 2
-      const midY = (pts[i].y + pts[i + 1].y) / 2
-      ctx.quadraticCurveTo(pts[i].x, pts[i].y, midX, midY)
-    }
-    const last = pts[pts.length - 1]
-    ctx.lineTo(last.x, last.y)
-
-    ctx.stroke()
-    ctx.restore()
   }
 
   function redrawAll() {
@@ -1436,10 +1417,17 @@ export function useDrawing(
     isDrawing,
     /** Active stroke width (for tests / diagnostics); null when not drawing. */
     getActiveStrokeLineWidth: () => currentAction.value?.lineWidth ?? null,
+    getActiveStrokePointerType: () => currentAction.value?.pointerType ?? null,
     getActiveStrokeFirstPoint: () => {
       const pts = currentAction.value?.points
       return pts && pts.length > 0 ? { x: pts[0].x, y: pts[0].y } : null
     },
+    getActiveStrokePointCount: () => currentAction.value?.points.length ?? 0,
+    getStrokeSamplingStats: () => ({
+      minDistSq: getMinDistSq(),
+      smoothing: getStrokeSmoothing(),
+      viewport: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 },
+    }),
     startDraw,
     draw,
     drawBatch,

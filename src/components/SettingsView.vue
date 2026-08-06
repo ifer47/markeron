@@ -7,6 +7,7 @@ import { resolveDragMode, type DragMode } from '../utils/dragMode'
 import { applyTheme, watchSystemTheme, type ThemePreference } from '../composables/useAppTheme'
 import { resolveDefaultEntryMode, type DefaultEntryMode } from '../utils/entryMode'
 import { resolveEraserMode, type EraserMode } from '../utils/eraserMode'
+import { resolveStrokeSmoothing, type StrokeSmoothing } from '../utils/strokeSmoothing'
 import { isEnabled } from '@tauri-apps/plugin-autostart'
 import { reconcileAutoStartState, resolveAutoStart } from '../utils/autoStart'
 import { isInstalledMode, supportsAutostart } from '../utils/portable'
@@ -216,6 +217,7 @@ const theme = ref<ThemePreference>('dark')
 const dragMode = ref<DragMode>('off')
 const defaultEntryMode = ref<DefaultEntryMode>('screen')
 const eraserMode = ref<EraserMode>('stroke')
+const strokeSmoothing = ref<StrokeSmoothing>('standard')
 const preserveDrawings = ref(false)
 const whiteboardPreserveDrawings = ref(true)
 const angleSnapStep = ref<15 | 30 | 45>(15)
@@ -246,6 +248,7 @@ onMounted(async () => {
   dragMode.value = resolveDragMode(cfg.general)
   defaultEntryMode.value = resolveDefaultEntryMode(cfg.general)
   eraserMode.value = resolveEraserMode(cfg.general)
+  strokeSmoothing.value = resolveStrokeSmoothing(cfg.general)
   preserveDrawings.value = cfg.general?.preserveDrawings ?? false
   whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
   angleSnapStep.value = (cfg.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15
@@ -497,6 +500,7 @@ onUnmounted(() => {
         :drag-mode="dragMode"
         :default-entry-mode="defaultEntryMode"
         :eraser-mode="eraserMode"
+        :stroke-smoothing="strokeSmoothing"
         :preserve-drawings="preserveDrawings"
         :whiteboard-preserve-drawings="whiteboardPreserveDrawings"
         :auto-start-enabled="autoStartEnabled"
@@ -505,6 +509,7 @@ onUnmounted(() => {
         @update:drag-mode="dragMode = $event"
         @update:default-entry-mode="defaultEntryMode = $event"
         @update:eraser-mode="eraserMode = $event"
+        @update:stroke-smoothing="strokeSmoothing = $event"
         @update:preserve-drawings="preserveDrawings = $event"
         @update:whiteboard-preserve-drawings="whiteboardPreserveDrawings = $event"
         @update:auto-start-enabled="autoStartEnabled = $event"

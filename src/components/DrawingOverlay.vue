@@ -61,6 +61,9 @@ import type { MonitorLogicalBounds } from '../utils/toolbarPosition'
 import { toolbarPopupScreenPosition } from '../utils/toolbarPosition'
 import { TOOLBAR_PANEL_WIDTH, getToolbarPanelHeight, rememberToolbarPanelHeight } from '../utils/toolbarWindow'
 import { resolveEraserMode, type EraserMode } from '../utils/eraserMode'
+import { resolveStrokeSmoothing } from '../utils/strokeSmoothing'
+import { setStrokeSmoothing } from '../composables/strokeSmoothingState'
+import { normalizePressure } from '../constants/penStroke'
 import { useI18n } from '../i18n'
 
 const { t } = useI18n()
@@ -204,7 +207,12 @@ function onRmbPointerDown(e: PointerEvent) {
   hideToolbarPopupForCanvasInteraction()
   currentTool.value = 'eraser'
   capturePointer(e)
-  startDraw({ x: e.clientX, y: e.clientY })
+  startDraw({
+    x: e.clientX,
+    y: e.clientY,
+    pressure: normalizePressure(e.pressure),
+    pointerType: e.pointerType,
+  })
   logActionEvent('rmb erase start', { toolBefore: rmbEraseGesture.toolBefore })
 }
 
@@ -288,6 +296,8 @@ const {
   draw,
   drawBatch,
   endDraw,
+  getActiveStrokePointCount,
+  getStrokeSamplingStats,
   addTextAction,
   addStampAction,
   findActionAt,
@@ -420,6 +430,10 @@ function applyDefaultEntryFromConfig(general?: AppConfig['general']) {
 
 function applyEraserModeFromConfig(general?: AppConfig['general']) {
   setEraserMode(resolveEraserMode(general))
+}
+
+function applyStrokeSmoothingFromConfig(general?: AppConfig['general']) {
+  setStrokeSmoothing(resolveStrokeSmoothing(general))
 }
 
 function applyLineWidthsFromConfig(general?: AppConfig['general']) {
@@ -690,7 +704,7 @@ watch(
 // high-resolution displays with low scale factors (e.g. 4K @ 150% → 2560×1440
 // CSS viewport, 8.3M bitmap pixels). The budget is set so that typical laptop
 // displays (e.g. 2880×1800 @ 200%) are unaffected.
-const MAX_CANVAS_PIXELS = 6_000_000
+const MAX_CANVAS_PIXELS = 9_000_000
 
 function getEffectiveDpr(): number {
   const rawDpr = window.devicePixelRatio || 1
@@ -895,6 +909,49 @@ function releaseCapturedPointer() {
   capturedPointerId = null
 }
 
+/**
+ * Prefer high-frequency pen samples via pointerrawupdate when supported.
+ * WebKit/WKWebView (macOS Tauri) does not implement it — never gate pointermove
+ * on raw updates unless the event is actually available, or pen strokes stall.
+ */
+const supportsPointerRawUpdate = typeof window !== 'undefined' && 'onpointerrawupdate' in window
+
+let penRawUpdatesActive = false
+
+function pointerSample(e: PointerEvent) {
+  return { x: e.clientX, y: e.clientY, pressure: normalizePressure(e.pressure) }
+}
+
+function ingestDrawingPointer(e: PointerEvent) {
+  if (!isDrawing.value) return
+  const isPerfect = snapLineModifierDown(e)
+  const coalesced = e.getCoalescedEvents?.()
+  if (coalesced && coalesced.length > 0) {
+    drawBatch(coalesced, isPerfect)
+  } else {
+    draw(pointerSample(e), isPerfect)
+  }
+}
+
+function onPointerRawUpdate(e: Event) {
+  if (!(e instanceof PointerEvent)) return
+  if (!penRawUpdatesActive || !isDrawing.value) return
+  if (capturedPointerId !== null && e.pointerId !== capturedPointerId) return
+  ingestDrawingPointer(e)
+}
+
+function startPenRawUpdates(e: PointerEvent) {
+  if (!supportsPointerRawUpdate || e.pointerType !== 'pen' || penRawUpdatesActive) return
+  penRawUpdatesActive = true
+  window.addEventListener('pointerrawupdate', onPointerRawUpdate)
+}
+
+function stopPenRawUpdates() {
+  if (!penRawUpdatesActive) return
+  penRawUpdatesActive = false
+  window.removeEventListener('pointerrawupdate', onPointerRawUpdate)
+}
+
 function resetPointerGestureState() {
   pointerDownClient = null
   pointerMovedSinceDown = false
@@ -918,6 +975,7 @@ function finishActivePointerInteraction() {
       toolBeforeModifier = null
     }
   }
+  stopPenRawUpdates()
   hoveredActionInfo.value = null
   pointerModDown.value = false
   markPointerInteractionEnded()
@@ -998,7 +1056,13 @@ async function onPointerDown(e: PointerEvent) {
   }
 
   capturePointer(e)
-  startDraw({ x: e.clientX, y: e.clientY })
+  startPenRawUpdates(e)
+  startDraw({
+    x: e.clientX,
+    y: e.clientY,
+    pressure: normalizePressure(e.pressure),
+    pointerType: e.pointerType,
+  })
 }
 
 function onPointerMove(e: PointerEvent) {
@@ -1055,14 +1119,10 @@ function onPointerMove(e: PointerEvent) {
     return
   }
 
-  const isPerfect = snapLineModifierDown(e)
+  // Pen high-rate samples come from pointerrawupdate when that path is active.
+  if (penRawUpdatesActive) return
 
-  const coalesced = e.getCoalescedEvents?.()
-  if (coalesced && coalesced.length > 0) {
-    drawBatch(coalesced, isPerfect)
-  } else {
-    draw({ x: e.clientX, y: e.clientY }, isPerfect)
-  }
+  ingestDrawingPointer(e)
 }
 
 function onPointerUp(e: PointerEvent) {
@@ -1076,26 +1136,39 @@ function onPointerUp(e: PointerEvent) {
     return
   }
   const wasDrawing = isDrawing.value
+  const pointCount = wasDrawing ? getActiveStrokePointCount() : 0
+  const sampling = wasDrawing ? getStrokeSamplingStats() : null
   releaseCapturedPointer()
 
   if (isDragging) {
     isDragging = false
     isMoving.value = false
     endDrag()
+    stopPenRawUpdates()
     markPointerInteractionEnded()
     resetPointerGestureState()
     return
   }
 
   endDraw()
-  if (wasDrawing) {
+  if (wasDrawing && sampling) {
+    const effectiveDpr = getEffectiveDpr()
+    const rawDpr = window.devicePixelRatio || 1
     logDiagnostic('pointer', 'stroke end', {
       pointerType: e.pointerType,
       button: e.button,
       pressure: e.pressure,
       pointerId: e.pointerId,
+      pointCount,
+      strokeSmoothing: sampling.smoothing,
+      minDistSq: sampling.minDistSq,
+      rawDpr,
+      effectiveDpr,
+      dprCapped: effectiveDpr < rawDpr - 1e-6,
+      viewport: sampling.viewport,
     })
   }
+  stopPenRawUpdates()
   if (toolBeforeModifier !== null) {
     currentTool.value = toolBeforeModifier as Tool
     toolBeforeModifier = null
@@ -1518,6 +1591,7 @@ onMounted(async () => {
     applyToolbarFromConfig(cfg.general)
     applyDefaultEntryFromConfig(cfg.general)
     applyEraserModeFromConfig(cfg.general)
+    applyStrokeSmoothingFromConfig(cfg.general)
     applyLineWidthsFromConfig(cfg.general)
     preserveDrawings.value = cfg.general?.preserveDrawings ?? false
     whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
@@ -1536,6 +1610,7 @@ onMounted(async () => {
       applyToolbarFromConfig(event.payload.general)
       applyDefaultEntryFromConfig(event.payload.general)
       applyEraserModeFromConfig(event.payload.general)
+      applyStrokeSmoothingFromConfig(event.payload.general)
       // lineWidths: overlay is the sole writer; skip echo from our own save_general
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
       whiteboardPreserveDrawings.value = event.payload.general?.whiteboardPreserveDrawings ?? true
@@ -1671,6 +1746,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   resetRmbEraseGesture()
+  stopPenRawUpdates()
   window.removeEventListener('pointermove', onGlobalPointerMove)
   window.removeEventListener('pointerup', onGlobalPointerUp)
   window.removeEventListener('pointercancel', onGlobalPointerUp)

@@ -116,6 +116,17 @@ pub enum EraserMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum StrokeSmoothing {
+    #[serde(rename = "off")]
+    Off,
+    #[serde(rename = "standard")]
+    #[default]
+    Standard,
+    #[serde(rename = "strong")]
+    Strong,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DefaultEntryMode {
     #[serde(rename = "screen")]
     #[default]
@@ -155,6 +166,8 @@ pub struct GeneralConfig {
     pub default_entry_mode: DefaultEntryMode,
     #[serde(default, rename = "eraserMode")]
     pub eraser_mode: EraserMode,
+    #[serde(default, rename = "strokeSmoothing")]
+    pub stroke_smoothing: StrokeSmoothing,
     #[serde(default, rename = "lineWidths")]
     pub line_widths: LineWidthsConfig,
     #[serde(default = "default_auto_start", rename = "autoStart")]
@@ -176,6 +189,7 @@ impl Default for GeneralConfig {
             toolbar_visibility: ToolbarVisibility::Space,
             default_entry_mode: DefaultEntryMode::Screen,
             eraser_mode: EraserMode::Stroke,
+            stroke_smoothing: StrokeSmoothing::Standard,
             line_widths: LineWidthsConfig::default(),
             auto_start: default_auto_start(),
             theme: ThemePreference::Dark,
@@ -221,6 +235,12 @@ impl GeneralConfig {
         }
         if !matches!(self.eraser_mode, EraserMode::Stroke | EraserMode::Object) {
             self.eraser_mode = EraserMode::Stroke;
+        }
+        if !matches!(
+            self.stroke_smoothing,
+            StrokeSmoothing::Off | StrokeSmoothing::Standard | StrokeSmoothing::Strong
+        ) {
+            self.stroke_smoothing = StrokeSmoothing::Standard;
         }
         self.line_widths = self.line_widths.normalized();
         self
@@ -642,6 +662,27 @@ mod tests {
     fn supports_autostart_false_in_debug_tests() {
         // Unit tests run with debug_assertions; dev builds must not register autostart.
         assert!(!super::supports_autostart());
+    }
+
+    #[test]
+    fn general_config_defaults_stroke_smoothing() {
+        let general = GeneralConfig::default();
+        assert_eq!(general.stroke_smoothing, StrokeSmoothing::Standard);
+    }
+
+    #[test]
+    fn config_deserializes_stroke_smoothing() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {
+                "strokeSmoothing": "strong"
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.general.stroke_smoothing, StrokeSmoothing::Strong);
     }
 
     #[test]

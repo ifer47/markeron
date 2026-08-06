@@ -137,6 +137,12 @@ export default {
     eraserModeObject: '对象擦除',
     eraserModeDesc:
       '轨迹擦除：按路径局部擦除像素（可撤销）。对象擦除：划过图形或文字时删除整个元素（可撤销）。使用橡皮擦时不会触发元素拖拽，即使已开启悬停拖动。',
+    strokeSmoothing: '笔迹平滑',
+    strokeSmoothingOff: '关闭',
+    strokeSmoothingStandard: '标准',
+    strokeSmoothingStrong: '强',
+    strokeSmoothingDesc:
+      '平滑钢笔与荧光笔笔迹。标准兼顾跟手与墨迹质量；强更柔和；关闭则保留原始采样点。笔/触控仍按压感变宽；鼠标为等宽。',
   },
   toolbar: {
     undo: '撤销',

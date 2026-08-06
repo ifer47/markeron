@@ -10,7 +10,10 @@ import {
 } from '../constants/stamp'
 import { LaserPointer } from '@excalidraw/laser-pointer'
 import { laserSizeFromMapping, smoothLaserPositions } from '../constants/laser'
+import { getInkOutline, outlineToPath2D } from '../constants/penStroke'
+import { getStrokeSmoothing } from './strokeSmoothingState'
 
+/** Constant-width freehand (eraser / legacy fallback). */
 export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
   ctx.beginPath()
   ctx.moveTo(points[0].x, points[0].y)
@@ -27,6 +30,29 @@ export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
     ctx.lineTo(last.x, last.y)
   }
   ctx.stroke()
+}
+
+/** Ink outline for pen / highlighter (pressure width for pen/touch; uniform for mouse). */
+export function buildInkPath(points: Point[], size: number, last: boolean, pointerType?: string | null): Path2D {
+  return outlineToPath2D(getInkOutline(points, size, getStrokeSmoothing(), last, pointerType))
+}
+
+export function drawInkStroke(
+  ctx: CanvasRenderingContext2D,
+  points: Point[],
+  size: number,
+  last: boolean,
+  pointerType?: string | null,
+) {
+  if (points.length === 0) return
+  if (points.length === 1) {
+    const r = Math.max(0.5, size / 2)
+    ctx.beginPath()
+    ctx.arc(points[0].x, points[0].y, r, 0, Math.PI * 2)
+    ctx.fill()
+    return
+  }
+  ctx.fill(buildInkPath(points, size, last, pointerType))
 }
 
 export function drawLine(ctx: CanvasRenderingContext2D, start: Point, end: Point) {
@@ -223,7 +249,15 @@ export function drawActionDirect(
 
   switch (action.tool) {
     case 'pen':
-    case 'highlighter':
+    case 'highlighter': {
+      let path = pathCache?.get(action)
+      if (!path) {
+        path = buildInkPath(pts, action.lineWidth, true, action.pointerType)
+        if (action.bbox) pathCache?.set(action, path)
+      }
+      ctx.fill(path)
+      break
+    }
     case 'laser':
     case 'eraser': {
       let path = pathCache?.get(action)

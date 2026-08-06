@@ -137,6 +137,16 @@ describe('useDrawing', () => {
       expect(drawing.isDrawing.value).toBe(true)
     })
 
+    it('records pointerType for pressure vs uniform ink', () => {
+      drawing.startDraw({ x: 10, y: 10, pointerType: 'pen' })
+      expect(drawing.getActiveStrokePointerType()).toBe('pen')
+      drawing.cancelDraw()
+
+      drawing.startDraw({ x: 10, y: 10 })
+      expect(drawing.getActiveStrokePointerType()).toBe('mouse')
+      drawing.cancelDraw()
+    })
+
     it('adds action to history after endDraw', () => {
       drawing.startDraw({ x: 10, y: 10 })
       drawing.draw({ x: 20, y: 20 })
@@ -454,6 +464,20 @@ describe('useDrawing', () => {
       expect(drawing.getActiveStrokeLineWidth()).toBeNull()
     })
 
+    it('updates in-progress pen stroke width when lineWidth changes mid-gesture', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.lineWidth.value = 3
+      drawing.startDraw({ x: 10, y: 10, pointerType: 'mouse' })
+      expect(drawing.getActiveStrokeLineWidth()).toBe(3)
+
+      drawing.lineWidth.value = 8
+      expect(drawing.getActiveStrokeLineWidth()).toBe(8)
+
+      drawing.draw({ x: 30, y: 30 })
+      drawing.endDraw()
+      expect(drawing.getActiveStrokeLineWidth()).toBeNull()
+    })
+
     it('splits eraser stroke at tip so resize does not re-erase the old path', () => {
       drawing.currentTool.value = 'eraser'
       drawing.lineWidth.value = 3
@@ -564,6 +588,32 @@ describe('useDrawing', () => {
       } finally {
         vi.useRealTimers()
       }
+    })
+  })
+
+  describe('drag', () => {
+    it('preserves pressure when undoing a drag', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 10, y: 10, pressure: 0.2, pointerType: 'pen' })
+      drawing.draw({ x: 40, y: 10, pressure: 0.9 })
+      drawing.draw({ x: 70, y: 10, pressure: 0.3 })
+      drawing.endDraw()
+
+      const found = drawing.findActionAt({ x: 40, y: 10 })
+      expect(found).not.toBeNull()
+      const pressuresBefore = found!.action.points.map((p) => p.pressure)
+      expect(pressuresBefore).toEqual([0.2, 0.9, 0.3])
+
+      drawing.beginDrag(found!.action)
+      drawing.updateDragOffset(15, 20)
+      drawing.endDrag()
+
+      expect(found!.action.points[0]).toMatchObject({ x: 25, y: 30, pressure: 0.2 })
+      expect(found!.action.points.map((p) => p.pressure)).toEqual([0.2, 0.9, 0.3])
+
+      drawing.undo()
+      expect(found!.action.points[0]).toMatchObject({ x: 10, y: 10, pressure: 0.2 })
+      expect(found!.action.points.map((p) => p.pressure)).toEqual([0.2, 0.9, 0.3])
     })
   })
 

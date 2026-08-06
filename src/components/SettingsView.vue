@@ -262,9 +262,18 @@ onMounted(async () => {
   })
 
   unlistenConfigChanged = await listen<AppConfig>('config-changed', (event) => {
-    autoStartEnabled.value = resolveAutoStart(event.payload.general)
-    theme.value = resolveThemePref(event.payload.general)
+    const general = event.payload.general
+    autoStartEnabled.value = resolveAutoStart(general)
+    theme.value = resolveThemePref(general)
     void applyTheme(theme.value)
+    dragMode.value = resolveDragMode(general)
+    defaultEntryMode.value = resolveDefaultEntryMode(general)
+    eraserMode.value = resolveEraserMode(general)
+    strokeSmoothing.value = resolveStrokeSmoothing(general)
+    preserveDrawings.value = general?.preserveDrawings ?? false
+    whiteboardPreserveDrawings.value = general?.whiteboardPreserveDrawings ?? true
+    angleSnapStep.value = (general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15
+    syncLocaleFromConfig(general?.locale)
   })
 })
 
@@ -595,6 +604,10 @@ onUnmounted(() => {
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpMod }}+C</kbd>
                 </div>
+              </div>
+              <div class="help-row">
+                <span class="help-label">{{ t('help.eraserModeHint') }}</span>
+                <div class="help-keys"><kbd class="help-kbd">7</kbd></div>
               </div>
             </div>
           </div>

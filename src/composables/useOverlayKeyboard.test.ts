@@ -45,6 +45,8 @@ function createActions(): KeyboardActions & { calls: Record<string, unknown[][]>
     showStampTip: make('showStampTip') as KeyboardActions['showStampTip'],
     cycleStampKind: make('cycleStampKind') as KeyboardActions['cycleStampKind'],
     resetStampCounter: make('resetStampCounter') as KeyboardActions['resetStampCounter'],
+    cycleEraserMode: make('cycleEraserMode') as KeyboardActions['cycleEraserMode'],
+    showEraserTip: make('showEraserTip') as KeyboardActions['showEraserTip'],
     undo: make('undo') as KeyboardActions['undo'],
     redo: make('redo') as KeyboardActions['redo'],
     exitDrawing: make('exitDrawing') as KeyboardActions['exitDrawing'],
@@ -137,9 +139,41 @@ describe('useOverlayKeyboard', () => {
       expect(ctx.currentTool.value).toBe('line')
     })
 
-    it('key 7 selects eraser', () => {
+    it('key 7 selects eraser and shows eraser tip', () => {
       handler(key('7'))
       expect(ctx.currentTool.value).toBe('eraser')
+      expect(actions.calls.showEraserTip).toHaveLength(1)
+      expect(actions.calls.showToolTip).toHaveLength(0)
+      expect(actions.calls.cycleEraserMode).toHaveLength(0)
+    })
+
+    it('key 7 while on eraser cycles eraser mode', () => {
+      ctx.currentTool.value = 'eraser'
+      handler(key('7'))
+      expect(ctx.currentTool.value).toBe('eraser')
+      expect(actions.calls.cycleEraserMode).toHaveLength(1)
+      expect(actions.calls.showEraserTip).toHaveLength(0)
+      expect(actions.calls.showToolTip).toHaveLength(0)
+    })
+
+    it('key 7 while erasing does not cycle mid-stroke', () => {
+      ctx.currentTool.value = 'eraser'
+      ctx.isDrawing.value = true
+      handler(key('7'))
+      expect(actions.calls.cycleEraserMode).toHaveLength(0)
+      expect(ctx.currentTool.value).toBe('eraser')
+    })
+
+    it('ignores tool keys while a stroke is active', () => {
+      ctx.currentTool.value = 'pen'
+      ctx.isDrawing.value = true
+      handler(key('2'))
+      handler(key('t'))
+      handler(key('n'))
+      expect(ctx.currentTool.value).toBe('pen')
+      expect(actions.calls.showToolTip).toHaveLength(0)
+      expect(actions.calls.showStampTip).toHaveLength(0)
+      expect(actions.calls.cycleStampKind).toHaveLength(0)
     })
 
     it('key 8 selects laser', () => {

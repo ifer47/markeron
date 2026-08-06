@@ -1413,6 +1413,7 @@ export function useDrawing(
     setLineWidths,
     setLineWidth,
     angleSnapStep,
+    eraserMode,
     setEraserMode,
     isDrawing,
     /** Active stroke width (for tests / diagnostics); null when not drawing. */

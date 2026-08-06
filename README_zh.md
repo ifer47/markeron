@@ -102,6 +102,7 @@ winget install --id 9N6623X973JV --source msstore
 | :--- | :--- | :--- |
 | 呼出工具栏 | <kbd>Space</kbd> | <kbd>Space</kbd> |
 | 穿透模式（绘制中） | <kbd>X</kbd> | <kbd>X</kbd> |
+| 切换橡皮擦模式（轨迹 / 对象） | 选中橡皮擦后再按 <kbd>7</kbd> | 选中橡皮擦后再按 <kbd>7</kbd> |
 | 工具栏常驻 / 布局 | 设置 → 常规 | 设置 → 常规 |
 | 复制屏幕 / 白板 | <kbd>Ctrl</kbd> + <kbd>C</kbd> | <kbd>Command</kbd> + <kbd>C</kbd> |
 | 白板模式切换 | <kbd>W</kbd> | <kbd>W</kbd> |
@@ -154,7 +155,7 @@ winget install --id 9N6623X973JV --source msstore
 
 - **白板与内容** — 默认进入（屏幕标注 / 白板）、退出标注后保留、按 <kbd>W</kbd> 切换时保留
 - **元素拖拽** — 关闭、悬停拖动，或按住 <kbd>Ctrl</kbd>/<kbd>Command</kbd> 才拖动（橡皮擦工具下不触发）
-- **橡皮擦模式** — 轨迹擦除（局部）或对象擦除（划过删除整段元素）
+- **橡皮擦模式** — 轨迹擦除（局部）或对象擦除（划过删除整段）；选中橡皮擦后再按 <kbd>7</kbd>（或再点工具栏橡皮擦）可切换
 - **吸附角度步进** — 按住 <kbd>Alt</kbd> 绘制直线时的吸附角度间隔
 - **开机自动启动** — 系统启动时自动在后台运行
 

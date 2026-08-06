@@ -122,7 +122,8 @@
       'helpPage.tools.line': 'Line',
       'helpPage.tools.lineDesc': 'Straight line segment',
       'helpPage.tools.eraser': 'Eraser',
-      'helpPage.tools.eraserDesc': 'Separate width; stroke or object mode in Settings → General',
+      'helpPage.tools.eraserDesc':
+        'Separate width; press <kbd>7</kbd> again while selected to switch stroke / object erase (also in Settings → General)',
       'helpPage.tools.laser': 'Laser',
       'helpPage.tools.laserDesc': 'Temporary ink that fades from the oldest tip first',
       'helpPage.tools.text': 'Text',
@@ -170,7 +171,7 @@
       'helpPage.draw.boardExit': 'Exit whiteboard',
       'helpPage.settings.eraserTitle': 'Eraser modes',
       'helpPage.settings.eraserBody':
-        'Stroke: erase pixels along the drag path (undoable). Object: delete entire shapes or text when you pass over them (undoable). Element dragging is disabled while the eraser is selected, even with hover drag on. Switch modes in Settings → General.',
+        'Stroke: erase pixels along the drag path (undoable). Object: delete entire shapes or text when you pass over them (undoable). Element dragging is disabled while the eraser is selected, even with hover drag on. Switch in Settings → General, or press <kbd>7</kbd> again while the eraser is selected.',
       'helpPage.settings.boardTitle': 'Whiteboard & content',
       'helpPage.settings.boardBody':
         'Default entry chooses screen overlay or whiteboard. Keep after exit restores your last session when you re-enter. Keep on W toggle preserves drawings when switching modes without exiting; turn off to start with a blank whiteboard each time you press W. Configure these in Settings → General.',
@@ -367,7 +368,8 @@
       'helpPage.tools.line': '直线',
       'helpPage.tools.lineDesc': '直线段',
       'helpPage.tools.eraser': '橡皮擦',
-      'helpPage.tools.eraserDesc': '独立线宽；可在「常规」中切换轨迹 / 对象擦除',
+      'helpPage.tools.eraserDesc':
+        '独立线宽；选中后再按 <kbd>7</kbd> 切换轨迹 / 对象擦除（也可在「设置 → 常规」中切换）',
       'helpPage.tools.laser': '激光笔',
       'helpPage.tools.laserDesc': '临时笔迹，先画的部分先淡出',
       'helpPage.tools.text': '文字',
@@ -415,7 +417,7 @@
       'helpPage.draw.boardExit': '退出白板',
       'helpPage.settings.eraserTitle': '橡皮擦模式',
       'helpPage.settings.eraserBody':
-        '轨迹擦除：按路径局部擦除像素（可撤销）。对象擦除：划过图形或文字时删除整个元素（可撤销）。使用橡皮擦时不会触发元素拖拽，即使已开启悬停拖动。可在「设置 → 常规」中切换。',
+        '轨迹擦除：按路径局部擦除像素（可撤销）。对象擦除：划过图形或文字时删除整个元素（可撤销）。使用橡皮擦时不会触发元素拖拽，即使已开启悬停拖动。可在「设置 → 常规」中切换，或在已选中橡皮擦时再按 <kbd>7</kbd>。',
       'helpPage.settings.boardTitle': '白板与内容',
       'helpPage.settings.boardBody':
         '默认进入选择屏幕叠加或白底画布。退出标注后保留：再次进入时恢复上次内容。按 W 切换时保留：在标注模式内切换屏幕/白板时不重置画布；关闭后每次按 W 进入白板均为空白画布。可在「设置 → 常规」中配置。',

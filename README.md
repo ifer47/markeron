@@ -102,6 +102,7 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 | :--- | :--- | :--- |
 | Toolbar (toggle) | <kbd>Space</kbd> | <kbd>Space</kbd> |
 | Click-through (while drawing) | <kbd>X</kbd> | <kbd>X</kbd> |
+| Cycle eraser mode (stroke / object) | <kbd>7</kbd> again while eraser selected | <kbd>7</kbd> again while eraser selected |
 | Toolbar always-on / layout | Settings → General | Settings → General |
 | Copy screen / whiteboard | <kbd>Ctrl</kbd> + <kbd>C</kbd> | <kbd>Command</kbd> + <kbd>C</kbd> |
 | Whiteboard toggle | <kbd>W</kbd> | <kbd>W</kbd> |
@@ -154,7 +155,7 @@ In **Settings → General** (toolbar display, click-through, and stroke width �
 
 - **Whiteboard & content** — default entry (screen / whiteboard), keep after exit, keep on <kbd>W</kbd> toggle
 - **Element dragging** — off, hover to drag, or hold <kbd>Ctrl</kbd>/<kbd>Command</kbd> to drag (disabled while eraser is selected)
-- **Eraser mode** — stroke (local erase) or object (delete whole elements when passing over)
+- **Eraser mode** — stroke (local erase) or object (delete whole elements); with eraser selected, press <kbd>7</kbd> again (or click the toolbar eraser again) to switch
 - **Angle snap step** — snap interval for straight lines drawn with <kbd>Alt</kbd>
 - **Auto start** — launch the app automatically at system startup
 

@@ -60,7 +60,7 @@ import { logDiagnostic, logSessionEvent, logActionEvent } from '../utils/diagnos
 import type { MonitorLogicalBounds } from '../utils/toolbarPosition'
 import { toolbarPopupScreenPosition } from '../utils/toolbarPosition'
 import { TOOLBAR_PANEL_WIDTH, getToolbarPanelHeight, rememberToolbarPanelHeight } from '../utils/toolbarWindow'
-import { resolveEraserMode, type EraserMode } from '../utils/eraserMode'
+import { nextEraserMode, resolveEraserMode, type EraserMode } from '../utils/eraserMode'
 import { resolveStrokeSmoothing } from '../utils/strokeSmoothing'
 import { setStrokeSmoothing } from '../composables/strokeSmoothingState'
 import { normalizePressure } from '../constants/penStroke'
@@ -290,6 +290,7 @@ const {
   setLineWidths,
   setLineWidth,
   setAngleSnapStep,
+  eraserMode,
   setEraserMode,
   isDrawing,
   startDraw,
@@ -1217,6 +1218,30 @@ function cycleStampKind() {
   showStampTip()
 }
 
+function eraserModeTipLabel(mode: EraserMode) {
+  return t(mode === 'stroke' ? 'settings.eraserModeStroke' : 'settings.eraserModeObject')
+}
+
+function showEraserTip() {
+  showTip(`${t('tools.eraser')} · ${eraserModeTipLabel(eraserMode.value)}`)
+}
+
+async function cycleEraserMode(reason: 'keyboard' | 'toolbar' = 'keyboard') {
+  const next = nextEraserMode(eraserMode.value)
+  setEraserMode(next)
+  showEraserTip()
+  logActionEvent('eraser mode cycled', { mode: next, reason })
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general) return
+    cfg.general.eraserMode = next
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save eraser mode:', error)
+    logActionEvent('eraser mode save failed', { mode: next, error: String(error) }, 'error')
+  }
+}
+
 function resetStampCounter() {
   const label = resetActiveStampCounter()
   showTip(t('tools.stampReset', { label }))
@@ -1250,6 +1275,8 @@ const onKeyDown = createKeyDownHandler(
     showStampTip,
     cycleStampKind,
     resetStampCounter,
+    cycleEraserMode,
+    showEraserTip,
     undo,
     redo,
     togglePenetrationMode,
@@ -1455,6 +1482,8 @@ async function handleToolbarAction(action: ToolbarAction) {
   logToolbarAction(action)
   switch (action.type) {
     case 'selectTool':
+      // Stroke locks action.tool at pointer-down; ignore UI/tool changes until release.
+      if (isDrawing.value) break
       await resumeDrawingFromToolbar()
       if (action.tool === 'stamp') {
         if (currentTool.value === 'stamp') {
@@ -1462,6 +1491,13 @@ async function handleToolbarAction(action: ToolbarAction) {
         } else {
           currentTool.value = 'stamp'
           showStampTip()
+        }
+      } else if (action.tool === 'eraser') {
+        if (currentTool.value === 'eraser') {
+          await cycleEraserMode('toolbar')
+        } else {
+          currentTool.value = 'eraser'
+          showEraserTip()
         }
       } else {
         currentTool.value = action.tool

@@ -35,6 +35,10 @@ export interface KeyboardActions {
   showStampTip?: () => void
   cycleStampKind?: () => void
   resetStampCounter?: () => void
+  /** Press 7 again while eraser is selected: stroke ↔ object. */
+  cycleEraserMode?: () => void
+  /** Tip for eraser including current mode (first select). */
+  showEraserTip?: () => void
   undo: () => void
   redo: () => void
   exitDrawing: () => void
@@ -177,6 +181,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
 
     // Text tool
     if (e.key === 't' || e.key === 'T') {
+      if (ctx.isDrawing.value) return
       logActionEvent('tool selected', { reason: 'keyboard', tool: 'text' })
       ctx.currentTool.value = 'text'
       actions.showToolTip('text')
@@ -186,6 +191,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     // Stamp tool — N selects; N again cycles number ↔ letter; Shift+N resets active counter.
     // Ignore Ctrl/Meta so we don't steal OS chords (⌘N / ⌘⇧N on macOS, Ctrl+N elsewhere).
     if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey) {
+      if (ctx.isDrawing.value) return
       if (e.shiftKey) {
         e.preventDefault()
         logActionEvent('stamp counter reset', { reason: 'keyboard' })
@@ -204,12 +210,22 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
       return
     }
 
-    // Tool switching (1-8)
+    // Tool switching (1-8). Eraser: press 7 again to cycle stroke ↔ object (like N on stamp).
+    // Ignore all tool changes while a stroke is active — action.tool is fixed at pointer-down.
     if (e.key >= '1' && e.key <= '8') {
+      if (ctx.isDrawing.value) return
       const tool = TOOL_KEYS[parseInt(e.key) - 1]
+      if (tool === 'eraser' && ctx.currentTool.value === 'eraser') {
+        actions.cycleEraserMode?.()
+        return
+      }
       logActionEvent('tool selected', { reason: 'keyboard', tool, key: e.key })
       ctx.currentTool.value = tool
-      actions.showToolTip(tool)
+      if (tool === 'eraser' && actions.showEraserTip) {
+        actions.showEraserTip()
+      } else {
+        actions.showToolTip(tool)
+      }
       return
     }
 

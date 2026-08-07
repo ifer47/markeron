@@ -46,8 +46,7 @@ const NOTIFY_TIMEOUT_MS: u32 = 5000;
 /// Max wait to own the mutex after terminating a hung primary.
 const MUTEX_ACQUIRE_TIMEOUT_MS: u32 = 8000;
 
-type SingleInstanceCallback<R> =
-    dyn FnMut(&AppHandle<R>, Vec<String>, String) + Send + 'static;
+type SingleInstanceCallback<R> = dyn FnMut(&AppHandle<R>, Vec<String>, String) + Send + 'static;
 
 struct MutexHandle(isize);
 struct TargetWindowHandle(isize);
@@ -233,19 +232,16 @@ fn terminate_si_owner_if_ours(hwnd: HWND) {
         .and_then(|s| s.to_str())
         .unwrap_or("");
     if !other_name.eq_ignore_ascii_case(&self_name) {
-        warn!(
-            "single-instance: refusing to terminate pid {pid} ({other_name} != {self_name})"
-        );
+        warn!("single-instance: refusing to terminate pid {pid} ({other_name} != {self_name})");
         return;
     }
 
     let access = PROCESS_TERMINATE | PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE;
     let handle = unsafe { OpenProcess(access, 0, pid) };
     if handle.is_null() {
-        warn!(
-            "single-instance: OpenProcess({pid}) failed ({})",
-            unsafe { GetLastError() }
-        );
+        warn!("single-instance: OpenProcess({pid}) failed ({})", unsafe {
+            GetLastError()
+        });
         return;
     }
 
@@ -276,13 +272,7 @@ fn current_exe_file_name() -> Option<String> {
 }
 
 fn process_image_path(pid: u32) -> Option<String> {
-    let handle = unsafe {
-        OpenProcess(
-            PROCESS_QUERY_LIMITED_INFORMATION,
-            0,
-            pid,
-        )
-    };
+    let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
     if handle.is_null() {
         return None;
     }

@@ -15,6 +15,8 @@ mod monitor;
 mod overlay;
 mod portable;
 mod shortcuts;
+#[cfg(target_os = "windows")]
+mod single_instance_win;
 mod theme;
 #[cfg(target_os = "windows")]
 mod win32;
@@ -161,10 +163,16 @@ pub fn run() {
     // Redirect WebView2 profile before any webview is created (portable builds).
     portable::apply_webview_user_data_dir();
 
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            on_second_instance(app);
-        }))
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "windows")]
+    let builder = builder.plugin(single_instance_win::init(|app, _args, _cwd| {
+        on_second_instance(app);
+    }));
+    #[cfg(not(target_os = "windows"))]
+    let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        on_second_instance(app);
+    }));
+    builder
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),

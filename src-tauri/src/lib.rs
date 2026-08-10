@@ -283,6 +283,15 @@ pub fn run() {
             #[cfg(target_os = "macos")]
             macos::configure_overlay_window(&handle);
 
+            #[cfg(target_os = "windows")]
+            {
+                if let Some(window) = handle.get_webview_window("overlay") {
+                    window
+                        .set_background_color(Some(tauri::window::Color(0, 0, 0, 0)))
+                        .ok();
+                }
+            }
+
             shortcuts::register_shortcuts(&handle);
 
             let ctrlc_handle = handle.clone();

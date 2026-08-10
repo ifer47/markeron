@@ -56,7 +56,7 @@ function setup() {
   const previewRef = ref(previewCanvas) as Ref<HTMLCanvasElement | null>
 
   const drawing = useDrawing(historyRef, previewRef)
-  return drawing
+  return { drawing, previewCanvas }
 }
 
 // Mock requestAnimationFrame / cancelAnimationFrame for render scheduling
@@ -73,10 +73,11 @@ vi.stubGlobal(
 )
 
 describe('useDrawing', () => {
-  let drawing: ReturnType<typeof setup>
+  let drawing: ReturnType<typeof setup>['drawing']
+  let previewCanvas: HTMLCanvasElement
 
   beforeEach(() => {
-    drawing = setup()
+    ;({ drawing, previewCanvas } = setup())
   })
 
   afterEach(() => {
@@ -636,6 +637,28 @@ describe('useDrawing', () => {
 
     it('does not throw when no actions exist', () => {
       drawing.redrawAll()
+    })
+
+    it('keeps live ink aligned after canvas bitmap resize mid-stroke', () => {
+      drawing.startDraw({ x: 10, y: 10 })
+      drawing.draw({ x: 40, y: 40 })
+      expect(drawing.isDrawing.value).toBe(true)
+
+      previewCanvas.width = Math.round(previewCanvas.width * 1.25)
+      previewCanvas.height = Math.round(previewCanvas.height * 1.25)
+      previewCanvas.style.width = '800px'
+      previewCanvas.style.height = '600px'
+
+      drawing.redrawAll()
+      expect(drawing.isDrawing.value).toBe(true)
+      expect(drawing.getActiveStrokePointCount()).toBeGreaterThanOrEqual(2)
+
+      drawing.draw({ x: 70, y: 55 })
+      drawing.endDraw()
+
+      expect(drawing.isDrawing.value).toBe(false)
+      expect(drawing.canClear.value).toBe(true)
+      expect(drawing.canUndo.value).toBe(true)
     })
   })
 })

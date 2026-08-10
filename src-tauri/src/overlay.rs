@@ -10,6 +10,16 @@ fn set_ignore_cursor_events(window: &WebviewWindow, ignore: bool) {
     window.set_ignore_cursor_events(ignore).ok();
 }
 
+/// Keep the overlay clear color fully transparent.
+///
+/// On Windows, WebView2 can lose transparency after long idle / GPU recycle /
+/// DPI moves and fall back to an opaque dark (black) clear color. Re-asserting
+/// on each activation matches macOS `configure_overlay_window`.
+fn ensure_overlay_transparent(window: &WebviewWindow) {
+    use tauri::window::Color;
+    window.set_background_color(Some(Color(0, 0, 0, 0))).ok();
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OverlayMode {
     Hidden,
@@ -161,6 +171,7 @@ pub fn setup_overlay_size(app: &AppHandle) {
             }
         }
         set_ignore_cursor_events(&window, true);
+        ensure_overlay_transparent(&window);
     }
 
     #[cfg(target_os = "macos")]
@@ -522,9 +533,12 @@ pub fn activate_drawing(app: &AppHandle, state: &AppState) {
                 warn!("Failed to emit clear-drawing: {}", e);
             }
         }
+        ensure_overlay_transparent(&window);
         window.show().ok();
         set_ignore_cursor_events(&window, false);
         window.set_always_on_top(true).ok();
+        // Re-assert after show: some WebView2 builds only apply clear color once visible.
+        ensure_overlay_transparent(&window);
         notify_overlay_geometry_changed(app);
     }
 

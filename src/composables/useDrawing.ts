@@ -1047,6 +1047,18 @@ export function useDrawing(
 
   function redrawAll() {
     invalidateCache()
+    // resizeCanvas() clears bitmap state; keep the live ink buffer matched so
+    // preview→history commit after a late DPI/geometry pass does not jump.
+    const action = currentAction.value
+    if (isDrawing.value && action && isInkTool(action.tool)) {
+      initStrokeCanvas()
+      bakeIncrementalStroke(action)
+    } else {
+      const canvas = previewCanvasRef.value
+      if (canvas && strokeCanvas && (strokeCanvas.width !== canvas.width || strokeCanvas.height !== canvas.height)) {
+        initStrokeCanvas()
+      }
+    }
     previewDirty = true
     flushRender()
   }

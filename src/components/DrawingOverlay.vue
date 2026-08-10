@@ -347,8 +347,7 @@ function applyToolbarFromConfig(general?: AppConfig['general']) {
 
 async function ensureOverlayLayoutReady(): Promise<void> {
   if (overlayLayoutReady.value) return
-  if (overlayResizeInFlight) await overlayResizeInFlight
-  else await scheduleOverlayResize()
+  await scheduleOverlayResize()
 }
 
 async function openToolbarPopupAtPointer(): Promise<void> {
@@ -751,36 +750,55 @@ function afterLayoutFrames(frameCount = 2): Promise<void> {
   })
 }
 
+/**
+ * Resize overlay canvases after Win32/WebView2 geometry settles.
+ *
+ * Backend emits `overlay-geometry-changed` twice (immediate + ~50ms) so DPI can
+ * catch up. Always bump the generation so an in-flight pass re-runs instead of
+ * swallowing the deferred notify — otherwise we mark ready with a stale size,
+ * which shows up as a black opaque overlay and stroke jump on mouse-up.
+ *
+ * Every caller awaits until `overlayLayoutReady` is true for the latest generation.
+ */
 async function scheduleOverlayResize(): Promise<void> {
-  if (overlayResizeInFlight) return overlayResizeInFlight
-
-  const generation = ++overlayResizeGeneration
   overlayLayoutReady.value = false
+  overlayResizeGeneration += 1
 
-  overlayResizeInFlight = (async () => {
-    try {
-      // WebView2 applies per-monitor DPI asynchronously; extra frames on Windows avoid
-      // drawing with a canvas sized for the previous monitor on first activation.
-      await afterLayoutFrames(isMacOS() ? 2 : 4)
-      if (generation !== overlayResizeGeneration) return
-      resizeCanvas()
+  if (!overlayResizeInFlight) {
+    overlayResizeInFlight = (async () => {
+      try {
+        while (true) {
+          const generation = overlayResizeGeneration
+          // WebView2 applies per-monitor DPI asynchronously; extra frames on Windows avoid
+          // drawing with a canvas sized for the previous monitor on first activation.
+          await afterLayoutFrames(isMacOS() ? 2 : 4)
+          if (generation !== overlayResizeGeneration) continue
+          resizeCanvas()
 
-      if (!isMacOS()) {
-        await afterLayoutFrames(2)
-        if (generation !== overlayResizeGeneration) return
-        resizeCanvas()
+          if (!isMacOS()) {
+            await afterLayoutFrames(2)
+            if (generation !== overlayResizeGeneration) continue
+            resizeCanvas()
+          }
+
+          watchDpr()
+          if (generation !== overlayResizeGeneration) continue
+          overlayLayoutReady.value = true
+          return
+        }
+      } finally {
+        overlayResizeInFlight = null
       }
+    })()
+  }
 
-      watchDpr()
-    } finally {
-      if (generation === overlayResizeGeneration) {
-        overlayLayoutReady.value = true
-      }
-      overlayResizeInFlight = null
-    }
-  })()
+  await overlayResizeInFlight
 
-  return overlayResizeInFlight
+  // A concurrent schedule may have flipped ready back to false after this pass
+  // finished; keep waiting so activate / pointer-down never proceed on a stale layout.
+  if (!overlayLayoutReady.value) {
+    await scheduleOverlayResize()
+  }
 }
 
 let toolBeforeModifier: string | null = null
@@ -789,7 +807,12 @@ let dprMediaQuery: MediaQueryList | null = null
 
 function debouncedResize() {
   if (resizeTimer) clearTimeout(resizeTimer)
-  resizeTimer = setTimeout(resizeCanvas, 100)
+  // Route through scheduleOverlayResize so DPI/size changes share the same
+  // generation + layout-ready gate as activate / geometry-changed (avoids mid-stroke
+  // bare resizeCanvas racing preview→history commit).
+  resizeTimer = setTimeout(() => {
+    void scheduleOverlayResize()
+  }, 100)
 }
 
 function watchDpr() {
@@ -1155,6 +1178,9 @@ function onPointerUp(e: PointerEvent) {
   if (wasDrawing && sampling) {
     const effectiveDpr = getEffectiveDpr()
     const rawDpr = window.devicePixelRatio || 1
+    const previewCanvas = previewCanvasRef.value
+    const cssW = previewCanvas ? parseFloat(previewCanvas.style.width) : 0
+    const canvasDpr = previewCanvas && cssW > 0 ? previewCanvas.width / cssW : null
     logDiagnostic('pointer', 'stroke end', {
       pointerType: e.pointerType,
       button: e.button,
@@ -1167,6 +1193,16 @@ function onPointerUp(e: PointerEvent) {
       effectiveDpr,
       dprCapped: effectiveDpr < rawDpr - 1e-6,
       viewport: sampling.viewport,
+      canvas: previewCanvas
+        ? {
+            bitmapW: previewCanvas.width,
+            bitmapH: previewCanvas.height,
+            cssW,
+            cssH: parseFloat(previewCanvas.style.height) || 0,
+            canvasDpr,
+          }
+        : null,
+      overlayLayoutReady: overlayLayoutReady.value,
     })
   }
   stopPenRawUpdates()

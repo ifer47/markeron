@@ -116,6 +116,24 @@ pub enum EraserMode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum PenCursorStyle {
+    #[serde(rename = "pen")]
+    #[default]
+    Pen,
+    #[serde(rename = "dot")]
+    Dot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum CrosshairCursorStyle {
+    #[serde(rename = "crosshair")]
+    #[default]
+    Crosshair,
+    #[serde(rename = "dot")]
+    Dot,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum StrokeSmoothing {
     #[serde(rename = "off")]
     Off,
@@ -166,6 +184,10 @@ pub struct GeneralConfig {
     pub default_entry_mode: DefaultEntryMode,
     #[serde(default, rename = "eraserMode")]
     pub eraser_mode: EraserMode,
+    #[serde(default, rename = "penCursorStyle")]
+    pub pen_cursor_style: PenCursorStyle,
+    #[serde(default, rename = "crosshairCursorStyle")]
+    pub crosshair_cursor_style: CrosshairCursorStyle,
     #[serde(default, rename = "strokeSmoothing")]
     pub stroke_smoothing: StrokeSmoothing,
     #[serde(default, rename = "lineWidths")]
@@ -189,6 +211,8 @@ impl Default for GeneralConfig {
             toolbar_visibility: ToolbarVisibility::Space,
             default_entry_mode: DefaultEntryMode::Screen,
             eraser_mode: EraserMode::Stroke,
+            pen_cursor_style: PenCursorStyle::Pen,
+            crosshair_cursor_style: CrosshairCursorStyle::Crosshair,
             stroke_smoothing: StrokeSmoothing::Standard,
             line_widths: LineWidthsConfig::default(),
             auto_start: default_auto_start(),
@@ -235,6 +259,18 @@ impl GeneralConfig {
         }
         if !matches!(self.eraser_mode, EraserMode::Stroke | EraserMode::Object) {
             self.eraser_mode = EraserMode::Stroke;
+        }
+        if !matches!(
+            self.pen_cursor_style,
+            PenCursorStyle::Pen | PenCursorStyle::Dot
+        ) {
+            self.pen_cursor_style = PenCursorStyle::Pen;
+        }
+        if !matches!(
+            self.crosshair_cursor_style,
+            CrosshairCursorStyle::Crosshair | CrosshairCursorStyle::Dot
+        ) {
+            self.crosshair_cursor_style = CrosshairCursorStyle::Crosshair;
         }
         if !matches!(
             self.stroke_smoothing,
@@ -716,6 +752,54 @@ mod tests {
     fn general_config_defaults_eraser_mode() {
         let general = GeneralConfig::default();
         assert_eq!(general.eraser_mode, EraserMode::Stroke);
+    }
+
+    #[test]
+    fn config_deserializes_pen_cursor_style() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {
+                "penCursorStyle": "dot"
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.general.pen_cursor_style, PenCursorStyle::Dot);
+    }
+
+    #[test]
+    fn general_config_defaults_pen_cursor_style() {
+        let general = GeneralConfig::default();
+        assert_eq!(general.pen_cursor_style, PenCursorStyle::Pen);
+    }
+
+    #[test]
+    fn config_deserializes_crosshair_cursor_style() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {
+                "crosshairCursorStyle": "dot"
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            config.general.crosshair_cursor_style,
+            CrosshairCursorStyle::Dot
+        );
+    }
+
+    #[test]
+    fn general_config_defaults_crosshair_cursor_style() {
+        let general = GeneralConfig::default();
+        assert_eq!(
+            general.crosshair_cursor_style,
+            CrosshairCursorStyle::Crosshair
+        );
     }
 
     #[test]

@@ -61,6 +61,14 @@ import type { MonitorLogicalBounds } from '../utils/toolbarPosition'
 import { toolbarPopupScreenPosition } from '../utils/toolbarPosition'
 import { TOOLBAR_PANEL_WIDTH, getToolbarPanelHeight, rememberToolbarPanelHeight } from '../utils/toolbarWindow'
 import { nextEraserMode, resolveEraserMode, type EraserMode } from '../utils/eraserMode'
+import { nextPenCursorStyle, resolvePenCursorStyle, type PenCursorStyle } from '../utils/penCursor'
+import {
+  nextCrosshairCursorStyle,
+  resolveCrosshairCursorStyle,
+  usesCrosshairCursor,
+  type CrosshairCursorStyle,
+} from '../utils/crosshairCursor'
+import { resolveToolbarSelectTool } from '../utils/toolbarSelectTool'
 import { resolveStrokeSmoothing } from '../utils/strokeSmoothing'
 import { setStrokeSmoothing } from '../composables/strokeSmoothingState'
 import { normalizePressure } from '../constants/penStroke'
@@ -432,6 +440,14 @@ function applyEraserModeFromConfig(general?: AppConfig['general']) {
   setEraserMode(resolveEraserMode(general))
 }
 
+function applyPenCursorStyleFromConfig(general?: AppConfig['general']) {
+  penCursorStyle.value = resolvePenCursorStyle(general)
+}
+
+function applyCrosshairCursorStyleFromConfig(general?: AppConfig['general']) {
+  crosshairCursorStyle.value = resolveCrosshairCursorStyle(general)
+}
+
 function applyStrokeSmoothingFromConfig(general?: AppConfig['general']) {
   setStrokeSmoothing(resolveStrokeSmoothing(general))
 }
@@ -527,6 +543,8 @@ function exitWhiteboardMode() {
 const hoveredActionInfo = shallowRef<{ action: DrawAction; index: number } | null>(null)
 const isMoving = ref(false)
 const dragMode = ref<DragMode>('off')
+const penCursorStyle = ref<PenCursorStyle>('pen')
+const crosshairCursorStyle = ref<CrosshairCursorStyle>('crosshair')
 const pointerModDown = ref(false)
 const preserveDrawings = ref(false)
 const whiteboardPreserveDrawings = ref(true)
@@ -1278,6 +1296,56 @@ async function cycleEraserMode(reason: 'keyboard' | 'toolbar' = 'keyboard') {
   }
 }
 
+function penCursorTipLabel(style: PenCursorStyle) {
+  return t(style === 'pen' ? 'tools.penCursorPen' : 'tools.penCursorDot')
+}
+
+function showPenTip() {
+  showTip(`${t('tools.pen')} · ${penCursorTipLabel(penCursorStyle.value)}`)
+}
+
+async function cyclePenCursorStyle(reason: 'keyboard' | 'toolbar' = 'keyboard') {
+  const next = nextPenCursorStyle(penCursorStyle.value)
+  penCursorStyle.value = next
+  showPenTip()
+  logActionEvent('pen cursor style cycled', { style: next, reason })
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general) return
+    cfg.general.penCursorStyle = next
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save pen cursor style:', error)
+    logActionEvent('pen cursor style save failed', { style: next, error: String(error) }, 'error')
+  }
+}
+
+function crosshairCursorTipLabel(style: CrosshairCursorStyle) {
+  return t(style === 'crosshair' ? 'tools.crosshairCursorCrosshair' : 'tools.crosshairCursorDot')
+}
+
+function showCrosshairTip() {
+  const tool = currentTool.value
+  const name = usesCrosshairCursor(tool) ? t(`tools.${tool}`) : t('tools.arrow')
+  showTip(`${name} · ${crosshairCursorTipLabel(crosshairCursorStyle.value)}`)
+}
+
+async function cycleCrosshairCursorStyle(reason: 'keyboard' | 'toolbar' = 'keyboard') {
+  const next = nextCrosshairCursorStyle(crosshairCursorStyle.value)
+  crosshairCursorStyle.value = next
+  showCrosshairTip()
+  logActionEvent('crosshair cursor style cycled', { style: next, reason })
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general) return
+    cfg.general.crosshairCursorStyle = next
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save crosshair cursor style:', error)
+    logActionEvent('crosshair cursor style save failed', { style: next, error: String(error) }, 'error')
+  }
+}
+
 function resetStampCounter() {
   const label = resetActiveStampCounter()
   showTip(t('tools.stampReset', { label }))
@@ -1313,6 +1381,10 @@ const onKeyDown = createKeyDownHandler(
     resetStampCounter,
     cycleEraserMode,
     showEraserTip,
+    cyclePenCursorStyle,
+    showPenTip,
+    cycleCrosshairCursorStyle,
+    showCrosshairTip,
     undo,
     redo,
     togglePenetrationMode,
@@ -1344,10 +1416,14 @@ function getCursorHotspot(): { x: number; y: number } {
   const tool = currentTool.value
   // SVG viewBox is 0 0 1024 1024. Pen tip is at approximately (388, 846).
   // Mapped to 32x32 cursor size: x = 388/1024*32 ≈ 12, y = 846/1024*32 ≈ 26
-  if (tool === 'pen') return { x: 12, y: 26 }
+  if (tool === 'pen') {
+    if (penCursorStyle.value === 'dot') return { x: 8, y: 8 }
+    return { x: 12, y: 26 }
+  }
   if (tool === 'highlighter') return { x: 5, y: 27 } // tip at ~(150, 850) in 1024x1024 space
   // Eraser uses CSS translate(-50%, -50%) so size changes stay centered on the pointer.
   if (tool === 'eraser') return { x: 0, y: 0 }
+  if (usesCrosshairCursor(tool) && crosshairCursorStyle.value === 'dot') return { x: 8, y: 8 }
   return { x: 14, y: 14 }
 }
 
@@ -1408,7 +1484,7 @@ const canvasCursor = computed(() => {
 const showCustomCursor = computed(() => wantsCustomCursor.value)
 
 // Fix cursor offset when switching tools/colors via shortcut while pointer is stationary
-watch([currentTool, currentColor], () => {
+watch([currentTool, currentColor, penCursorStyle, crosshairCursorStyle], () => {
   void refreshCustomCursorPosition()
 })
 
@@ -1517,29 +1593,39 @@ function logToolbarAction(action: ToolbarAction) {
 async function handleToolbarAction(action: ToolbarAction) {
   logToolbarAction(action)
   switch (action.type) {
-    case 'selectTool':
+    case 'selectTool': {
       // Stroke locks action.tool at pointer-down; ignore UI/tool changes until release.
-      if (isDrawing.value) break
+      const effect = resolveToolbarSelectTool({
+        isDrawing: isDrawing.value,
+        currentTool: currentTool.value,
+        nextTool: action.tool,
+      })
+      if (effect.type === 'ignore') break
       await resumeDrawingFromToolbar()
-      if (action.tool === 'stamp') {
-        if (currentTool.value === 'stamp') {
+      switch (effect.type) {
+        case 'cycleStampKind':
           cycleStampKind()
-        } else {
-          currentTool.value = 'stamp'
-          showStampTip()
-        }
-      } else if (action.tool === 'eraser') {
-        if (currentTool.value === 'eraser') {
+          break
+        case 'cyclePenCursor':
+          await cyclePenCursorStyle('toolbar')
+          break
+        case 'cycleEraserMode':
           await cycleEraserMode('toolbar')
-        } else {
-          currentTool.value = 'eraser'
-          showEraserTip()
-        }
-      } else {
-        currentTool.value = action.tool
-        showToolTip(action.tool)
+          break
+        case 'cycleCrosshairCursor':
+          await cycleCrosshairCursorStyle('toolbar')
+          break
+        case 'select':
+          currentTool.value = effect.tool
+          if (effect.tip === 'stamp') showStampTip()
+          else if (effect.tip === 'pen') showPenTip()
+          else if (effect.tip === 'eraser') showEraserTip()
+          else if (effect.tip === 'crosshair') showCrosshairTip()
+          else showToolTip(effect.tool)
+          break
       }
       break
+    }
     case 'selectColor':
       await resumeDrawingFromToolbar()
       currentColor.value = action.color
@@ -1663,6 +1749,8 @@ onMounted(async () => {
     applyToolbarFromConfig(cfg.general)
     applyDefaultEntryFromConfig(cfg.general)
     applyEraserModeFromConfig(cfg.general)
+    applyPenCursorStyleFromConfig(cfg.general)
+    applyCrosshairCursorStyleFromConfig(cfg.general)
     applyStrokeSmoothingFromConfig(cfg.general)
     applyLineWidthsFromConfig(cfg.general)
     preserveDrawings.value = cfg.general?.preserveDrawings ?? false
@@ -1682,6 +1770,8 @@ onMounted(async () => {
       applyToolbarFromConfig(event.payload.general)
       applyDefaultEntryFromConfig(event.payload.general)
       applyEraserModeFromConfig(event.payload.general)
+      applyPenCursorStyleFromConfig(event.payload.general)
+      applyCrosshairCursorStyleFromConfig(event.payload.general)
       applyStrokeSmoothingFromConfig(event.payload.general)
       // lineWidths: overlay is the sole writer; skip echo from our own save_general
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
@@ -1979,9 +2069,9 @@ function exitDrawing(reason: 'keyboard' | 'toolbar' | 'unknown' = 'unknown') {
       class="fixed top-0 left-0 pointer-events-none select-none drop-shadow-md"
       style="z-index: 100010; will-change: transform"
     >
-      <!-- Pen: custom SVG icon -->
+      <!-- Pen: icon or centered color dot (press 1 again / re-click toolbar to cycle) -->
       <svg
-        v-if="currentTool === 'pen'"
+        v-if="currentTool === 'pen' && penCursorStyle === 'pen'"
         width="32"
         height="32"
         viewBox="0 0 1024 1024"
@@ -2036,6 +2126,25 @@ function exitDrawing(reason: 'keyboard' | 'toolbar' | 'unknown' = 'unknown') {
           <path d="M591.8 321.2l2.5-8.1-55.7-16.8-4.9 16.2z" fill="#3463D9"></path>
           <path d="M650 330l-55.7-16.9-2.5 8.1z" fill="#1A46AB"></path>
         </g>
+      </svg>
+      <svg
+        v-else-if="currentTool === 'pen'"
+        width="16"
+        height="16"
+        xmlns="http://www.w3.org/2000/svg"
+        style="display: block; overflow: visible"
+      >
+        <circle cx="8" cy="8" r="4.5" fill="black" fill-opacity="0.35" />
+        <circle cx="8" cy="8" r="3.5" :fill="currentColor" />
+        <circle
+          cx="8"
+          cy="8"
+          r="3.5"
+          fill="none"
+          :stroke="currentColor.toUpperCase() === '#FFFFFF' ? '#333333' : '#FFFFFF'"
+          stroke-opacity="0.85"
+          stroke-width="1"
+        />
       </svg>
 
       <!-- Highlighter: custom SVG icon -->
@@ -2123,8 +2232,14 @@ function exitDrawing(reason: 'keyboard' | 'toolbar' | 'unknown' = 'unknown') {
           stroke-linecap="round"
         />
       </svg>
-      <!-- Arrow/Rectangle/Ellipse/Line: colored crosshair -->
-      <svg v-else width="28" height="28" xmlns="http://www.w3.org/2000/svg" style="display: block">
+      <!-- Shape/laser: crosshair (default) or compact color dot (re-press tool key to cycle) -->
+      <svg
+        v-else-if="crosshairCursorStyle === 'crosshair'"
+        width="28"
+        height="28"
+        xmlns="http://www.w3.org/2000/svg"
+        style="display: block"
+      >
         <line
           x1="14"
           y1="2"
@@ -2171,6 +2286,19 @@ function exitDrawing(reason: 'keyboard' | 'toolbar' | 'unknown' = 'unknown') {
         <line x1="18" y1="14" x2="26" y2="14" :stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
         <circle cx="14" cy="14" r="2.5" fill="black" fill-opacity="0.3" />
         <circle cx="14" cy="14" r="2" :fill="currentColor" />
+      </svg>
+      <svg v-else width="16" height="16" xmlns="http://www.w3.org/2000/svg" style="display: block; overflow: visible">
+        <circle cx="8" cy="8" r="4.5" fill="black" fill-opacity="0.35" />
+        <circle cx="8" cy="8" r="3.5" :fill="currentColor" />
+        <circle
+          cx="8"
+          cy="8"
+          r="3.5"
+          fill="none"
+          :stroke="currentColor.toUpperCase() === '#FFFFFF' ? '#333333' : '#FFFFFF'"
+          stroke-opacity="0.85"
+          stroke-width="1"
+        />
       </svg>
     </div>
 

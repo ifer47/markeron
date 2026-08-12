@@ -609,6 +609,16 @@ onUnmounted(() => {
                 <span class="help-label">{{ t('help.eraserModeHint') }}</span>
                 <div class="help-keys"><kbd class="help-kbd">7</kbd></div>
               </div>
+              <div class="help-row">
+                <span class="help-label">{{ t('help.penCursorHint') }}</span>
+                <div class="help-keys"><kbd class="help-kbd">1</kbd></div>
+              </div>
+              <div class="help-row">
+                <span class="help-label">{{ t('help.crosshairCursorHint') }}</span>
+                <div class="help-keys">
+                  <kbd class="help-kbd">3</kbd>–<kbd class="help-kbd">6</kbd>/<kbd class="help-kbd">8</kbd>
+                </div>
+              </div>
             </div>
           </div>
 

@@ -19,6 +19,8 @@ export interface AppConfig {
     toolbarVisibility?: ToolbarVisibility
     defaultEntryMode?: DefaultEntryMode
     eraserMode?: EraserMode
+    penCursorStyle?: PenCursorStyle
+    crosshairCursorStyle?: CrosshairCursorStyle
     strokeSmoothing?: StrokeSmoothing
     lineWidths?: {
       stroke: number
@@ -34,6 +36,8 @@ export interface AppConfig {
 export type ToolbarVisibility = 'space' | 'always'
 export type DefaultEntryMode = 'screen' | 'whiteboard'
 export type EraserMode = 'stroke' | 'object'
+export type PenCursorStyle = 'pen' | 'dot'
+export type CrosshairCursorStyle = 'crosshair' | 'dot'
 export type StrokeSmoothing = 'off' | 'standard' | 'strong'
 
 export interface SaveResult {

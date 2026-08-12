@@ -1,6 +1,7 @@
 import type { Ref, ComputedRef } from 'vue'
 import type { Tool } from './drawingTypes'
 import { isMacOS } from '../utils/platform'
+import { usesCrosshairCursor } from '../utils/crosshairCursor'
 import { logActionEvent } from '../utils/diagnosticEvents'
 
 const TOOL_KEYS: Tool[] = ['pen', 'highlighter', 'arrow', 'rect', 'ellipse', 'line', 'eraser', 'laser']
@@ -39,6 +40,14 @@ export interface KeyboardActions {
   cycleEraserMode?: () => void
   /** Tip for eraser including current mode (first select). */
   showEraserTip?: () => void
+  /** Press 1 again while pen is selected: pen icon ↔ dot. */
+  cyclePenCursorStyle?: () => void
+  /** Tip for pen including current cursor style (first select). */
+  showPenTip?: () => void
+  /** Re-press shape/laser key: crosshair ↔ dot. */
+  cycleCrosshairCursorStyle?: () => void
+  /** Tip for shape/laser including current crosshair style. */
+  showCrosshairTip?: () => void
   undo: () => void
   redo: () => void
   exitDrawing: () => void
@@ -210,19 +219,31 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
       return
     }
 
-    // Tool switching (1-8). Eraser: press 7 again to cycle stroke ↔ object (like N on stamp).
+    // Tool switching (1-8). Pen/eraser/crosshair tools: re-press cycles style or mode.
     // Ignore all tool changes while a stroke is active — action.tool is fixed at pointer-down.
     if (e.key >= '1' && e.key <= '8') {
       if (ctx.isDrawing.value) return
       const tool = TOOL_KEYS[parseInt(e.key) - 1]
+      if (tool === 'pen' && ctx.currentTool.value === 'pen') {
+        actions.cyclePenCursorStyle?.()
+        return
+      }
       if (tool === 'eraser' && ctx.currentTool.value === 'eraser') {
         actions.cycleEraserMode?.()
         return
       }
+      if (usesCrosshairCursor(tool) && ctx.currentTool.value === tool) {
+        actions.cycleCrosshairCursorStyle?.()
+        return
+      }
       logActionEvent('tool selected', { reason: 'keyboard', tool, key: e.key })
       ctx.currentTool.value = tool
-      if (tool === 'eraser' && actions.showEraserTip) {
+      if (tool === 'pen' && actions.showPenTip) {
+        actions.showPenTip()
+      } else if (tool === 'eraser' && actions.showEraserTip) {
         actions.showEraserTip()
+      } else if (usesCrosshairCursor(tool) && actions.showCrosshairTip) {
+        actions.showCrosshairTip()
       } else {
         actions.showToolTip(tool)
       }

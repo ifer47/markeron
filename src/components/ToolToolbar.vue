@@ -477,121 +477,118 @@ onUnmounted(() => {
           @pointerdown="startDrag"
         />
 
-        <!-- Actions -->
-        <div class="px-3 pt-1 pb-2 flex items-center gap-1 cursor-default">
-          <button
-            v-if="standaloneWindow"
-            type="button"
-            class="overlay-toolbar-action"
-            :class="!penetrationMode ? 'overlay-toolbar-action--active' : ''"
-            :title="t('toolbar.drawingMode')"
-            :aria-label="t('toolbar.drawingMode')"
-            :aria-pressed="!penetrationMode"
-            :disabled="whiteboardMode"
-            @click="onDrawingModeClick"
-          >
-            <Pen :size="15" />
-          </button>
-          <button
-            v-if="standaloneWindow"
-            type="button"
-            class="overlay-toolbar-action"
-            :class="penetrationMode ? 'overlay-toolbar-action--active' : ''"
-            :title="t('toolbar.penetrationMode')"
-            :aria-label="t('toolbar.penetrationMode')"
-            :aria-pressed="!!penetrationMode"
-            :disabled="whiteboardMode"
-            @click="onPenetrationModeClick"
-          >
-            <MousePointer2 :size="15" />
-          </button>
-          <button
-            type="button"
-            class="overlay-toolbar-action"
-            :class="currentTool === 'select' ? 'overlay-toolbar-action--active' : ''"
-            :title="selectToolTitle"
-            :aria-label="selectToolTitle"
-            :aria-pressed="currentTool === 'select'"
-            @click="selectTool('select')"
-          >
-            <component :is="SELECT_TOOL_DEF.icon" :size="15" />
-          </button>
-          <button
-            type="button"
-            class="overlay-toolbar-action"
-            :disabled="!canUndo"
-            :title="t('toolbar.undo')"
-            :aria-label="t('toolbar.undo')"
-            @click="emit('undo')"
-          >
-            <Undo2 :size="15" />
-          </button>
-          <button
-            type="button"
-            class="overlay-toolbar-action"
-            :disabled="!canRedo"
-            :title="t('toolbar.redo')"
-            :aria-label="t('toolbar.redo')"
-            @click="emit('redo')"
-          >
-            <Redo2 :size="15" />
-          </button>
-          <button
-            type="button"
-            class="overlay-toolbar-action"
-            :disabled="!canClear"
-            :title="t('toolbar.clear')"
-            :aria-label="t('toolbar.clear')"
-            @click="emit('clearAll')"
-          >
-            <Trash2 :size="15" />
-          </button>
-          <span
-            class="flex-1 self-stretch min-h-7 cursor-grab active:cursor-grabbing"
-            :class="isDragging ? 'cursor-grabbing' : ''"
-            @pointerdown="startDrag"
-          />
-          <button
-            type="button"
-            class="overlay-toolbar-action"
-            :class="whiteboardMode ? 'overlay-toolbar-action--active' : ''"
-            :title="whiteboardMode ? t('toolbar.exitWhiteboard') : t('toolbar.whiteboard')"
-            :aria-label="whiteboardMode ? t('toolbar.exitWhiteboard') : t('toolbar.whiteboard')"
-            @click="emit('toggleWhiteboard')"
-          >
-            <Layout :size="15" />
-          </button>
-          <button
-            type="button"
-            class="overlay-toolbar-action"
-            :title="t('toolbar.copy')"
-            :aria-label="t('toolbar.copy')"
-            @click="emit('copy')"
-          >
-            <Copy :size="15" />
-          </button>
-          <button
-            v-if="standaloneWindow"
-            type="button"
-            class="overlay-toolbar-action"
-            :class="pinned ? 'overlay-toolbar-action--active' : ''"
-            :title="pinned ? t('toolbar.unpin') : t('toolbar.pin')"
-            :aria-label="pinned ? t('toolbar.unpin') : t('toolbar.pin')"
-            :aria-pressed="pinned"
-            @click="emit('togglePin')"
-          >
-            <Pin :size="15" />
-          </button>
-          <button
-            v-if="standaloneWindow"
-            type="button"
-            class="overlay-toolbar-action"
-            :title="t('toolbar.exit')"
-            :aria-label="t('toolbar.exit')"
-            @click="emit('exitDrawing')"
-          >
-            <X :size="15" />
-          </button>
+        <!-- Actions — same size/gap as compact tools row -->
+        <div class="px-3 pt-1 pb-2">
+          <div class="flex items-center justify-between">
+            <button
+              v-if="standaloneWindow"
+              type="button"
+              class="overlay-toolbar-action"
+              :class="!penetrationMode ? 'overlay-toolbar-action--active' : ''"
+              :title="t('toolbar.drawingMode')"
+              :aria-label="t('toolbar.drawingMode')"
+              :aria-pressed="!penetrationMode"
+              :disabled="whiteboardMode"
+              @click="onDrawingModeClick"
+            >
+              <Pen :size="15" />
+            </button>
+            <button
+              v-if="standaloneWindow"
+              type="button"
+              class="overlay-toolbar-action"
+              :class="penetrationMode ? 'overlay-toolbar-action--active' : ''"
+              :title="t('toolbar.penetrationMode')"
+              :aria-label="t('toolbar.penetrationMode')"
+              :aria-pressed="!!penetrationMode"
+              :disabled="whiteboardMode"
+              @click="onPenetrationModeClick"
+            >
+              <MousePointer2 :size="15" />
+            </button>
+            <button
+              type="button"
+              class="overlay-toolbar-action"
+              :class="currentTool === 'select' ? 'overlay-toolbar-action--active' : ''"
+              :title="selectToolTitle"
+              :aria-label="selectToolTitle"
+              :aria-pressed="currentTool === 'select'"
+              @click="selectTool('select')"
+            >
+              <component :is="SELECT_TOOL_DEF.icon" :size="15" />
+            </button>
+            <button
+              type="button"
+              class="overlay-toolbar-action"
+              :disabled="!canUndo"
+              :title="t('toolbar.undo')"
+              :aria-label="t('toolbar.undo')"
+              @click="emit('undo')"
+            >
+              <Undo2 :size="15" />
+            </button>
+            <button
+              type="button"
+              class="overlay-toolbar-action"
+              :disabled="!canRedo"
+              :title="t('toolbar.redo')"
+              :aria-label="t('toolbar.redo')"
+              @click="emit('redo')"
+            >
+              <Redo2 :size="15" />
+            </button>
+            <button
+              type="button"
+              class="overlay-toolbar-action"
+              :disabled="!canClear"
+              :title="t('toolbar.clear')"
+              :aria-label="t('toolbar.clear')"
+              @click="emit('clearAll')"
+            >
+              <Trash2 :size="15" />
+            </button>
+            <button
+              type="button"
+              class="overlay-toolbar-action"
+              :class="whiteboardMode ? 'overlay-toolbar-action--active' : ''"
+              :title="whiteboardMode ? t('toolbar.exitWhiteboard') : t('toolbar.whiteboard')"
+              :aria-label="whiteboardMode ? t('toolbar.exitWhiteboard') : t('toolbar.whiteboard')"
+              @click="emit('toggleWhiteboard')"
+            >
+              <Layout :size="15" />
+            </button>
+            <button
+              type="button"
+              class="overlay-toolbar-action"
+              :title="t('toolbar.copy')"
+              :aria-label="t('toolbar.copy')"
+              @click="emit('copy')"
+            >
+              <Copy :size="15" />
+            </button>
+            <button
+              v-if="standaloneWindow"
+              type="button"
+              class="overlay-toolbar-action"
+              :class="pinned ? 'overlay-toolbar-action--active' : ''"
+              :title="pinned ? t('toolbar.unpin') : t('toolbar.pin')"
+              :aria-label="pinned ? t('toolbar.unpin') : t('toolbar.pin')"
+              :aria-pressed="pinned"
+              @click="emit('togglePin')"
+            >
+              <Pin :size="15" />
+            </button>
+            <button
+              v-if="standaloneWindow"
+              type="button"
+              class="overlay-toolbar-action"
+              :title="t('toolbar.exit')"
+              :aria-label="t('toolbar.exit')"
+              @click="emit('exitDrawing')"
+            >
+              <X :size="15" />
+            </button>
+          </div>
         </div>
 
         <!-- Simple compact tools -->
@@ -602,7 +599,7 @@ onUnmounted(() => {
               :key="tool.id"
               :aria-label="`${tool.label} (${tool.key})`"
               :aria-pressed="currentTool === tool.id"
-              class="size-7 shrink-0 flex items-center justify-center border-none rounded-[9px] cursor-pointer transition-all duration-150"
+              class="overlay-toolbar-action"
               :class="currentTool === tool.id ? 'overlay-tool-btn--active' : 'overlay-tool-btn'"
               :title="`${tool.label} (${tool.key})`"
               @click="selectTool(tool.id)"
@@ -903,10 +900,11 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 8px;
+  border-radius: 9px;
   cursor: pointer;
   color: var(--ui-control-text);
   background: var(--ui-control-bg);
@@ -935,5 +933,22 @@ onUnmounted(() => {
 .overlay-toolbar-action--active {
   background: var(--ui-control-bg-strong);
   color: var(--ui-tool-text-hover);
+}
+
+/* Compact tools share action geometry; keep tool color tokens. */
+.overlay-toolbar-action.overlay-tool-btn {
+  background: var(--ui-control-bg-soft);
+  color: var(--ui-tool-text);
+}
+
+.overlay-toolbar-action.overlay-tool-btn:hover {
+  background: var(--ui-control-bg-hover);
+  color: var(--ui-tool-text-hover);
+}
+
+.overlay-toolbar-action.overlay-tool-btn--active {
+  background: var(--ui-accent-bg-active);
+  color: var(--ui-tool-text-active);
+  box-shadow: inset 0 0 0 1px var(--ui-accent-border);
 }
 </style>

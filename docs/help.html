@@ -262,41 +262,50 @@
             <p class="help-section-eyebrow" data-i18n="helpPage.tools.eyebrow">03</p>
             <h2 id="tools-title" data-i18n="helpPage.tools.title">In-session tools</h2>
             <p class="help-section-lead" data-i18n="helpPage.tools.lead">
-              Number keys and letter shortcuts switch tools. No menus required.
+              Number keys and letter shortcuts switch tools. Press <kbd>V</kbd> for Select to marquee-select and batch
+              move or delete.
             </p>
           </div>
           <div class="help-grid help-tool-grid">
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="0">
+            <article class="help-tool-card help-tool-card--featured t-scroll-reveal" data-reveal-delay="0">
+              <kbd>V</kbd>
+              <h3 data-i18n="helpPage.tools.select">Select</h3>
+              <p data-i18n-html="helpPage.tools.selectDesc">
+                Marquee or click to select; drag to move as a group;
+                <kbd>Delete</kbd> / <kbd>Backspace</kbd> removes; <kbd>Esc</kbd> clears selection
+              </p>
+            </article>
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="1">
               <kbd>1</kbd>
               <h3 data-i18n="helpPage.tools.pen">Pen</h3>
               <p data-i18n="helpPage.tools.penDesc">Freehand drawing with smooth curves</p>
             </article>
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="1">
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="2">
               <kbd>2</kbd>
               <h3 data-i18n="helpPage.tools.highlighter">Highlighter</h3>
               <p data-i18n="helpPage.tools.highlighterDesc">Semi-transparent highlight</p>
             </article>
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="2">
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="0">
               <kbd>3</kbd>
               <h3 data-i18n="helpPage.tools.arrow">Arrow</h3>
               <p data-i18n="helpPage.tools.arrowDesc">Arrow pointer line</p>
             </article>
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="0">
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="1">
               <kbd>4</kbd>
               <h3 data-i18n="helpPage.tools.rect">Rectangle</h3>
               <p data-i18n="helpPage.tools.rectDesc">Rectangle outline</p>
             </article>
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="1">
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="2">
               <kbd>5</kbd>
               <h3 data-i18n="helpPage.tools.ellipse">Ellipse</h3>
               <p data-i18n="helpPage.tools.ellipseDesc">Ellipse outline</p>
             </article>
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="2">
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="0">
               <kbd>6</kbd>
               <h3 data-i18n="helpPage.tools.line">Line</h3>
               <p data-i18n="helpPage.tools.lineDesc">Straight line segment</p>
             </article>
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="0">
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="1">
               <kbd>7</kbd>
               <h3 data-i18n="helpPage.tools.eraser">Eraser</h3>
               <p data-i18n="helpPage.tools.eraserDesc">
@@ -304,17 +313,17 @@
                 General)
               </p>
             </article>
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="1">
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="2">
               <kbd>8</kbd>
               <h3 data-i18n="helpPage.tools.laser">Laser</h3>
               <p data-i18n="helpPage.tools.laserDesc">Temporary ink that fades from the oldest tip first</p>
             </article>
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="2">
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="0">
               <kbd>T</kbd>
               <h3 data-i18n="helpPage.tools.text">Text</h3>
               <p data-i18n="helpPage.tools.textDesc">Double-click to place; scroll to resize</p>
             </article>
-            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="3">
+            <article class="help-tool-card t-scroll-reveal" data-reveal-delay="1">
               <kbd>N</kbd>
               <h3 data-i18n="helpPage.tools.stamp">Stamp</h3>
               <p data-i18n-html="helpPage.tools.stampDesc">
@@ -328,6 +337,12 @@
             <div class="help-shortcut-row" role="row">
               <span class="help-shortcut-label" role="cell" data-i18n="helpPage.session.toolbar">Toolbar</span>
               <span class="help-shortcut-keys" role="cell"><kbd>Space</kbd></span>
+            </div>
+            <div class="help-shortcut-row" role="row">
+              <span class="help-shortcut-label" role="cell" data-i18n="helpPage.session.delete">Delete selection</span>
+              <span class="help-shortcut-keys" role="cell" data-i18n-html="helpPage.session.deleteKeys">
+                <kbd>Delete</kbd> / <kbd>Backspace</kbd>
+              </span>
             </div>
             <div class="help-shortcut-row" role="row">
               <span class="help-shortcut-label" role="cell" data-i18n="helpPage.session.undo">Undo</span>
@@ -503,13 +518,20 @@
               </p>
             </article>
             <article class="help-tip-card t-scroll-reveal" data-reveal-delay="1">
-              <h3 data-i18n="helpPage.tips.dragTitle">Drag elements</h3>
-              <p data-i18n="helpPage.tips.dragBody">
-                In General settings: off, hover to drag, or hold Ctrl/Command to drag. Dragging is disabled while the
-                eraser is selected.
+              <h3 data-i18n="helpPage.tips.selectTitle">Select &amp; batch edit</h3>
+              <p data-i18n-html="helpPage.tips.selectBody">
+                Press <kbd>V</kbd> for Select. Marquee or click to select (hold <kbd>Shift</kbd> to add). Drag the
+                selection to move; <kbd>Delete</kbd> / <kbd>Backspace</kbd> to remove; <kbd>Esc</kbd> clears selection.
               </p>
             </article>
             <article class="help-tip-card t-scroll-reveal" data-reveal-delay="2">
+              <h3 data-i18n="helpPage.tips.dragTitle">Drag elements</h3>
+              <p data-i18n="helpPage.tips.dragBody">
+                In General settings: off, hover to drag, or hold Ctrl/Command to drag. Dragging is disabled while the
+                eraser is selected. Prefer Select (<kbd>V</kbd>) for moving several marks at once.
+              </p>
+            </article>
+            <article class="help-tip-card t-scroll-reveal" data-reveal-delay="0">
               <h3 data-i18n="helpPage.tips.textTitle">Edit text</h3>
               <p data-i18n-html="helpPage.tips.textBody">
                 Double-click existing text to re-edit; in <kbd>T</kbd> mode, double-click empty area to create text.

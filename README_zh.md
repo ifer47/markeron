@@ -47,7 +47,7 @@ winget install --id 9N6623X973JV --source msstore
 
 1. **安装并启动** — MarkerOn 在 **系统托盘** 静默运行，不会弹出窗口。
 2. **进入标注模式** — 按 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd>（macOS 为 <kbd>Command</kbd> + <kbd>Shift</kbd> + <kbd>D</kbd>）。
-3. **绘画与穿透** — 数字键切换工具；按 <kbd>X</kbd> 可在保留标注的同时操作下层应用；按 <kbd>Esc</kbd> 退出。
+3. **绘画与穿透** — 数字键与 <kbd>V</kbd>（选择）切换工具；按 <kbd>X</kbd> 可在保留标注的同时操作下层应用；按 <kbd>Esc</kbd> 退出。
 
 > **刚上手？** 按 <kbd>Space</kbd> 呼出工具栏。完整列表见 [快捷键一览](#快捷键一览)。视频教程：[B 站上手演示](https://www.bilibili.com/video/BV17ygy67ETV)。
 
@@ -55,7 +55,8 @@ winget install --id 9N6623X973JV --source msstore
 
 - **轻量高效** — 安装包仅 ~1.5 MB（Rust + Canvas），内存占用极低；托盘静默运行（无多余服务、无遥测）
 - **随处标注** — 在任何应用上方绘制，覆盖全屏包括任务栏
-- **10 种工具** — 画笔、荧光笔、激光笔、箭头、矩形、椭圆、直线、橡皮擦、文字、序号
+- **11 种工具** — 选择、画笔、荧光笔、激光笔、箭头、矩形、椭圆、直线、橡皮擦、文字、序号
+- **框选批量编辑** — <kbd>V</kbd> 进入选择：框选 / 点选后整组拖动，<kbd>Delete</kbd> 批量删除
 - **灵活工具栏** — 按 <kbd>Space</kbd> 呼出，或在设置中**常驻显示**；紧凑面板，点「展开」查看完整选项，面板内可撤销、复制、切换白板；**独立浮动窗口**，含绘制 / 穿透模式切换按钮
 - **穿透模式** — 标注会话中可点击下层应用；工具栏按钮、<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>（全局）或 <kbd>X</kbd>（绘制中）切换；白板模式下不可用
 - **全键盘操控** — 每个操作都有快捷键，无需菜单
@@ -90,17 +91,19 @@ winget install --id 9N6623X973JV --source msstore
 
 | 按键 | 工具 | 按键 | 工具 |
 | :---: | :--- | :---: | :--- |
-| <kbd>1</kbd> | 画笔 | <kbd>5</kbd> | 椭圆 |
-| <kbd>2</kbd> | 荧光笔 | <kbd>6</kbd> | 直线 |
-| <kbd>3</kbd> | 箭头 | <kbd>7</kbd> | 橡皮擦 |
-| <kbd>4</kbd> | 矩形 | <kbd>8</kbd> | 激光笔 |
-| <kbd>T</kbd> | 文字 | <kbd>N</kbd> | 序号 |
+| <kbd>V</kbd> | 选择 | <kbd>5</kbd> | 椭圆 |
+| <kbd>1</kbd> | 画笔 | <kbd>6</kbd> | 直线 |
+| <kbd>2</kbd> | 荧光笔 | <kbd>7</kbd> | 橡皮擦 |
+| <kbd>3</kbd> | 箭头 | <kbd>8</kbd> | 激光笔 |
+| <kbd>4</kbd> | 矩形 | <kbd>T</kbd> | 文字 |
+|  |  | <kbd>N</kbd> | 序号 |
 
 ### 常用操作
 
 | 功能 | Windows | macOS |
 | :--- | :--- | :--- |
 | 呼出工具栏 | <kbd>Space</kbd> | <kbd>Space</kbd> |
+| 删除选中 | <kbd>Delete</kbd> / <kbd>Backspace</kbd> | <kbd>Delete</kbd> / <kbd>Backspace</kbd> |
 | 穿透模式（绘制中） | <kbd>X</kbd> | <kbd>X</kbd> |
 | 切换橡皮擦模式（轨迹 / 对象） | 选中橡皮擦后再按 <kbd>7</kbd> | 选中橡皮擦后再按 <kbd>7</kbd> |
 | 工具栏常驻 / 布局 | 设置 → 常规 | 设置 → 常规 |
@@ -129,6 +132,7 @@ winget install --id 9N6623X973JV --source msstore
 
 | 操作 | 功能 |
 | :--- | :--- |
+| 选择工具（<kbd>V</kbd>） | 框选或点选；选中后可整组拖动；<kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除；<kbd>Esc</kbd> 清空选中 |
 | 元素拖拽 | 在「常规」设置中选择：**关闭** / **悬停拖动** / **按住 Ctrl 才拖动** |
 | 双击已有文字 | 重新进入该文字的**编辑模式** |
 | <kbd>T</kbd> 模式下双击空白处 | 在光标位置新建文字输入框 |

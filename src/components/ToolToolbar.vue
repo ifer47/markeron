@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, computed, watch } from 'vue'
-import { Undo2, Redo2, Trash2, Layout, Copy, MoreHorizontal, ChevronUp, MousePointer2, Pin, X } from '@lucide/vue'
+import { Undo2, Redo2, Trash2, Layout, Copy, MoreHorizontal, ChevronUp, MousePointer2, Pin, X, Pen } from '@lucide/vue'
 import type { Tool } from '../composables/useDrawing'
 import { isMacOS } from '../utils/platform'
 import { useI18n } from '../i18n'
-import { TOOL_DEFS, WIDTH_PRESETS } from '../constants/tools'
+import { DRAWING_TOOL_DEFS, SELECT_TOOL_DEF, WIDTH_PRESETS } from '../constants/tools'
 import { COLOR_ROWS } from '../constants/colors'
 import {
   TEXT_OUTLINE_WIDTH_PRESETS,
@@ -68,7 +68,9 @@ const emit = defineEmits<{
   panelDrag: [dragging: boolean]
 }>()
 
-const tools = computed(() => TOOL_DEFS.map((d) => ({ ...d, label: t(`tools.${d.id}`) })))
+const tools = computed(() => DRAWING_TOOL_DEFS.map((d) => ({ ...d, label: t(`tools.${d.id}`) })))
+const selectToolLabel = computed(() => t(`tools.${SELECT_TOOL_DEF.id}`))
+const selectToolTitle = computed(() => `${selectToolLabel.value} (${SELECT_TOOL_DEF.key})`)
 const colors = COLOR_ROWS
 const simpleColors = computed(() => colors[0] ?? [])
 const widths = computed(() => WIDTH_PRESETS.map((v) => ({ value: v, label: t(`widths.${v}`) })))
@@ -488,7 +490,7 @@ onUnmounted(() => {
             :disabled="whiteboardMode"
             @click="onDrawingModeClick"
           >
-            <component :is="TOOL_DEFS[0].icon" :size="15" />
+            <Pen :size="15" />
           </button>
           <button
             v-if="standaloneWindow"
@@ -502,6 +504,17 @@ onUnmounted(() => {
             @click="onPenetrationModeClick"
           >
             <MousePointer2 :size="15" />
+          </button>
+          <button
+            type="button"
+            class="overlay-toolbar-action"
+            :class="currentTool === 'select' ? 'overlay-toolbar-action--active' : ''"
+            :title="selectToolTitle"
+            :aria-label="selectToolTitle"
+            :aria-pressed="currentTool === 'select'"
+            @click="selectTool('select')"
+          >
+            <component :is="SELECT_TOOL_DEF.icon" :size="15" />
           </button>
           <button
             type="button"

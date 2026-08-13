@@ -1,5 +1,6 @@
 import type { Component } from 'vue'
 import {
+  SquareDashedMousePointer,
   Pen,
   Highlighter,
   Crosshair,
@@ -19,7 +20,11 @@ export interface ToolDef {
   key: string
 }
 
+/** Select lives in the top action row; drawing tools use the grid below. */
+export const SELECT_TOOL_DEF: ToolDef = { id: 'select', icon: SquareDashedMousePointer, key: 'V' }
+
 export const TOOL_DEFS: ToolDef[] = [
+  SELECT_TOOL_DEF,
   { id: 'pen', icon: Pen, key: '1' },
   { id: 'highlighter', icon: Highlighter, key: '2' },
   { id: 'arrow', icon: ArrowUpRight, key: '3' },
@@ -31,6 +36,9 @@ export const TOOL_DEFS: ToolDef[] = [
   { id: 'text', icon: Type, key: 'T' },
   { id: 'stamp', icon: ListOrdered, key: 'N' },
 ]
+
+/** Tools shown in the toolbar grid (excludes select). */
+export const DRAWING_TOOL_DEFS: ToolDef[] = TOOL_DEFS.filter((d) => d.id !== 'select')
 
 export const TOOL_ICON_MAP: Record<Tool, Component> = Object.fromEntries(
   TOOL_DEFS.map((d) => [d.id, d.icon]),
@@ -57,6 +65,7 @@ export function toolLineWidthGroup(tool: Tool): LineWidthGroup {
   if (tool === 'highlighter') return 'highlighter'
   if (tool === 'eraser') return 'eraser'
   if (tool === 'text' || tool === 'stamp') return 'text'
+  // select shares stroke group (width UI unused while select is active)
   return 'stroke'
 }
 

@@ -100,4 +100,17 @@ describe('resolveToolbarSelectTool', () => {
       tip: 'default',
     })
   })
+
+  it('selects select tool with default tip', () => {
+    expect(resolveToolbarSelectTool({ isDrawing: false, currentTool: 'pen', nextTool: 'select' })).toEqual({
+      type: 'select',
+      tool: 'select',
+      tip: 'default',
+    })
+    expect(resolveToolbarSelectTool({ isDrawing: false, currentTool: 'select', nextTool: 'select' })).toEqual({
+      type: 'select',
+      tool: 'select',
+      tip: 'default',
+    })
+  })
 })

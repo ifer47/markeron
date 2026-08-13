@@ -21,6 +21,7 @@ describe('line width helpers', () => {
   })
 
   it('maps stroke tools to shared group; others are separate', () => {
+    expect(toolLineWidthGroup('select')).toBe('stroke')
     expect(toolLineWidthGroup('pen')).toBe('stroke')
     expect(toolLineWidthGroup('laser')).toBe('stroke')
     expect(toolLineWidthGroup('arrow')).toBe('stroke')

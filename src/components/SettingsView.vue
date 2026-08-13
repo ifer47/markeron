@@ -46,6 +46,7 @@ const helpGlobalKeys = computed(() =>
 )
 
 const helpTools = [
+  { key: 'V', name: 'tools.select', desc: 'toolDesc.select' },
   { key: '1', name: 'tools.pen', desc: 'toolDesc.pen' },
   { key: '2', name: 'tools.highlighter', desc: 'toolDesc.highlighter' },
   { key: '3', name: 'tools.arrow', desc: 'toolDesc.arrow' },
@@ -709,6 +710,10 @@ onUnmounted(() => {
               <div class="help-row help-row-block">
                 <span class="help-label">{{ t('help.dragElement') }}</span>
                 <span class="help-desc">{{ t('help.dragDesc') }}</span>
+              </div>
+              <div class="help-row help-row-block">
+                <span class="help-label">{{ t('help.selectBatch') }}</span>
+                <span class="help-desc">{{ t('help.selectToolHint') }}</span>
               </div>
               <div class="help-row help-row-block">
                 <span class="help-label">{{ t('help.editText') }}</span>

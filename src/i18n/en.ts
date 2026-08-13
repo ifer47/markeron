@@ -1,5 +1,6 @@
 export default {
   tools: {
+    select: 'Select',
     pen: 'Pen',
     highlighter: 'Highlighter',
     laser: 'Laser',
@@ -19,6 +20,7 @@ export default {
     crosshairCursorDot: 'Dot',
   },
   toolDesc: {
+    select: 'Marquee or click to select; drag to move; Delete removes selection',
     pen: 'Freehand strokes; press 1 again to switch pen icon / dot cursor',
     highlighter: 'Semi-transparent highlight',
     laser: 'Temporary ink that fades away; press 8 again to switch crosshair / dot cursor',
@@ -44,7 +46,7 @@ export default {
   textSizes: { 1: 'XS', 2: 'S', 3: 'M', 5: 'L', 8: 'XL' },
   panel: {
     tools: 'Tools',
-    toolsHint: 'Press 1-8 / T / N',
+    toolsHint: 'Press V / 1-8 / T / N',
     colors: 'Colors',
     customColor: 'Custom color',
     strokeWidth: 'Stroke',
@@ -217,10 +219,12 @@ export default {
     exitAnnotation: 'Exit',
     dragAndText: 'Drag & text',
     dragDesc: 'Off / hover / hold modifier — set in General. Disabled with eraser.',
+    selectToolHint: 'With Select (V): marquee or click, drag to move; Delete / Backspace removes selection.',
     editTextDesc: 'Double-click text to edit; in <kbd class="help-kbd">T</kbd> mode, double-click empty area to add.',
     confirmTextDesc:
       '<kbd class="help-kbd">Ctrl+Enter</kbd> / <kbd class="help-kbd">⌘+Return</kbd>, or double right-click.',
     dragElement: 'Drag',
+    selectBatch: 'Select & batch',
     editText: 'Edit text',
     confirmText: 'Confirm text',
     openOnline: 'Full help',

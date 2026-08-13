@@ -20,6 +20,17 @@ import { getStrokeSmoothing } from './strokeSmoothingState'
 export type { Tool, Point, DrawAction } from './drawingTypes'
 export type { InputPointLike } from './drawingTypes'
 
+export type SelectionRect = { x1: number; y1: number; x2: number; y2: number }
+
+function normalizeSelectionRect(r: SelectionRect): SelectionRect {
+  return {
+    x1: Math.min(r.x1, r.x2),
+    y1: Math.min(r.y1, r.y2),
+    x2: Math.max(r.x1, r.x2),
+    y2: Math.max(r.y1, r.y2),
+  }
+}
+
 import type { Tool, Point, DrawAction, InputPointLike, TextOutlineStyle } from './drawingTypes'
 import {
   createDefaultLineWidths,
@@ -146,6 +157,10 @@ export function useDrawing(
     | { type: 'add'; action: DrawAction }
     | { type: 'remove'; action: DrawAction; index: number }
     | { type: 'drag'; action: DrawAction; from: DragSnapshot; to: DragSnapshot }
+    | {
+        type: 'dragBatch'
+        items: { action: DrawAction; from: DragSnapshot; to: DragSnapshot }[]
+      }
     | {
         type: 'erase'
         targets: { action: DrawAction; before: DrawAction['attachedErasers']; after: DrawAction['attachedErasers'] }[]
@@ -291,6 +306,9 @@ export function useDrawing(
   }
   const currentAction = shallowRef<DrawAction | null>(null)
   const previewAction = shallowRef<DrawAction | null>(null)
+  /** Selected elements (shallow refs into history). Cleared when leaving select tool. */
+  const selectedActions = shallowRef<DrawAction[]>([])
+  const marqueeRect = shallowRef<SelectionRect | null>(null)
 
   let cacheCanvas: HTMLCanvasElement | null = null
   let cacheCtx: CanvasRenderingContext2D | null = null
@@ -313,6 +331,9 @@ export function useDrawing(
   let dragBboxX = 0
   let dragBboxY = 0
   let useDragCanvas = false
+  /** Actions currently being dragged (supports multi-select move). */
+  let draggingActions: DrawAction[] = []
+  let draggingSet = new Set<DrawAction>()
   let tempCanvas: HTMLCanvasElement | null = null
   let tempCtx: CanvasRenderingContext2D | null = null
   const pathCache = new WeakMap<DrawAction, Path2D>()
@@ -503,7 +524,7 @@ export function useDrawing(
     if (!cacheValid && cacheCtx) {
       cacheCtx.clearRect(0, 0, cacheCanvas.width, cacheCanvas.height)
       for (let i = 0; i < history.length; i++) {
-        if (history[i] === previewAction.value) continue
+        if (draggingSet.has(history[i])) continue
         drawActionOn(cacheCtx, history[i])
       }
       cacheValid = true
@@ -531,6 +552,174 @@ export function useDrawing(
       strokeCtx.clearRect(0, 0, strokeCanvas.width, strokeCanvas.height)
     }
     inkPreviewDirty = true
+  }
+
+  function resolveActionBbox(action: DrawAction): DrawAction['bbox'] {
+    if (action.tool === 'text') return action.bbox ?? computeTextBbox(action)
+    if (action.tool === 'stamp') return action.bbox ?? computeStampBbox(action)
+    if (action.bbox) return action.bbox
+    const pad = Math.max(20, action.lineWidth / 2 + 10)
+    return computeBbox(action, pad)
+  }
+
+  function refreshActionGeometry(action: DrawAction) {
+    if (action.tool === 'text' && action.textWidth != null) {
+      action.bbox = computeTextBbox(action)
+    } else if (action.tool === 'stamp') {
+      action.bbox = computeStampBbox(action)
+    } else {
+      const pad = Math.max(20, action.lineWidth / 2 + 10)
+      action.bbox = computeBbox(action, pad)
+    }
+    updateShapeHitCache(action)
+  }
+
+  function drawSelectionOverlay(ctx: CanvasRenderingContext2D) {
+    const selected = selectedActions.value
+    const marquee = marqueeRect.value
+    if (selected.length === 0 && !marquee) return
+
+    const dx = draggingSet.size > 0 ? dragOffsetX : 0
+    const dy = draggingSet.size > 0 ? dragOffsetY : 0
+
+    ctx.save()
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([6, 4])
+    ctx.strokeStyle = 'rgba(0, 122, 255, 0.95)'
+
+    for (const action of selected) {
+      const bbox = resolveActionBbox(action)
+      if (!bbox) continue
+      const ox = draggingSet.has(action) ? dx : 0
+      const oy = draggingSet.has(action) ? dy : 0
+      ctx.strokeRect(bbox.x1 + ox, bbox.y1 + oy, bbox.x2 - bbox.x1, bbox.y2 - bbox.y1)
+    }
+
+    if (marquee) {
+      const r = normalizeSelectionRect(marquee)
+      const w = r.x2 - r.x1
+      const h = r.y2 - r.y1
+      ctx.setLineDash([4, 3])
+      ctx.fillStyle = 'rgba(0, 122, 255, 0.12)'
+      ctx.strokeStyle = 'rgba(0, 122, 255, 0.85)'
+      ctx.fillRect(r.x1, r.y1, w, h)
+      ctx.strokeRect(r.x1, r.y1, w, h)
+    }
+
+    ctx.restore()
+  }
+
+  function clearSelection() {
+    if (selectedActions.value.length === 0 && marqueeRect.value == null) return
+    selectedActions.value = []
+    marqueeRect.value = null
+    previewDirty = true
+    scheduleRender()
+  }
+
+  function setSelection(actions: DrawAction[]) {
+    const unique: DrawAction[] = []
+    const seen = new Set<DrawAction>()
+    for (const a of actions) {
+      if (seen.has(a) || history.indexOf(a) === -1) continue
+      seen.add(a)
+      unique.push(a)
+    }
+    selectedActions.value = unique
+    previewDirty = true
+    scheduleRender()
+  }
+
+  function toggleInSelection(action: DrawAction) {
+    if (history.indexOf(action) === -1) return
+    const cur = selectedActions.value
+    const idx = cur.indexOf(action)
+    selectedActions.value = idx === -1 ? [...cur, action] : cur.filter((a) => a !== action)
+    previewDirty = true
+    scheduleRender()
+  }
+
+  function isActionSelected(action: DrawAction): boolean {
+    return selectedActions.value.includes(action)
+  }
+
+  /** True if point lies inside a selected action's bbox (for drag-from-selection-frame). */
+  function findSelectedActionAt(p: Point): DrawAction | null {
+    let best: DrawAction | null = null
+    let bestIdx = -1
+    for (const action of selectedActions.value) {
+      if (history.indexOf(action) === -1) continue
+      const bbox = resolveActionBbox(action)
+      if (!bbox) continue
+      if (p.x < bbox.x1 || p.x > bbox.x2 || p.y < bbox.y1 || p.y > bbox.y2) continue
+      const idx = history.indexOf(action)
+      if (idx >= bestIdx) {
+        bestIdx = idx
+        best = action
+      }
+    }
+    return best
+  }
+
+  function setMarqueeRect(rect: SelectionRect | null) {
+    marqueeRect.value = rect
+    previewDirty = true
+    scheduleRender()
+  }
+
+  function findActionsInRect(rect: SelectionRect): DrawAction[] {
+    const r = normalizeSelectionRect(rect)
+    const hits: DrawAction[] = []
+    for (const action of history) {
+      const bbox = resolveActionBbox(action)
+      if (!bbox) continue
+      if (bboxesIntersect(bbox, r)) hits.push(action)
+    }
+    return hits
+  }
+
+  function pruneSelection(removed: Iterable<DrawAction>) {
+    const drop = removed instanceof Set ? removed : new Set(removed)
+    if (drop.size === 0) return
+    const next = selectedActions.value.filter((a) => !drop.has(a))
+    if (next.length !== selectedActions.value.length) {
+      selectedActions.value = next
+      previewDirty = true
+    }
+  }
+
+  function removeSelected() {
+    const selected = selectedActions.value
+    if (selected.length === 0) return
+
+    const removed: { action: DrawAction; index: number }[] = []
+    for (const action of selected) {
+      const idx = history.indexOf(action)
+      if (idx !== -1) removed.push({ action, index: idx })
+    }
+    if (removed.length === 0) {
+      selectedActions.value = []
+      marqueeRect.value = null
+      previewDirty = true
+      flushRender()
+      return
+    }
+
+    // High→low splice keeps original indices valid for each removal and for undo.
+    removed.sort((a, b) => b.index - a.index)
+    for (const item of removed) {
+      history.splice(item.index, 1)
+      deleteActionFromHitGrid(item.action)
+    }
+    historyIndexDirty = true
+    selectedActions.value = []
+    marqueeRect.value = null
+    undoStack.push({ type: 'removeBatch', removed: [...removed] })
+    redoStack.length = 0
+    invalidateCache()
+    previewDirty = true
+    markHistoryStacksChanged()
+    flushRender()
   }
 
   function isInkTool(tool: Tool): boolean {
@@ -598,10 +787,11 @@ export function useDrawing(
       const drawX = Math.round((dragBboxX + dragOffsetX) * dpr)
       const drawY = Math.round((dragBboxY + dragOffsetY) * dpr)
       ctx.drawImage(dragCanvas, drawX, drawY)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       if (laserStrokes.length > 0) {
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
         drawLaserStrokes(ctx)
       }
+      drawSelectionOverlay(ctx)
       ctx.restore()
       previewDirty = false
       return
@@ -636,6 +826,9 @@ export function useDrawing(
         drawActionOn(ctx, preview)
       }
     }
+
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+    drawSelectionOverlay(ctx)
 
     ctx.restore()
     previewDirty = false
@@ -750,6 +943,7 @@ export function useDrawing(
       history.splice(idx, 1)
       historyIndexDirty = true
       deleteActionFromHitGrid(hit.action)
+      pruneSelection([hit.action])
       removedAny = true
     }
     objectEraserLastProcessedPt = pts.length
@@ -758,7 +952,7 @@ export function useDrawing(
   }
 
   function startDraw(point: Point) {
-    if (currentTool.value === 'text' || currentTool.value === 'stamp') return
+    if (currentTool.value === 'text' || currentTool.value === 'stamp' || currentTool.value === 'select') return
     isDrawing.value = true
     if (redoStack.length > 0) {
       redoStack.length = 0
@@ -1064,7 +1258,16 @@ export function useDrawing(
   }
 
   function beginDrag(action: DrawAction) {
-    previewAction.value = action
+    beginDragMany([action])
+  }
+
+  function beginDragMany(actions: DrawAction[]) {
+    const list = actions.filter((a) => history.indexOf(a) !== -1)
+    if (list.length === 0) return
+
+    draggingActions = list
+    draggingSet = new Set(list)
+    previewAction.value = list[0]
     invalidateCache()
     ensureCache()
 
@@ -1075,19 +1278,31 @@ export function useDrawing(
     const canvas = previewCanvasRef.value
     if (canvas) {
       const dpr = getEffectiveDpr()
-      const pad = Math.max(20, action.lineWidth / 2 + 10) + 2
-      const bbox =
-        action.tool === 'text'
-          ? computeTextBbox(action)
-          : action.tool === 'stamp'
-            ? computeStampBbox(action)
-            : computeBbox(action, pad)
-      if (bbox) {
-        const bw = Math.ceil((bbox.x2 - bbox.x1) * dpr)
-        const bh = Math.ceil((bbox.y2 - bbox.y1) * dpr)
+      let union: NonNullable<DrawAction['bbox']> | null = null
+      for (const action of list) {
+        const pad = Math.max(20, action.lineWidth / 2 + 10) + 2
+        const bbox =
+          action.tool === 'text'
+            ? computeTextBbox(action)
+            : action.tool === 'stamp'
+              ? computeStampBbox(action)
+              : computeBbox(action, pad)
+        if (!bbox) continue
+        if (!union) {
+          union = { ...bbox }
+        } else {
+          union.x1 = Math.min(union.x1, bbox.x1)
+          union.y1 = Math.min(union.y1, bbox.y1)
+          union.x2 = Math.max(union.x2, bbox.x2)
+          union.y2 = Math.max(union.y2, bbox.y2)
+        }
+      }
+      if (union) {
+        const bw = Math.ceil((union.x2 - union.x1) * dpr)
+        const bh = Math.ceil((union.y2 - union.y1) * dpr)
         if (bw > 0 && bh > 0) {
-          dragBboxX = bbox.x1
-          dragBboxY = bbox.y1
+          dragBboxX = union.x1
+          dragBboxY = union.y1
           if (!dragCanvas) dragCanvas = document.createElement('canvas')
           dragCanvas.width = bw
           dragCanvas.height = bh
@@ -1096,8 +1311,10 @@ export function useDrawing(
             dragCtx.setTransform(1, 0, 0, 1, 0, 0)
             dragCtx.clearRect(0, 0, bw, bh)
             dragCtx.scale(dpr, dpr)
-            dragCtx.translate(-bbox.x1, -bbox.y1)
-            drawActionOn(dragCtx, action)
+            dragCtx.translate(-union.x1, -union.y1)
+            for (const action of list) {
+              drawActionOn(dragCtx, action)
+            }
             useDragCanvas = true
           }
         }
@@ -1116,49 +1333,72 @@ export function useDrawing(
   }
 
   function endDrag() {
-    if (previewAction.value) {
-      const action = previewAction.value
+    const actions = (
+      draggingActions.length > 0 ? draggingActions : previewAction.value ? [previewAction.value] : []
+    ).filter((action) => history.indexOf(action) !== -1)
+    if (actions.length > 0) {
       const hasMoved = dragOffsetX !== 0 || dragOffsetY !== 0
 
-      const beforeIdx = history.indexOf(action)
-      const beforeSnap = hasMoved ? takeDragSnapshot(action, beforeIdx) : null
+      const beforeSnaps = hasMoved ? actions.map((action) => takeDragSnapshot(action, history.indexOf(action))) : null
 
       if (hasMoved) {
-        for (const pt of action.points) {
-          pt.x += dragOffsetX
-          pt.y += dragOffsetY
+        for (const action of actions) {
+          for (const pt of action.points) {
+            pt.x += dragOffsetX
+            pt.y += dragOffsetY
+          }
+          offsetAttachedErasers(action, dragOffsetX, dragOffsetY)
+          pathCache.delete(action)
         }
-        offsetAttachedErasers(action, dragOffsetX, dragOffsetY)
-        pathCache.delete(action)
       }
 
-      if (action.tool === 'text' && action.textWidth != null) {
-        action.bbox = computeTextBbox(action)
-      } else if (action.tool === 'stamp') {
-        action.bbox = computeStampBbox(action)
-      } else {
-        const pad = Math.max(20, action.lineWidth / 2 + 10)
-        action.bbox = computeBbox(action, pad)
+      for (const action of actions) {
+        refreshActionGeometry(action)
       }
-      updateShapeHitCache(action)
 
-      const idx = history.indexOf(action)
-      const movedToTop = idx !== -1 && idx !== history.length - 1
-      if (idx !== -1 && idx !== history.length - 1) {
-        history.splice(idx, 1)
-        history.push(action)
-        historyIndexDirty = true
+      // Raise group to top (including zero-move click), preserving relative order.
+      const ordered = [...actions].sort((a, b) => history.indexOf(a) - history.indexOf(b))
+      for (let i = ordered.length - 1; i >= 0; i--) {
+        const idx = history.indexOf(ordered[i])
+        if (idx !== -1) history.splice(idx, 1)
       }
-      refreshActionInHitGrid(action, movedToTop)
+      history.push(...ordered)
+      historyIndexDirty = true
+      for (const action of ordered) {
+        refreshActionInHitGrid(action, true)
+      }
 
-      if (hasMoved && beforeSnap) {
-        const afterSnap = takeDragSnapshot(action, history.indexOf(action))
-        undoStack.push({ type: 'drag', action, from: beforeSnap, to: afterSnap })
+      if (hasMoved && beforeSnaps) {
+        const items = actions.map((action, i) => ({
+          action,
+          from: beforeSnaps[i],
+          to: takeDragSnapshot(action, history.indexOf(action)),
+        }))
+        if (items.length === 1) {
+          undoStack.push({ type: 'drag', action: items[0].action, from: items[0].from, to: items[0].to })
+        } else {
+          undoStack.push({ type: 'dragBatch', items })
+        }
         redoStack.length = 0
         markHistoryStacksChanged()
       }
     }
     previewAction.value = null
+    draggingActions = []
+    draggingSet = new Set()
+    useDragCanvas = false
+    dragOffsetX = 0
+    dragOffsetY = 0
+    invalidateCache()
+    previewDirty = true
+    flushRender()
+  }
+
+  /** Abandon an in-progress drag without applying offset (e.g. Delete mid-drag). */
+  function cancelDrag() {
+    previewAction.value = null
+    draggingActions = []
+    draggingSet = new Set()
     useDragCanvas = false
     dragOffsetX = 0
     dragOffsetY = 0
@@ -1178,6 +1418,7 @@ export function useDrawing(
         history.splice(idx, 1)
         deleteActionFromHitGrid(entry.action)
       }
+      pruneSelection([entry.action])
     } else if (entry.type === 'remove') {
       const target = Math.min(entry.index, history.length)
       history.splice(target, 0, entry.action)
@@ -1191,6 +1432,24 @@ export function useDrawing(
         history.splice(target, 0, entry.action)
       }
       refreshActionInHitGrid(entry.action, true)
+    } else if (entry.type === 'dragBatch') {
+      for (const item of entry.items) {
+        restoreDragSnapshot(item.action, item.from)
+      }
+      // Restore z-order by original indices (low → high).
+      const byFrom = [...entry.items].sort((a, b) => a.from.index - b.from.index)
+      for (const item of byFrom) {
+        const cur = history.indexOf(item.action)
+        if (cur !== -1) history.splice(cur, 1)
+      }
+      for (const item of byFrom) {
+        const target = Math.min(item.from.index, history.length)
+        history.splice(target, 0, item.action)
+      }
+      historyIndexDirty = true
+      for (const item of byFrom) {
+        refreshActionInHitGrid(item.action, true)
+      }
     } else if (entry.type === 'erase') {
       for (const t of entry.targets) {
         t.action.attachedErasers = t.before ? [...t.before] : undefined
@@ -1211,6 +1470,7 @@ export function useDrawing(
 
     redoStack.push(entry)
     invalidateCache()
+    previewDirty = true
     markHistoryStacksChanged()
     flushRender()
   }
@@ -1228,6 +1488,7 @@ export function useDrawing(
       if (idx !== -1) {
         history.splice(idx, 1)
         deleteActionFromHitGrid(entry.action)
+        pruneSelection([entry.action])
       }
     } else if (entry.type === 'drag') {
       restoreDragSnapshot(entry.action, entry.to)
@@ -1238,6 +1499,23 @@ export function useDrawing(
         history.splice(target, 0, entry.action)
       }
       refreshActionInHitGrid(entry.action, true)
+    } else if (entry.type === 'dragBatch') {
+      for (const item of entry.items) {
+        restoreDragSnapshot(item.action, item.to)
+      }
+      const byTo = [...entry.items].sort((a, b) => a.to.index - b.to.index)
+      for (const item of byTo) {
+        const cur = history.indexOf(item.action)
+        if (cur !== -1) history.splice(cur, 1)
+      }
+      for (const item of byTo) {
+        const target = Math.min(item.to.index, history.length)
+        history.splice(target, 0, item.action)
+      }
+      historyIndexDirty = true
+      for (const item of byTo) {
+        refreshActionInHitGrid(item.action, true)
+      }
     } else if (entry.type === 'erase') {
       for (const t of entry.targets) {
         t.action.attachedErasers = t.after ? [...t.after] : undefined
@@ -1253,6 +1531,7 @@ export function useDrawing(
         }
       }
       historyIndexDirty = true
+      pruneSelection(sorted.map((item) => item.action))
     } else if (entry.type === 'clear') {
       entry.actions = [...history]
       entry.prevUndoStack = [...undoStack]
@@ -1260,10 +1539,13 @@ export function useDrawing(
       undoStack.length = 0
       clearHitGridState()
       hitGridDirty = false
+      selectedActions.value = []
+      marqueeRect.value = null
     }
 
     undoStack.push(entry)
     invalidateCache()
+    previewDirty = true
     markHistoryStacksChanged()
     flushRender()
   }
@@ -1292,6 +1574,8 @@ export function useDrawing(
     redoStack.length = 0
     clearHitGridState()
     hitGridDirty = false
+    selectedActions.value = []
+    marqueeRect.value = null
 
     undoStack.push(entry)
 
@@ -1337,6 +1621,10 @@ export function useDrawing(
     clearLaserStrokes()
     clearHitGridState()
     hitGridDirty = false
+    selectedActions.value = []
+    marqueeRect.value = null
+    draggingActions = []
+    draggingSet = new Set()
     invalidateCache()
     currentAction.value = null
     previewAction.value = null
@@ -1390,6 +1678,7 @@ export function useDrawing(
       history.splice(index, 1)
       historyIndexDirty = true
       deleteActionFromHitGrid(action)
+      pruneSelection([action])
       undoStack.push({ type: 'remove', action, index })
       redoStack.length = 0
       invalidateCache()
@@ -1447,7 +1736,17 @@ export function useDrawing(
     endDraw,
     cancelDraw,
     findActionAt,
+    findActionsInRect,
     removeAction,
+    removeSelected,
+    selectedActions,
+    marqueeRect,
+    clearSelection,
+    setSelection,
+    toggleInSelection,
+    isActionSelected,
+    findSelectedActionAt,
+    setMarqueeRect,
     addTextAction,
     addStampAction,
     undo,
@@ -1460,8 +1759,10 @@ export function useDrawing(
     hardReset,
     redrawAll,
     beginDrag,
+    beginDragMany,
     updateDragOffset,
     endDrag,
+    cancelDrag,
     destroy,
     setAngleSnapStep,
   }

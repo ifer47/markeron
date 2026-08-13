@@ -5,6 +5,7 @@ import type { Tool } from './drawingTypes'
 
 function createTooltip() {
   const toolLabelMap = computed<Record<Tool, string>>(() => ({
+    select: 'Select',
     pen: 'Pen',
     highlighter: 'Highlighter',
     laser: 'Laser',

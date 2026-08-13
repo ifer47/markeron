@@ -50,6 +50,9 @@ export interface KeyboardActions {
   showCrosshairTip?: () => void
   undo: () => void
   redo: () => void
+  removeSelected?: () => void
+  hasSelection?: () => boolean
+  clearSelection?: () => void
   exitDrawing: () => void
   togglePenetrationMode: () => void
   enterWhiteboardMode: () => void
@@ -188,6 +191,15 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
       return
     }
 
+    // Select tool
+    if ((e.key === 'v' || e.key === 'V') && !modDown(e)) {
+      if (ctx.isDrawing.value) return
+      logActionEvent('tool selected', { reason: 'keyboard', tool: 'select' })
+      ctx.currentTool.value = 'select'
+      actions.showToolTip('select')
+      return
+    }
+
     // Text tool
     if (e.key === 't' || e.key === 'T') {
       if (ctx.isDrawing.value) return
@@ -280,6 +292,16 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     // Don't process edit shortcuts when toolbar popup is open (space mode)
     if (ctx.showToolbarPopup.value && !ctx.toolbarPinned.value) return
 
+    // Delete / Backspace removes the current selection (select tool or leftover selection).
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (actions.hasSelection?.()) {
+        e.preventDefault()
+        logActionEvent('selection deleted', { reason: 'keyboard', key: e.key })
+        actions.removeSelected?.()
+      }
+      return
+    }
+
     // Undo/Redo/Clear/Exit
     // macOS WKWebView often reports Cmd+Shift+Z as key 'z' (lowercase) even with shiftKey;
     // require !shiftKey on undo so Mod+Shift+Z never falls through as undo.
@@ -298,6 +320,11 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
       logActionEvent('redo', { reason: 'keyboard', shortcut: 'mod+y' })
       actions.redo()
     } else if (e.key === 'Escape') {
+      if (actions.hasSelection?.()) {
+        logActionEvent('selection cleared', { reason: 'keyboard', shortcut: 'escape' })
+        actions.clearSelection?.()
+        return
+      }
       if (ctx.whiteboardMode.value) {
         logActionEvent('whiteboard exit requested', { reason: 'keyboard', shortcut: 'escape' })
         actions.exitWhiteboardMode()

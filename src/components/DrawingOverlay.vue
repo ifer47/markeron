@@ -108,6 +108,7 @@ const whiteboardMode = ref(false)
 const defaultEntryMode = ref<DefaultEntryMode>('screen')
 
 const toolLabelMap = computed<Record<Tool, string>>(() => ({
+  select: t('tools.select'),
   pen: t('tools.pen'),
   highlighter: t('tools.highlighter'),
   laser: t('tools.laser'),
@@ -204,6 +205,9 @@ function onRmbPointerDown(e: PointerEvent) {
     return
   }
   if (isMacOS() && e.ctrlKey && pointerMovedSinceDown) return
+
+  // Drop in-progress select gestures so RMB erase receives moves; keep selectedActions.
+  cancelSelectGestures()
 
   rmbEraseGesture = beginRmbErase(currentTool.value)
   rmbErasePointerId = e.pointerId
@@ -310,7 +314,16 @@ const {
   addTextAction,
   addStampAction,
   findActionAt,
+  findActionsInRect,
   removeAction,
+  removeSelected,
+  selectedActions,
+  clearSelection,
+  setSelection,
+  toggleInSelection,
+  isActionSelected,
+  findSelectedActionAt,
+  setMarqueeRect,
   undo,
   redo,
   canUndo,
@@ -321,8 +334,10 @@ const {
   hardReset,
   redrawAll,
   beginDrag,
+  beginDragMany,
   updateDragOffset,
   endDrag,
+  cancelDrag,
   destroy,
 } = useDrawing(historyCanvasRef, previewCanvasRef)
 
@@ -541,6 +556,8 @@ function exitWhiteboardMode() {
 }
 
 const hoveredActionInfo = shallowRef<{ action: DrawAction; index: number } | null>(null)
+/** Select tool: pointer is inside a selected action's bbox (drag-from-frame). */
+const pointerOverSelectionBbox = ref(false)
 const isMoving = ref(false)
 const dragMode = ref<DragMode>('off')
 const penCursorStyle = ref<PenCursorStyle>('pen')
@@ -550,6 +567,10 @@ const preserveDrawings = ref(false)
 const whiteboardPreserveDrawings = ref(true)
 let hoverRafId: number | null = null
 let isDragging = false
+let isMarqueeSelecting = false
+let marqueeAdditive = false
+let marqueeStartX = 0
+let marqueeStartY = 0
 let dragStartX = 0
 let dragStartY = 0
 let capturedPointerId: number | null = null
@@ -564,6 +585,41 @@ let lastScreenY = 0
 let pointerScreenKnown = false
 /** Gate custom SVG cursor until OS pointer is seeded (avoids flash at 0,0). */
 const customCursorPositionReady = ref(true)
+
+watch(currentTool, (tool, prev) => {
+  if (prev === 'select' && tool !== 'select') {
+    // RMB hold-erase temporarily swaps to eraser: gestures already cancelled in
+    // onRmbPointerDown; keep selectedActions for when select is restored.
+    if (rmbEraseGesture.active) return
+    cancelSelectGestures()
+    clearSelection()
+    clearSelectionHover()
+  }
+})
+
+function cancelMarqueeSelection() {
+  if (isMarqueeSelecting) isMarqueeSelecting = false
+  setMarqueeRect(null)
+}
+
+function clearSelectionHover() {
+  pointerOverSelectionBbox.value = false
+}
+
+function cancelSelectGestures() {
+  let cancelled = false
+  if (isDragging) {
+    isDragging = false
+    isMoving.value = false
+    cancelDrag()
+    cancelled = true
+  }
+  if (isMarqueeSelecting) {
+    cancelMarqueeSelection()
+    cancelled = true
+  }
+  return cancelled
+}
 
 function emitPointerScreenForToolbar() {
   if (!pointerScreenKnown) return
@@ -876,12 +932,47 @@ function applyDragModeFromConfig(general?: AppConfig['general']) {
 }
 
 function canStartElementDrag(e: PointerEvent): boolean {
-  if (currentTool.value === 'eraser') return false
+  if (currentTool.value === 'eraser' || currentTool.value === 'select') return false
   return canStartElementDragGate({
     dragMode: dragMode.value,
     hasHoveredElement: !!hoveredActionInfo.value,
     modifierDown: modDown(e),
   })
+}
+
+function wantsHoverHitTest(): boolean {
+  return isDragEnabled(dragMode.value) || currentTool.value === 'select'
+}
+
+function finishMarqueeSelection(clientX: number, clientY: number) {
+  const rect = {
+    x1: marqueeStartX,
+    y1: marqueeStartY,
+    x2: clientX,
+    y2: clientY,
+  }
+  const dx = clientX - marqueeStartX
+  const dy = clientY - marqueeStartY
+  const moved = dx * dx + dy * dy > CONTEXT_MENU_DRAG_THRESHOLD_PX * CONTEXT_MENU_DRAG_THRESHOLD_PX
+
+  isMarqueeSelecting = false
+  setMarqueeRect(null)
+
+  if (!moved) {
+    if (!marqueeAdditive) setSelection([])
+    return
+  }
+
+  const hits = findActionsInRect(rect)
+  if (marqueeAdditive) {
+    const merged = [...selectedActions.value]
+    for (const action of hits) {
+      if (!merged.includes(action)) merged.push(action)
+    }
+    setSelection(merged)
+  } else {
+    setSelection(hits)
+  }
 }
 
 function onDoubleClick(e: MouseEvent) {
@@ -1010,6 +1101,8 @@ function finishActivePointerInteraction() {
     isDragging = false
     isMoving.value = false
     endDrag()
+  } else if (isMarqueeSelecting) {
+    cancelMarqueeSelection()
   } else if (isDrawing.value) {
     endDraw()
     if (toolBeforeModifier !== null) {
@@ -1019,6 +1112,7 @@ function finishActivePointerInteraction() {
   }
   stopPenRawUpdates()
   hoveredActionInfo.value = null
+  clearSelectionHover()
   pointerModDown.value = false
   markPointerInteractionEnded()
   resetPointerGestureState()
@@ -1051,12 +1145,72 @@ async function onPointerDown(e: PointerEvent) {
 
   // Capture immediately so move/up events are not lost while awaiting IPC (raise_toolbar).
   const willInteract =
-    canStartElementDrag(e) || (currentTool.value !== 'text' && currentTool.value !== 'stamp' && !penetrationMode.value)
+    currentTool.value === 'select' ||
+    canStartElementDrag(e) ||
+    (currentTool.value !== 'text' && currentTool.value !== 'stamp' && !penetrationMode.value)
   if (willInteract) {
     capturePointer(e)
   }
 
   await ensureToolbarAboveOverlay()
+
+  // Select tool: click/marquee select, drag selected group (ignores dragMode).
+  // Drag starts from stroke hit OR anywhere inside a selected action's bbox.
+  if (currentTool.value === 'select') {
+    hideToolbarPopupForCanvasInteraction()
+    const pos = { x: e.clientX, y: e.clientY }
+    // Always hit-test at down position — hoveredActionInfo can be a frame stale after await.
+    const strokeHit = findActionAt(pos)
+    const selectedBboxHit = findSelectedActionAt(pos)
+
+    if (e.shiftKey) {
+      if (strokeHit) {
+        toggleInSelection(strokeHit.action)
+        return
+      }
+      // Deselect by clicking anywhere in a selected action's bbox (not only the stroke).
+      if (selectedBboxHit) {
+        toggleInSelection(selectedBboxHit)
+        return
+      }
+      // Shift + empty: additive marquee
+      isMarqueeSelecting = true
+      marqueeAdditive = true
+      marqueeStartX = e.clientX
+      marqueeStartY = e.clientY
+      setMarqueeRect({ x1: e.clientX, y1: e.clientY, x2: e.clientX, y2: e.clientY })
+      return
+    }
+
+    if (strokeHit && !isActionSelected(strokeHit.action)) {
+      setSelection([strokeHit.action])
+      isDragging = true
+      dragStartX = e.clientX
+      dragStartY = e.clientY
+      isMoving.value = true
+      beginDragMany([strokeHit.action])
+      return
+    }
+
+    if (selectedBboxHit || strokeHit) {
+      isDragging = true
+      dragStartX = e.clientX
+      dragStartY = e.clientY
+      isMoving.value = true
+      beginDragMany(
+        selectedActions.value.length > 0 ? selectedActions.value : strokeHit ? [strokeHit.action] : [selectedBboxHit!],
+      )
+      return
+    }
+
+    isMarqueeSelecting = true
+    marqueeAdditive = false
+    marqueeStartX = e.clientX
+    marqueeStartY = e.clientY
+    setSelection([])
+    setMarqueeRect({ x1: e.clientX, y1: e.clientY, x2: e.clientX, y2: e.clientY })
+    return
+  }
 
   // Drag when over an element; optional: require Ctrl/Command (scheme A — modifier on element wins over rect draw)
   if (canStartElementDrag(e)) {
@@ -1130,17 +1284,21 @@ function onPointerMove(e: PointerEvent) {
     return
   }
 
+  if (isMarqueeSelecting) {
+    setMarqueeRect({
+      x1: marqueeStartX,
+      y1: marqueeStartY,
+      x2: e.clientX,
+      y2: e.clientY,
+    })
+    return
+  }
+
   if (!isDrawing.value) {
     mousePos.value.x = e.clientX
     mousePos.value.y = e.clientY
 
-    if (
-      active.value &&
-      !penetrationMode.value &&
-      !showQuickColors.value &&
-      !textBoxPos.value &&
-      isDragEnabled(dragMode.value)
-    ) {
+    if (active.value && !penetrationMode.value && !showQuickColors.value && !textBoxPos.value && wantsHoverHitTest()) {
       if (hoverRafId === null) {
         hoverRafId = requestAnimationFrame(() => {
           hoverRafId = null
@@ -1149,14 +1307,16 @@ function onPointerMove(e: PointerEvent) {
             !penetrationMode.value &&
             !showQuickColors.value &&
             !textBoxPos.value &&
-            isDragEnabled(dragMode.value)
+            wantsHoverHitTest()
           ) {
             hoveredActionInfo.value = findActionAt(mousePos.value)
+            pointerOverSelectionBbox.value = currentTool.value === 'select' && !!findSelectedActionAt(mousePos.value)
           }
         })
       }
     } else {
       hoveredActionInfo.value = null
+      pointerOverSelectionBbox.value = false
     }
     return
   }
@@ -1172,7 +1332,7 @@ function onPointerUp(e: PointerEvent) {
   if (capturedPointerId !== null && e.pointerId !== capturedPointerId) return
   // Text-tool / commit-textbox clicks invalidate the copy modifier on pointerdown but
   // never capture — still clear gesture state so Ctrl+C works after the press.
-  if (capturedPointerId === null && !isDrawing.value && !isDragging) {
+  if (capturedPointerId === null && !isDrawing.value && !isDragging && !isMarqueeSelecting) {
     markPointerInteractionEnded()
     resetPointerGestureState()
     return
@@ -1186,6 +1346,14 @@ function onPointerUp(e: PointerEvent) {
     isDragging = false
     isMoving.value = false
     endDrag()
+    stopPenRawUpdates()
+    markPointerInteractionEnded()
+    resetPointerGestureState()
+    return
+  }
+
+  if (isMarqueeSelecting) {
+    finishMarqueeSelection(e.clientX, e.clientY)
     stopPenRawUpdates()
     markPointerInteractionEnded()
     resetPointerGestureState()
@@ -1244,11 +1412,15 @@ function abortActivePointerInteraction() {
     isMoving.value = false
     endDrag()
   }
+  if (isMarqueeSelecting) {
+    cancelMarqueeSelection()
+  }
   if (isDrawing.value) {
     endDraw()
   }
   toolBeforeModifier = null
   hoveredActionInfo.value = null
+  clearSelectionHover()
   pointerModDown.value = false
   markPointerInteractionEnded()
   resetPointerGestureState()
@@ -1387,6 +1559,18 @@ const onKeyDown = createKeyDownHandler(
     showCrosshairTip,
     undo,
     redo,
+    removeSelected: () => {
+      cancelSelectGestures()
+      removeSelected()
+      clearSelectionHover()
+    },
+    hasSelection: () =>
+      selectedActions.value.length > 0 || isMarqueeSelecting || (isDragging && currentTool.value === 'select'),
+    clearSelection: () => {
+      cancelSelectGestures()
+      clearSelection()
+      clearSelectionHover()
+    },
     togglePenetrationMode,
     enterWhiteboardMode,
     exitWhiteboardMode,
@@ -1450,9 +1634,13 @@ async function refreshCustomCursorPosition() {
 
 const showDragCursor = computed(
   () =>
-    isDragEnabled(dragMode.value) &&
-    (isMoving.value ||
-      (hoveredActionInfo.value && !isDrawing.value && dragMode.value === 'modifier' && pointerModDown.value)),
+    (currentTool.value === 'select' &&
+      (isMoving.value ||
+        pointerOverSelectionBbox.value ||
+        (!!hoveredActionInfo.value && !isDrawing.value && !isMarqueeSelecting))) ||
+    (isDragEnabled(dragMode.value) &&
+      (isMoving.value ||
+        (hoveredActionInfo.value && !isDrawing.value && dragMode.value === 'modifier' && pointerModDown.value))),
 )
 
 const wantsCustomCursor = computed(
@@ -1467,7 +1655,8 @@ const wantsCustomCursor = computed(
     !toolbarPanelDragging.value &&
     !showDragCursor.value &&
     currentTool.value !== 'text' &&
-    currentTool.value !== 'stamp',
+    currentTool.value !== 'stamp' &&
+    currentTool.value !== 'select',
 )
 
 // Use system cursor as fallback whenever the SVG overlay cursor is suppressed.
@@ -1476,6 +1665,7 @@ const canvasCursor = computed(() => {
   if (showDragCursor.value) return 'move'
   if (currentTool.value === 'text') return 'text'
   if (currentTool.value === 'stamp') return 'crosshair'
+  if (currentTool.value === 'select') return 'default'
   if (showQuickColors.value) return 'default'
   if (wantsCustomCursor.value) return isMacOS() ? MAC_HIDDEN_CURSOR : 'none'
   return 'default'
@@ -1805,6 +1995,7 @@ onMounted(async () => {
       showQuickColors.value = false
       textBoxPos.value = null
       if (mode === 'hidden') {
+        abortActivePointerInteraction()
         flushPersistLineWidths()
         whiteboardMode.value = false
         void syncWhiteboardMode(false)
@@ -1814,6 +2005,9 @@ onMounted(async () => {
         if (!preserveDrawings.value) {
           hardReset()
           logActionEvent('canvas hard reset', { reason: 'exit-drawing' })
+        } else {
+          cancelSelectGestures()
+          clearSelection()
         }
       } else if (mode === 'drawing') {
         toolbarPanelHovered.value = false
@@ -1835,6 +2029,7 @@ onMounted(async () => {
         })()
       } else if (mode === 'penetration') {
         abortActivePointerInteraction()
+        clearSelection()
         void syncOpenToolbarPopupWindow()
       }
       syncOverlayStateToToolbar()
@@ -1851,14 +2046,16 @@ onMounted(async () => {
     await listen<boolean>('clear-drawing', (event) => {
       // Finish in-progress stroke/drag so clearAll is not a no-op on an empty history
       // (first stroke still in currentAction) and pointer state is not left stuck.
-      if (isDrawing.value || isDragging || capturedPointerId !== null) {
-        finishActivePointerInteraction()
-      }
-      // Global shortcut emits `true` (undoable). Activation without preserve emits unit/`false`.
       if (event.payload === true) {
+        if (isDrawing.value || isDragging || isMarqueeSelecting || capturedPointerId !== null) {
+          finishActivePointerInteraction()
+        }
         clearAll()
         logActionEvent('canvas cleared', { reason: 'clear-drawing-event' })
       } else {
+        if (isDrawing.value || isDragging || isMarqueeSelecting || capturedPointerId !== null) {
+          abortActivePointerInteraction()
+        }
         hardReset()
         logActionEvent('canvas hard reset', { reason: 'clear-drawing-event' })
       }
@@ -1963,7 +2160,7 @@ function copyFromToolbar() {
 }
 
 function onPointerLeave(e: PointerEvent) {
-  if (isDrawing.value || isDragging) return
+  if (isDrawing.value || isDragging || isMarqueeSelecting) return
   onPointerUp(e)
 }
 

@@ -53,6 +53,9 @@ function createActions(): KeyboardActions & { calls: Record<string, unknown[][]>
     showCrosshairTip: make('showCrosshairTip') as KeyboardActions['showCrosshairTip'],
     undo: make('undo') as KeyboardActions['undo'],
     redo: make('redo') as KeyboardActions['redo'],
+    removeSelected: make('removeSelected') as KeyboardActions['removeSelected'],
+    hasSelection: () => false,
+    clearSelection: make('clearSelection') as KeyboardActions['clearSelection'],
     exitDrawing: make('exitDrawing') as KeyboardActions['exitDrawing'],
     togglePenetrationMode: make('togglePenetrationMode') as KeyboardActions['togglePenetrationMode'],
     enterWhiteboardMode: make('enterWhiteboardMode') as KeyboardActions['enterWhiteboardMode'],
@@ -224,6 +227,19 @@ describe('useOverlayKeyboard', () => {
       expect(actions.calls.showToolTip[0]).toEqual(['text'])
     })
 
+    it('key V selects select tool', () => {
+      handler(key('v'))
+      expect(ctx.currentTool.value).toBe('select')
+      expect(actions.calls.showToolTip[0]).toEqual(['select'])
+    })
+
+    it('ignores V while drawing', () => {
+      ctx.isDrawing.value = true
+      handler(key('v'))
+      expect(ctx.currentTool.value).toBe('pen')
+      expect(actions.calls.showToolTip).toHaveLength(0)
+    })
+
     it('key N selects stamp and shows stamp tip', () => {
       handler(key('n'))
       expect(ctx.currentTool.value).toBe('stamp')
@@ -294,6 +310,30 @@ describe('useOverlayKeyboard', () => {
     it('Escape exits drawing', () => {
       handler(key('Escape'))
       expect(actions.calls.exitDrawing).toHaveLength(1)
+    })
+
+    it('Escape clears selection before exiting', () => {
+      actions.hasSelection = () => true
+      handler(key('Escape'))
+      expect(actions.calls.clearSelection).toHaveLength(1)
+      expect(actions.calls.exitDrawing).toHaveLength(0)
+    })
+
+    it('Delete removes selection when present', () => {
+      actions.hasSelection = () => true
+      handler(key('Delete'))
+      expect(actions.calls.removeSelected).toHaveLength(1)
+    })
+
+    it('Backspace removes selection when present', () => {
+      actions.hasSelection = () => true
+      handler(key('Backspace'))
+      expect(actions.calls.removeSelected).toHaveLength(1)
+    })
+
+    it('Delete does nothing without selection', () => {
+      handler(key('Delete'))
+      expect(actions.calls.removeSelected).toHaveLength(0)
     })
 
     it('X toggles penetration mode', () => {

@@ -17,11 +17,15 @@ function createMockCanvas(): HTMLCanvasElement {
     lineTo: vi.fn(),
     stroke: vi.fn(),
     fill: vi.fn(),
+    rect: vi.fn(),
     arc: vi.fn(),
     quadraticCurveTo: vi.fn(),
     scale: vi.fn(),
     translate: vi.fn(),
     setTransform: vi.fn(),
+    setLineDash: vi.fn(),
+    strokeRect: vi.fn(),
+    fillRect: vi.fn(),
     fillText: vi.fn(),
     strokeText: vi.fn(),
     measureText: vi.fn(() => ({ width: 50 })),
@@ -615,6 +619,138 @@ describe('useDrawing', () => {
       drawing.undo()
       expect(found!.action.points[0]).toMatchObject({ x: 10, y: 10, pressure: 0.2 })
       expect(found!.action.points.map((p) => p.pressure)).toEqual([0.2, 0.9, 0.3])
+    })
+  })
+
+  describe('selection', () => {
+    function addRect(x0: number, y0: number, x1: number, y1: number) {
+      drawing.currentTool.value = 'rect'
+      drawing.startDraw({ x: x0, y: y0 })
+      drawing.draw({ x: x1, y: y1 })
+      drawing.endDraw()
+    }
+
+    it('findActionsInRect returns intersecting actions', () => {
+      addRect(10, 10, 50, 50)
+      addRect(100, 100, 150, 150)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      const b = drawing.findActionAt({ x: 100, y: 100 })!.action
+
+      expect(drawing.findActionsInRect({ x1: 0, y1: 0, x2: 60, y2: 60 })).toEqual([a])
+      expect(drawing.findActionsInRect({ x1: 0, y1: 0, x2: 200, y2: 200 })).toEqual([a, b])
+      expect(drawing.findActionsInRect({ x1: 200, y1: 200, x2: 250, y2: 250 })).toEqual([])
+    })
+
+    it('toggleInSelection and setSelection manage the selection set', () => {
+      addRect(10, 10, 40, 40)
+      addRect(80, 80, 120, 120)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      const b = drawing.findActionAt({ x: 80, y: 80 })!.action
+
+      drawing.setSelection([a])
+      expect(drawing.selectedActions.value).toEqual([a])
+      drawing.toggleInSelection(b)
+      expect(drawing.selectedActions.value).toEqual([a, b])
+      drawing.toggleInSelection(a)
+      expect(drawing.selectedActions.value).toEqual([b])
+      drawing.clearSelection()
+      expect(drawing.selectedActions.value).toEqual([])
+    })
+
+    it('removeSelected deletes all selected and is undoable', () => {
+      addRect(10, 10, 40, 40)
+      addRect(80, 80, 120, 120)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      const b = drawing.findActionAt({ x: 80, y: 80 })!.action
+      drawing.setSelection([a, b])
+      drawing.removeSelected()
+      expect(drawing.findActionAt({ x: 10, y: 10 })).toBeNull()
+      expect(drawing.findActionAt({ x: 80, y: 80 })).toBeNull()
+      expect(drawing.selectedActions.value).toEqual([])
+      expect(drawing.canUndo.value).toBe(true)
+
+      drawing.undo()
+      expect(drawing.findActionAt({ x: 10, y: 10 })?.action).toBe(a)
+      expect(drawing.findActionAt({ x: 80, y: 80 })?.action).toBe(b)
+    })
+
+    it('beginDragMany moves the group and undo restores positions', () => {
+      addRect(10, 10, 40, 40)
+      addRect(80, 80, 120, 120)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      const b = drawing.findActionAt({ x: 80, y: 80 })!.action
+      const a0 = { ...a.points[0] }
+      const b0 = { ...b.points[0] }
+
+      drawing.setSelection([a, b])
+      drawing.beginDragMany([a, b])
+      drawing.updateDragOffset(20, 30)
+      drawing.endDrag()
+
+      expect(a.points[0]).toMatchObject({ x: a0.x + 20, y: a0.y + 30 })
+      expect(b.points[0]).toMatchObject({ x: b0.x + 20, y: b0.y + 30 })
+
+      drawing.undo()
+      expect(a.points[0]).toMatchObject(a0)
+      expect(b.points[0]).toMatchObject(b0)
+
+      drawing.redo()
+      expect(a.points[0]).toMatchObject({ x: a0.x + 20, y: a0.y + 30 })
+      expect(b.points[0]).toMatchObject({ x: b0.x + 20, y: b0.y + 30 })
+    })
+
+    it('cancelDrag then removeSelected does not resurrect actions', () => {
+      addRect(10, 10, 40, 40)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      drawing.setSelection([a])
+      drawing.beginDragMany([a])
+      drawing.updateDragOffset(5, 5)
+      drawing.cancelDrag()
+      drawing.removeSelected()
+      expect(drawing.findActionAt({ x: 10, y: 10 })).toBeNull()
+      expect(drawing.findActionAt({ x: 15, y: 15 })).toBeNull()
+    })
+
+    it('zero-move endDrag still raises action to top', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 100, y: 0 })
+      drawing.endDraw()
+      const first = drawing.findActionAt({ x: 50, y: 0 })!.action
+
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 100, y: 0 })
+      drawing.endDraw()
+      const second = drawing.findActionAt({ x: 50, y: 0 })!.action
+      expect(second).not.toBe(first)
+
+      drawing.beginDrag(first)
+      drawing.endDrag()
+      expect(drawing.findActionAt({ x: 50, y: 0 })!.action).toBe(first)
+    })
+
+    it('undo add prunes selection', () => {
+      addRect(10, 10, 40, 40)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      drawing.setSelection([a])
+      drawing.undo()
+      expect(drawing.selectedActions.value).toEqual([])
+    })
+
+    it('findSelectedActionAt hits selected bbox, not only the stroke', () => {
+      addRect(10, 10, 100, 100)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      drawing.setSelection([a])
+      // Interior of rect bbox (stroke hit is on the border only).
+      expect(drawing.findSelectedActionAt({ x: 50, y: 50 })).toBe(a)
+      drawing.clearSelection()
+      expect(drawing.findSelectedActionAt({ x: 50, y: 50 })).toBeNull()
+    })
+
+    it('startDraw is a no-op for select tool', () => {
+      drawing.currentTool.value = 'select'
+      drawing.startDraw({ x: 1, y: 1 })
+      expect(drawing.isDrawing.value).toBe(false)
     })
   })
 

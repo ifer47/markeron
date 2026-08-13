@@ -1,5 +1,6 @@
 export default {
   tools: {
+    select: '选择',
     pen: '画笔',
     highlighter: '荧光笔',
     laser: '激光笔',
@@ -19,6 +20,7 @@ export default {
     crosshairCursorDot: '圆点',
   },
   toolDesc: {
+    select: '框选或点选后可批量拖动；Delete 删除选中',
     pen: '自由绘画；再按 1 切换钢笔图标 / 圆点光标',
     highlighter: '半透明高亮',
     laser: '临时笔迹，逐渐淡出；再按 8 切换十字准星 / 圆点光标',
@@ -44,7 +46,7 @@ export default {
   textSizes: { 1: '极小', 2: '小', 3: '中', 5: '大', 8: '极大' },
   panel: {
     tools: '工具',
-    toolsHint: '按 1-8 / T / N 切换',
+    toolsHint: '按 V / 1-8 / T / N 切换',
     colors: '颜色',
     customColor: '自定义颜色',
     strokeWidth: '线宽',
@@ -214,9 +216,11 @@ export default {
     exitAnnotation: '退出',
     dragAndText: '拖拽与文字',
     dragDesc: '关闭 / 悬停 / 按住修饰键 — 在「常规」设置。橡皮擦下禁用。',
+    selectToolHint: '选择工具（V）下可框选、批量拖动；Delete / Backspace 删除选中。',
     editTextDesc: '双击文字编辑；<kbd class="help-kbd">T</kbd> 模式下双击空白处新建。',
     confirmTextDesc: '<kbd class="help-kbd">Ctrl+Enter</kbd> / <kbd class="help-kbd">⌘+Return</kbd>，或双击右键。',
     dragElement: '拖拽',
+    selectBatch: '选择与批量',
     editText: '编辑文字',
     confirmText: '确认文字',
     openOnline: '完整帮助',

@@ -84,29 +84,45 @@ fn emit_overlay_geometry_changed(app: &AppHandle) {
     }
 }
 
+fn reassert_overlay_transparency(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("overlay") {
+        ensure_overlay_transparent(&window);
+    }
+}
+
+fn apply_deferred_overlay_geometry(app: &AppHandle) {
+    reassert_overlay_transparency(app);
+    emit_overlay_geometry_changed(app);
+    #[cfg(target_os = "macos")]
+    {
+        // Overlay may have moved while the toolbar was its child; clamp and
+        // re-attach so the panel stays on the new monitor and above ink.
+        if app
+            .get_webview_window("toolbar")
+            .is_some_and(|w| w.is_visible().unwrap_or(false))
+        {
+            clamp_toolbar_to_overlay_monitor(app);
+            raise_toolbar_above_overlay(app);
+        }
+    }
+}
+
 /// Notify the overlay webview after Win32/Tauri has applied a new monitor geometry.
-/// A short defer lets WM_DPICHANGED propagate before the frontend resizes canvases.
+/// Deferred pulses let WM_DPICHANGED (and WebView2 compositor recreate) finish
+/// before the frontend resizes canvases; also re-assert transparent clear color
+/// because DPI/GPU recycle can restore an opaque dark backdrop.
 pub fn notify_overlay_geometry_changed(app: &AppHandle) {
+    reassert_overlay_transparency(app);
     emit_overlay_geometry_changed(app);
     let app = app.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(50));
-        let app_for_thread = app.clone();
-        let _ = app.run_on_main_thread(move || {
-            emit_overlay_geometry_changed(&app_for_thread);
-            #[cfg(target_os = "macos")]
-            {
-                // Overlay may have moved while the toolbar was its child; clamp and
-                // re-attach so the panel stays on the new monitor and above ink.
-                if app_for_thread
-                    .get_webview_window("toolbar")
-                    .is_some_and(|w| w.is_visible().unwrap_or(false))
-                {
-                    clamp_toolbar_to_overlay_monitor(&app_for_thread);
-                    raise_toolbar_above_overlay(&app_for_thread);
-                }
-            }
-        });
+        for delay_ms in [50_u64, 150] {
+            std::thread::sleep(Duration::from_millis(delay_ms));
+            let app_for_thread = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                apply_deferred_overlay_geometry(&app_for_thread);
+            });
+        }
     });
 }
 

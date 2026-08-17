@@ -789,24 +789,59 @@ function getEffectiveDpr(): number {
   return Math.max(1, Math.sqrt(MAX_CANVAS_PIXELS / (cssW * cssH)))
 }
 
+function overlayCanvasLayoutSize(): { bitmapW: number; bitmapH: number; cssW: string; cssH: string } | null {
+  if (window.innerWidth <= 0 || window.innerHeight <= 0) return null
+  const dpr = getEffectiveDpr()
+  return {
+    bitmapW: Math.round(window.innerWidth * dpr),
+    bitmapH: Math.round(window.innerHeight * dpr),
+    cssW: window.innerWidth + 'px',
+    cssH: window.innerHeight + 'px',
+  }
+}
+
+function overlayCanvasMatchesLayout(): boolean {
+  const historyCanvas = historyCanvasRef.value
+  const previewCanvas = previewCanvasRef.value
+  const next = overlayCanvasLayoutSize()
+  if (!historyCanvas || !previewCanvas || !next) return false
+  return [historyCanvas, previewCanvas].every(
+    (canvas) =>
+      canvas.width === next.bitmapW &&
+      canvas.height === next.bitmapH &&
+      canvas.style.width === next.cssW &&
+      canvas.style.height === next.cssH,
+  )
+}
+
 function resizeCanvas() {
   const historyCanvas = historyCanvasRef.value
   const previewCanvas = previewCanvasRef.value
-  if (!historyCanvas || !previewCanvas) return
+  const next = overlayCanvasLayoutSize()
+  if (!historyCanvas || !previewCanvas || !next) return
 
-  const dpr = getEffectiveDpr()
+  let bitmapChanged = false
+  let cssChanged = false
   for (const canvas of [historyCanvas, previewCanvas]) {
-    canvas.width = Math.round(window.innerWidth * dpr)
-    canvas.height = Math.round(window.innerHeight * dpr)
-    canvas.style.width = window.innerWidth + 'px'
-    canvas.style.height = window.innerHeight + 'px'
+    if (canvas.width !== next.bitmapW || canvas.height !== next.bitmapH) {
+      canvas.width = next.bitmapW
+      canvas.height = next.bitmapH
+      bitmapChanged = true
+    }
+    if (canvas.style.width !== next.cssW || canvas.style.height !== next.cssH) {
+      canvas.style.width = next.cssW
+      canvas.style.height = next.cssH
+      cssChanged = true
+    }
   }
 
-  redrawAll()
+  // Re-assigning canvas.width to the same value still clears the bitmap in Chromium.
+  // Skip that when a deferred geometry pulse did not actually change layout.
+  if (bitmapChanged || cssChanged) redrawAll()
 }
 
 /** False while overlay canvas is catching up after a monitor move / DPI change. */
-const overlayLayoutReady = ref(true)
+const overlayLayoutReady = ref(false)
 let overlayResizeGeneration = 0
 let overlayResizeInFlight: Promise<void> | null = null
 
@@ -818,18 +853,49 @@ function afterLayoutFrames(frameCount = 2): Promise<void> {
         resolve()
         return
       }
-      requestAnimationFrame(() => step(remaining - 1))
+      let settled = false
+      const next = () => {
+        if (settled) return
+        settled = true
+        step(remaining - 1)
+      }
+      requestAnimationFrame(next)
+      // Hidden overlay webviews throttle rAF; keep activation from stalling.
+      window.setTimeout(next, 32)
     }
     step(frameCount)
   })
 }
 
+function viewportLayoutKey(): string {
+  return `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio || 1}`
+}
+
+/** Wait until CSS viewport + DPR stop changing (WebView2 per-monitor DPI catch-up). */
+async function waitForStableViewport(): Promise<void> {
+  const maxFrames = isMacOS() ? 4 : 16
+  const neededStable = isMacOS() ? 1 : 3
+  let last = ''
+  let stable = 0
+  for (let i = 0; i < maxFrames; i++) {
+    await afterLayoutFrames(1)
+    const key = viewportLayoutKey()
+    if (key === last && window.innerWidth > 0) {
+      stable += 1
+      if (stable >= neededStable) return
+    } else {
+      stable = 0
+      last = key
+    }
+  }
+}
+
 /**
  * Resize overlay canvases after Win32/WebView2 geometry settles.
  *
- * Backend emits `overlay-geometry-changed` twice (immediate + ~50ms) so DPI can
+ * Backend emits `overlay-geometry-changed` (immediate + 50ms + 200ms) so DPI can
  * catch up. Always bump the generation so an in-flight pass re-runs instead of
- * swallowing the deferred notify — otherwise we mark ready with a stale size,
+ * swallowing a deferred notify — otherwise we mark ready with a stale size,
  * which shows up as a black opaque overlay and stroke jump on mouse-up.
  *
  * Every caller awaits until `overlayLayoutReady` is true for the latest generation.
@@ -843,9 +909,7 @@ async function scheduleOverlayResize(): Promise<void> {
       try {
         while (true) {
           const generation = overlayResizeGeneration
-          // WebView2 applies per-monitor DPI asynchronously; extra frames on Windows avoid
-          // drawing with a canvas sized for the previous monitor on first activation.
-          await afterLayoutFrames(isMacOS() ? 2 : 4)
+          await waitForStableViewport()
           if (generation !== overlayResizeGeneration) continue
           resizeCanvas()
 
@@ -1132,6 +1196,14 @@ async function onPointerDown(e: PointerEvent) {
 
   if (!overlayLayoutReady.value) {
     await scheduleOverlayResize()
+    // Layout wait can outlive the press (extra geometry pulses). Do not start a
+    // stroke from a stale pointerdown if the button is already up.
+    if (!active.value || penetrationMode.value) return
+    if ((e.buttons & 1) === 0) {
+      markPointerInteractionEnded()
+      resetPointerGestureState()
+      return
+    }
   }
 
   lastPointerX = e.clientX
@@ -1927,6 +1999,9 @@ onMounted(async () => {
   )
   unlisteners.push(
     await listen('overlay-geometry-changed', () => {
+      // 50ms/200ms pulses must not drop overlayLayoutReady or wipe canvases
+      // when DPI has already settled (would flash ink on the first stroke).
+      if (overlayLayoutReady.value && overlayCanvasMatchesLayout()) return
       overlayLayoutReady.value = false
       void scheduleOverlayResize()
     }),

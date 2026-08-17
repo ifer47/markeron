@@ -363,18 +363,26 @@ export function useDrawing(
   let nextHitGridOrder = 1
 
   // Effective DPR cached to avoid repeated parseFloat(canvas.style.width)
-  // inside renderFrame (called 3-5× per frame). Invalidated automatically
-  // when canvas.width changes (i.e. after resizeCanvas).
+  // inside renderFrame (called 3-5× per frame). Must key on CSS width too:
+  // WebView2 DPI catch-up often keeps the bitmap at physical pixels while
+  // style.width / innerWidth shrink to logical CSS (same canvas.width, new dpr).
   let cachedDpr = 0
   let cachedDprCanvasW = 0
+  let cachedDprCssW = 0
+  let cacheAppliedDpr = 0
 
   function getEffectiveDpr(): number {
     const canvas = previewCanvasRef.value ?? historyCanvasRef.value
     if (!canvas) return window.devicePixelRatio || 1
-    if (canvas.width === cachedDprCanvasW && cachedDpr > 0) return cachedDpr
     const cssW = parseFloat(canvas.style.width)
-    cachedDpr = cssW > 0 ? canvas.width / cssW : window.devicePixelRatio || 1
+    const width = cssW > 0 ? cssW : window.innerWidth
+    if (width <= 0) return window.devicePixelRatio || 1
+    if (canvas.width === cachedDprCanvasW && width === cachedDprCssW && cachedDpr > 0) {
+      return cachedDpr
+    }
+    cachedDpr = canvas.width / width
     cachedDprCanvasW = canvas.width
+    cachedDprCssW = width
     return cachedDpr
   }
 
@@ -512,17 +520,28 @@ export function useDrawing(
       cacheCanvas = document.createElement('canvas')
     }
 
+    const dpr = getEffectiveDpr()
     if (cacheCanvas.width !== canvas.width || cacheCanvas.height !== canvas.height) {
       cacheCanvas.width = canvas.width
       cacheCanvas.height = canvas.height
       cacheCtx = cacheCanvas.getContext('2d')
-      const dpr = getEffectiveDpr()
-      if (cacheCtx) cacheCtx.scale(dpr, dpr)
+      cacheValid = false
+      cacheAppliedDpr = 0
+    }
+
+    if (cacheAppliedDpr !== dpr) {
+      cacheAppliedDpr = dpr
       cacheValid = false
     }
 
-    if (!cacheValid && cacheCtx) {
+    if (!cacheCtx) return
+
+    cacheCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
+
+    if (!cacheValid) {
+      cacheCtx.setTransform(1, 0, 0, 1, 0, 0)
       cacheCtx.clearRect(0, 0, cacheCanvas.width, cacheCanvas.height)
+      cacheCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
       for (let i = 0; i < history.length; i++) {
         if (draggingSet.has(history[i])) continue
         drawActionOn(cacheCtx, history[i])
@@ -1696,6 +1715,10 @@ export function useDrawing(
     laserStrokes.length = 0
     cacheCanvas = null
     cacheCtx = null
+    cacheAppliedDpr = 0
+    cachedDpr = 0
+    cachedDprCanvasW = 0
+    cachedDprCssW = 0
     historyCtx = null
     previewCtx = null
     strokeCanvas = null

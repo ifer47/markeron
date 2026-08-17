@@ -261,6 +261,12 @@ html[data-theme='light'] {
   --ui-toast-width-bar: rgba(0, 0, 0, 0.55);
 }
 
+/* Overlay + toolbar are transparent Tauri webviews. `color-scheme: dark` on :root
+   makes WebView2/WKWebView paint an opaque black backdrop after DPI/GPU recycle. */
+html:not(.settings) {
+  color-scheme: only light;
+}
+
 @layer base {
   html,
   body {

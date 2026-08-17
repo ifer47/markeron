@@ -12,10 +12,16 @@ export function resolveTheme(preference: ThemePreference): ResolvedTheme {
   return preference
 }
 
+function isSettingsDocument(): boolean {
+  return document.documentElement.classList.contains('settings')
+}
+
 export async function applyTheme(preference: ThemePreference): Promise<ResolvedTheme> {
   const resolved = resolveTheme(preference)
   document.documentElement.dataset.theme = resolved
-  document.documentElement.style.colorScheme = resolved
+  // Overlay/toolbar are transparent webviews. `color-scheme: dark` makes WebView2
+  // (and WKWebView) paint an opaque black backdrop after DPI changes or GPU recycle.
+  document.documentElement.style.colorScheme = isSettingsDocument() ? resolved : 'only light'
   try {
     await invoke('apply_app_theme', { preference })
   } catch (error) {

@@ -796,5 +796,21 @@ describe('useDrawing', () => {
       expect(drawing.canClear.value).toBe(true)
       expect(drawing.canUndo.value).toBe(true)
     })
+
+    it('rebuilds cache transform when CSS size changes but bitmap does not', () => {
+      drawing.startDraw({ x: 100, y: 100 })
+      drawing.draw({ x: 400, y: 300 })
+      drawing.endDraw()
+
+      const ctx = previewCanvas.getContext('2d') as unknown as { setTransform: ReturnType<typeof vi.fn> }
+      ctx.setTransform.mockClear()
+
+      previewCanvas.style.width = '1280px'
+      previewCanvas.style.height = '720px'
+
+      drawing.redrawAll()
+
+      expect(ctx.setTransform).toHaveBeenCalledWith(1.5, 0, 0, 1.5, 0, 0)
+    })
   })
 })

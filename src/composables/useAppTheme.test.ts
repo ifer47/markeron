@@ -6,12 +6,16 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => invoke(...args),
 }))
 
-function mockDocument() {
+function mockDocument(options?: { settings?: boolean }) {
   const dataset: Record<string, string> = {}
   const style: Record<string, string> = {}
+  const settings = options?.settings ?? false
   const el = {
     dataset,
     style,
+    classList: {
+      contains: (name: string) => name === 'settings' && settings,
+    },
   }
   vi.stubGlobal('document', {
     documentElement: el,
@@ -63,14 +67,23 @@ describe('useAppTheme', () => {
     expect(resolveTheme('system')).toBe('light')
   })
 
-  it('applyTheme sets dataset and color-scheme and invokes Rust', async () => {
+  it('applyTheme on settings sets dataset, color-scheme, and invokes Rust', async () => {
     mockMatchMedia(true)
-    const el = mockDocument()
+    const el = mockDocument({ settings: true })
     const resolved = await applyTheme('light')
     expect(resolved).toBe('light')
     expect(el.dataset.theme).toBe('light')
     expect(el.style.colorScheme).toBe('light')
     expect(invoke).toHaveBeenCalledWith('apply_app_theme', { preference: 'light' })
+  })
+
+  it('applyTheme on overlay keeps a light color-scheme so the webview stays transparent', async () => {
+    mockMatchMedia(true)
+    const el = mockDocument()
+    const resolved = await applyTheme('dark')
+    expect(resolved).toBe('dark')
+    expect(el.dataset.theme).toBe('dark')
+    expect(el.style.colorScheme).toBe('only light')
   })
 
   it('watchSystemTheme re-applies when OS theme changes', async () => {

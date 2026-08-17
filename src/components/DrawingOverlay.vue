@@ -193,7 +193,7 @@ function cycleColor(direction: number) {
   showColorTip(currentColor.value)
 }
 
-function onRmbPointerDown(e: PointerEvent) {
+async function onRmbPointerDown(e: PointerEvent) {
   if (rmbEraseGesture.active) return
   if (
     !canStartRmbErase({
@@ -205,6 +205,18 @@ function onRmbPointerDown(e: PointerEvent) {
     return
   }
   if (isMacOS() && e.ctrlKey && pointerMovedSinceDown) return
+
+  // Same layout gate as LMB: idle/DPI catch-up must finish before erase ink commits.
+  if (!(await ensureOverlayLayoutForPointer(e, 2))) return
+  if (
+    !canStartRmbErase({
+      active: active.value,
+      penetration: penetrationMode.value,
+      textBoxOpen: !!textBoxPos.value,
+    })
+  ) {
+    return
+  }
 
   // Drop in-progress select gestures so RMB erase receives moves; keep selectedActions.
   cancelSelectGestures()
@@ -871,8 +883,11 @@ function viewportLayoutKey(): string {
   return `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio || 1}`
 }
 
-/** Wait until CSS viewport + DPR stop changing (WebView2 per-monitor DPI catch-up). */
-async function waitForStableViewport(): Promise<void> {
+/**
+ * Wait until CSS viewport + DPR stop changing (WebView2 per-monitor DPI catch-up).
+ * @returns true when the viewport held steady for `neededStable` samples.
+ */
+async function waitForStableViewport(): Promise<boolean> {
   const maxFrames = isMacOS() ? 4 : 16
   const neededStable = isMacOS() ? 1 : 3
   let last = ''
@@ -882,12 +897,13 @@ async function waitForStableViewport(): Promise<void> {
     const key = viewportLayoutKey()
     if (key === last && window.innerWidth > 0) {
       stable += 1
-      if (stable >= neededStable) return
+      if (stable >= neededStable) return true
     } else {
       stable = 0
       last = key
     }
   }
+  return false
 }
 
 /**
@@ -907,9 +923,10 @@ async function scheduleOverlayResize(): Promise<void> {
   if (!overlayResizeInFlight) {
     overlayResizeInFlight = (async () => {
       try {
+        let unsettledPasses = 0
         while (true) {
           const generation = overlayResizeGeneration
-          await waitForStableViewport()
+          const settled = await waitForStableViewport()
           if (generation !== overlayResizeGeneration) continue
           resizeCanvas()
 
@@ -921,6 +938,13 @@ async function scheduleOverlayResize(): Promise<void> {
 
           watchDpr()
           if (generation !== overlayResizeGeneration) continue
+
+          // If DPI never settled, avoid marking ready on a mismatched canvas; retry once.
+          if (!settled && !overlayCanvasMatchesLayout() && unsettledPasses < 1) {
+            unsettledPasses += 1
+            continue
+          }
+
           overlayLayoutReady.value = true
           return
         }
@@ -937,6 +961,19 @@ async function scheduleOverlayResize(): Promise<void> {
   if (!overlayLayoutReady.value) {
     await scheduleOverlayResize()
   }
+}
+
+/** Await DPI/layout ready before starting a pointer stroke; false = abort the gesture. */
+async function ensureOverlayLayoutForPointer(e: PointerEvent, buttonBit: number): Promise<boolean> {
+  if (overlayLayoutReady.value) return true
+  await scheduleOverlayResize()
+  if (!active.value || penetrationMode.value) return false
+  if ((e.buttons & buttonBit) === 0) {
+    markPointerInteractionEnded()
+    resetPointerGestureState()
+    return false
+  }
+  return true
 }
 
 let toolBeforeModifier: string | null = null
@@ -1184,7 +1221,7 @@ function finishActivePointerInteraction() {
 
 async function onPointerDown(e: PointerEvent) {
   if (e.button === 2) {
-    onRmbPointerDown(e)
+    await onRmbPointerDown(e)
     return
   }
   if (e.button !== 0) return
@@ -1194,17 +1231,8 @@ async function onPointerDown(e: PointerEvent) {
   pointerMovedSinceDown = false
   invalidateCopyModifierForPointerInteraction()
 
-  if (!overlayLayoutReady.value) {
-    await scheduleOverlayResize()
-    // Layout wait can outlive the press (extra geometry pulses). Do not start a
-    // stroke from a stale pointerdown if the button is already up.
-    if (!active.value || penetrationMode.value) return
-    if ((e.buttons & 1) === 0) {
-      markPointerInteractionEnded()
-      resetPointerGestureState()
-      return
-    }
-  }
+  // Layout wait can outlive the press; abort if primary button is already up.
+  if (!(await ensureOverlayLayoutForPointer(e, 1))) return
 
   lastPointerX = e.clientX
   lastPointerY = e.clientY

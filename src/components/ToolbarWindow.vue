@@ -48,6 +48,7 @@ const pointerY = ref(0)
 const unlisteners: UnlistenFn[] = []
 let currentTheme: ThemePreference = 'dark'
 let stopThemeWatch: (() => void) | null = null
+let lastOverlayMode: string = 'hidden'
 
 function resolveThemePref(general?: AppConfig['general']): ThemePreference {
   const value = general?.theme
@@ -191,11 +192,14 @@ onMounted(async () => {
   unlisteners.push(
     await listen<string>('overlay-mode-changed', (event) => {
       const mode = event.payload
+      const fromHidden = lastOverlayMode === 'hidden'
+      lastOverlayMode = mode
       const hidden = mode === 'hidden'
       document.body.style.visibility = hidden ? 'hidden' : 'visible'
       penetrationMode.value = mode === 'penetration'
-      // Always-on: re-clamp on each drawing activation (Ctrl+Shift+D) and persist.
-      if (mode === 'drawing' && toolbarPinned.value) {
+      // Always-on: re-clamp only when entering drawing from hidden (Ctrl+Shift+D).
+      // Click-through toggle must not move a panel the user already placed.
+      if (mode === 'drawing' && toolbarPinned.value && fromHidden) {
         void clampToolbarWindowToOverlay()
       }
     }),

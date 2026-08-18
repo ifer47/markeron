@@ -2128,12 +2128,14 @@ onMounted(async () => {
           customCursorPositionReady.value = true
           await refreshCustomCursorPosition()
           emitPointerScreenForToolbar()
-          await syncOpenToolbarPopupWindow()
+          // Keep the open space-popup where it is when toggling click-through.
+          if (previousMode !== 'penetration') {
+            await syncOpenToolbarPopupWindow()
+          }
         })()
       } else if (mode === 'penetration') {
         abortActivePointerInteraction()
         clearSelection()
-        void syncOpenToolbarPopupWindow()
       }
       syncOverlayStateToToolbar()
     }),

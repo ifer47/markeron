@@ -659,8 +659,8 @@ pub fn enter_penetration_mode(app: &AppHandle, state: &AppState) {
 
     monitor::suspend_drawing_cursor_clip();
 
-    // Respect toolbar visibility: only show when configured as always-on.
-    ensure_toolbar_window(app, state);
+    // Keep the current toolbar placement. Re-running ensure_toolbar_window would
+    // hide a space-popup (always-on=false) or re-clamp a pinned panel.
     raise_toolbar_above_overlay(app);
     emit_mode(app, OverlayMode::Penetration);
 }
@@ -678,7 +678,6 @@ pub fn exit_penetration_mode(app: &AppHandle, state: &AppState) {
         window.set_focus().ok();
     }
 
-    ensure_toolbar_window(app, state);
     raise_toolbar_above_overlay(app);
     monitor::apply_drawing_cursor_clip();
     emit_mode(app, OverlayMode::Drawing);

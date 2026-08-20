@@ -51,6 +51,7 @@ windows-sys = { version = "0.59", features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_UI_Accessibility",
   "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dwm",
 ] }
 
 [profile.release]

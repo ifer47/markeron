@@ -90,6 +90,39 @@ pub fn position_window_on_monitor(hwnd: isize, x: i32, y: i32, width: u32, heigh
     }
 }
 
+/// Re-apply the DWM blur-behind transparent backdrop for the overlay window.
+///
+/// `tao` implements a `transparent(true)` window by calling
+/// `DwmEnableBlurBehindWindow` with an empty blur region — but only once, at
+/// window creation. After a long idle the DWM compositor can drop that state
+/// (especially while the overlay sits hidden with `WS_EX_LAYERED` from
+/// click-through), which leaves an opaque black backdrop. Re-asserting it on
+/// each activation restores the transparent host window that the WebView2
+/// alpha-compositor sits on top of.
+pub fn reapply_overlay_transparency(hwnd: isize) {
+    use windows_sys::Win32::Foundation::{BOOL, HWND};
+    use windows_sys::Win32::Graphics::Dwm::{
+        DwmEnableBlurBehindWindow, DWM_BB_BLURREGION, DWM_BB_ENABLE, DWM_BLURBEHIND,
+    };
+    use windows_sys::Win32::Graphics::Gdi::{CreateRectRgn, DeleteObject};
+
+    unsafe {
+        // Empty region for the blur effect, so the window is fully transparent.
+        let region = CreateRectRgn(0, 0, -1, -1);
+        if region.is_null() {
+            return;
+        }
+        let blur = DWM_BLURBEHIND {
+            dwFlags: DWM_BB_ENABLE | DWM_BB_BLURREGION,
+            fEnable: 1 as BOOL,
+            hRgnBlur: region,
+            fTransitionOnMaximized: 0,
+        };
+        let _ = DwmEnableBlurBehindWindow(hwnd as HWND, &blur);
+        let _ = DeleteObject(region);
+    }
+}
+
 fn monitor_rect_from_point(x: i32, y: i32) -> Option<(i32, i32, u32, u32)> {
     unsafe {
         let pt = POINT { x, y };

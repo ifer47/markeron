@@ -15,9 +15,21 @@ fn set_ignore_cursor_events(window: &WebviewWindow, ignore: bool) {
 /// On Windows, WebView2 can lose transparency after long idle / GPU recycle /
 /// DPI moves and fall back to an opaque dark (black) clear color. Re-asserting
 /// on each activation matches macOS `configure_overlay_window`.
+///
+/// `set_background_color` also re-asserts the WebView2 `DefaultBackgroundColor`
+/// (via the wry webview dispatcher). Separately, the *host* window's DWM
+/// blur-behind transparency (what `tao` uses to implement `transparent(true)`)
+/// is applied only once at creation and can be dropped by the compositor after
+/// a long idle — so re-apply it here as well.
 fn ensure_overlay_transparent(window: &WebviewWindow) {
     use tauri::window::Color;
     window.set_background_color(Some(Color(0, 0, 0, 0))).ok();
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(hwnd) = window.hwnd() {
+            crate::win32::reapply_overlay_transparency(hwnd.0 as isize);
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

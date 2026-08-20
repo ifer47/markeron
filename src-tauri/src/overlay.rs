@@ -84,7 +84,7 @@ fn emit_overlay_geometry_changed(app: &AppHandle) {
     }
 }
 
-fn reassert_overlay_transparency(app: &AppHandle) {
+pub fn reassert_overlay_transparency(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("overlay") {
         ensure_overlay_transparent(&window);
     }
@@ -111,12 +111,16 @@ fn apply_deferred_overlay_geometry(app: &AppHandle) {
 /// Deferred pulses let WM_DPICHANGED (and WebView2 compositor recreate) finish
 /// before the frontend resizes canvases; also re-assert transparent clear color
 /// because DPI/GPU recycle can restore an opaque dark backdrop.
+///
+/// The pulse train extends to 2s because after a long idle the WebView2 GPU
+/// process can rebuild its compositor well past the initial 150ms window and
+/// fall back to an opaque black clear color only then.
 pub fn notify_overlay_geometry_changed(app: &AppHandle) {
     reassert_overlay_transparency(app);
     emit_overlay_geometry_changed(app);
     let app = app.clone();
     std::thread::spawn(move || {
-        for delay_ms in [50_u64, 150] {
+        for delay_ms in [50_u64, 150, 500, 1000, 2000] {
             std::thread::sleep(Duration::from_millis(delay_ms));
             let app_for_thread = app.clone();
             let _ = app.run_on_main_thread(move || {

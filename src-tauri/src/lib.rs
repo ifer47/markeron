@@ -315,6 +315,16 @@ pub fn run() {
                 let state = app.state::<AppState>();
                 overlay::on_overlay_focus_lost(app, &state);
             }
+            // WebView2 can lose the transparent clear color after long idle /
+            // GPU recycle and repaint opaque black once it regains focus.
+            tauri::WindowEvent::Focused(true) if window.label() == "overlay" => {
+                overlay::reassert_overlay_transparency(window.app_handle());
+            }
+            // DPI change / monitor move can rebuild the compositor and drop the
+            // transparent backdrop; re-assert it as soon as the scale settles.
+            tauri::WindowEvent::ScaleFactorChanged { .. } if window.label() == "overlay" => {
+                overlay::reassert_overlay_transparency(window.app_handle());
+            }
             tauri::WindowEvent::Destroyed if window.label() == "settings" => {
                 #[cfg(target_os = "macos")]
                 macos::restore_accessory_policy(window.app_handle());

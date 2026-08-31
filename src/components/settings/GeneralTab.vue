@@ -313,6 +313,7 @@ async function toggleWhiteboardPreserveDrawings() {
 }
 
 const angleSnapDraft = ref(props.angleSnapStep)
+const angleValueFocused = ref(false)
 
 watch(
   () => props.angleSnapStep,
@@ -511,18 +512,22 @@ async function commitAngleSnapStep(step: number) {
               @input="onAngleSliderInput"
               @change="onAngleSliderChange"
             />
-            <input
-              type="number"
-              class="angle-snap-number"
-              min="1"
-              max="90"
-              step="1"
-              :value="angleSnapDraft"
-              :aria-label="t('settings.angleSnapStep')"
-              @input="onAngleNumberInput"
-              @change="onAngleNumberChange"
-            />
-            <span class="angle-snap-degree">°</span>
+            <label class="angle-snap-value" :class="{ 'angle-snap-value--focused': angleValueFocused }">
+              <input
+                type="number"
+                class="angle-snap-number"
+                min="1"
+                max="90"
+                step="1"
+                :value="angleSnapDraft"
+                :aria-label="t('settings.angleSnapStep')"
+                @input="onAngleNumberInput"
+                @change="onAngleNumberChange"
+                @focus="angleValueFocused = true"
+                @blur="angleValueFocused = false"
+              />
+              <span class="angle-snap-degree">°</span>
+            </label>
           </div>
         </div>
         <p class="settings-card-desc">{{ t('settings.angleSnapStepDesc') }}</p>
@@ -626,8 +631,8 @@ async function commitAngleSnapStep(step: number) {
 
 <style scoped>
 .angle-snap-range {
-  width: 8.5rem;
-  height: 16px;
+  width: 9rem;
+  height: 22px;
   appearance: none;
   -webkit-appearance: none;
   background: transparent;
@@ -674,19 +679,44 @@ async function commitAngleSnapStep(step: number) {
   box-shadow: 0 0 0 2px var(--ui-accent-ring);
 }
 
-.angle-snap-number {
-  width: 3.5rem;
-  padding: 0.25rem 0.4rem;
-  border-radius: 6px;
+.angle-snap-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  height: 22px;
+  padding: 0 0.5rem;
+  border-radius: 999px;
   border: 1px solid var(--ui-control-border);
   background: var(--ui-control-bg);
-  color: var(--ui-control-text-hover);
-  font-size: 0.75rem;
-  text-align: center;
-  outline: none;
+  cursor: text;
   transition:
     border-color 0.15s ease,
     background 0.15s ease;
+}
+
+.angle-snap-value:hover {
+  border-color: var(--ui-control-border-hover);
+  background: var(--ui-control-bg-hover);
+}
+
+.angle-snap-value--focused {
+  border-color: var(--ui-accent-border);
+  background: var(--ui-control-bg-hover);
+  box-shadow: 0 0 0 2px var(--ui-accent-ring);
+}
+
+.angle-snap-number {
+  width: 1.4rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ui-control-text-hover);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+  outline: none;
   -moz-appearance: textfield;
   appearance: textfield;
 }
@@ -697,19 +727,10 @@ async function commitAngleSnapStep(step: number) {
   margin: 0;
 }
 
-.angle-snap-number:hover {
-  border-color: var(--ui-control-border-hover);
-  background: var(--ui-control-bg-hover);
-}
-
-.angle-snap-number:focus {
-  border-color: var(--ui-accent-border);
-  box-shadow: 0 0 0 2px var(--ui-accent-ring);
-}
-
 .angle-snap-degree {
   color: var(--ui-control-text);
   font-size: 0.75rem;
+  line-height: 1;
 }
 
 .dropdown-enter-active,

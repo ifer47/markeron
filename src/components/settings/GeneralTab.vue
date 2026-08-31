@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, watch, computed, onMounted, nextTick } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { enable, disable } from '@tauri-apps/plugin-autostart'
 import type { AppConfig } from '../../types/app'
@@ -41,7 +41,6 @@ const localeLabels: Record<string, string> = {
 const localeOpen = ref(false)
 const localeDropdownRef = ref<HTMLElement | null>(null)
 
-const snapStepOptions = [15, 30, 45] as const
 const themeOptions = ['dark', 'light', 'system'] as const
 const dragModeOptions = DRAG_MODE_OPTIONS
 const defaultEntryModeOptions = DEFAULT_ENTRY_MODE_OPTIONS
@@ -81,7 +80,7 @@ const props = defineProps<{
   preserveDrawings: boolean
   whiteboardPreserveDrawings: boolean
   autoStartEnabled: boolean
-  angleSnapStep: 15 | 30 | 45
+  angleSnapStep: number
 }>()
 
 const emit = defineEmits<{
@@ -93,7 +92,7 @@ const emit = defineEmits<{
   'update:preserveDrawings': [value: boolean]
   'update:whiteboardPreserveDrawings': [value: boolean]
   'update:autoStartEnabled': [value: boolean]
-  'update:angleSnapStep': [value: 15 | 30 | 45]
+  'update:angleSnapStep': [value: number]
 }>()
 
 async function changeLocale(loc: string) {
@@ -313,7 +312,45 @@ async function toggleWhiteboardPreserveDrawings() {
   }
 }
 
-async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
+const angleSnapDraft = ref(props.angleSnapStep)
+
+watch(
+  () => props.angleSnapStep,
+  (value) => {
+    angleSnapDraft.value = value
+  },
+)
+
+function clampAngleSnapStep(value: number): number {
+  return Math.min(90, Math.max(1, value))
+}
+
+function onAngleSliderInput(e: Event) {
+  angleSnapDraft.value = clampAngleSnapStep(Number((e.target as HTMLInputElement).value))
+}
+
+async function onAngleSliderChange(e: Event) {
+  await commitAngleSnapStep(clampAngleSnapStep(Number((e.target as HTMLInputElement).value)))
+}
+
+function onAngleNumberInput(e: Event) {
+  const raw = (e.target as HTMLInputElement).value
+  if (raw === '') return
+  const parsed = Number(raw)
+  if (!Number.isNaN(parsed)) angleSnapDraft.value = clampAngleSnapStep(parsed)
+}
+
+async function onAngleNumberChange(e: Event) {
+  const target = e.target as HTMLInputElement
+  const raw = target.value
+  const parsed = raw === '' ? props.angleSnapStep : Number(raw)
+  const step = Number.isFinite(parsed) ? clampAngleSnapStep(parsed) : props.angleSnapStep
+  target.value = String(step)
+  await commitAngleSnapStep(step)
+}
+
+async function commitAngleSnapStep(step: number) {
+  angleSnapDraft.value = step
   if (step === props.angleSnapStep) return
   emit('update:angleSnapStep', step)
   try {
@@ -323,7 +360,7 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
         dragMode: props.dragMode,
         preserveDrawings: false,
         whiteboardPreserveDrawings: true,
-        angleSnapStep: step,
+        angleSnapStep: props.angleSnapStep,
       }
     cfg.general.angleSnapStep = step
     await invoke('save_general', { general: cfg.general })
@@ -462,16 +499,30 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
       <div class="settings-card">
         <div class="settings-card-row">
           <span class="settings-text-label">{{ t('settings.angleSnapStep') }}</span>
-          <div class="flex items-center gap-1.5 shrink-0">
-            <button
-              v-for="step in snapStepOptions"
-              :key="step"
-              class="px-2.5 py-1 rounded-md ui-segment leading-none transition-colors duration-120"
-              :class="{ 'ui-segment--active': angleSnapStep === step }"
-              @click="toggleAngleSnapStep(step)"
-            >
-              {{ step }}{{ '\u00B0' }}
-            </button>
+          <div class="flex items-center gap-2 shrink-0">
+            <input
+              type="range"
+              class="angle-snap-range"
+              min="1"
+              max="90"
+              step="1"
+              :value="angleSnapDraft"
+              :aria-label="t('settings.angleSnapStep')"
+              @input="onAngleSliderInput"
+              @change="onAngleSliderChange"
+            />
+            <input
+              type="number"
+              class="angle-snap-number"
+              min="1"
+              max="90"
+              step="1"
+              :value="angleSnapDraft"
+              :aria-label="t('settings.angleSnapStep')"
+              @input="onAngleNumberInput"
+              @change="onAngleNumberChange"
+            />
+            <span class="angle-snap-degree">°</span>
           </div>
         </div>
         <p class="settings-card-desc">{{ t('settings.angleSnapStepDesc') }}</p>
@@ -574,6 +625,93 @@ async function toggleAngleSnapStep(step: (typeof snapStepOptions)[number]) {
 </template>
 
 <style scoped>
+.angle-snap-range {
+  width: 8.5rem;
+  height: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.angle-snap-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--ui-control-bg-strong);
+}
+
+.angle-snap-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border-radius: 50%;
+  border: 1px solid var(--ui-accent-border-strong);
+  background: var(--ui-accent);
+  box-shadow: 0 0 0 2px var(--ui-accent-ring);
+  transition: transform 0.12s ease;
+}
+
+.angle-snap-range:hover::-webkit-slider-thumb,
+.angle-snap-range:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+.angle-snap-range::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--ui-control-bg-strong);
+}
+
+.angle-snap-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--ui-accent-border-strong);
+  border-radius: 50%;
+  background: var(--ui-accent);
+  box-shadow: 0 0 0 2px var(--ui-accent-ring);
+}
+
+.angle-snap-number {
+  width: 3.5rem;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--ui-control-border);
+  background: var(--ui-control-bg);
+  color: var(--ui-control-text-hover);
+  font-size: 0.75rem;
+  text-align: center;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.angle-snap-number::-webkit-inner-spin-button,
+.angle-snap-number::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.angle-snap-number:hover {
+  border-color: var(--ui-control-border-hover);
+  background: var(--ui-control-bg-hover);
+}
+
+.angle-snap-number:focus {
+  border-color: var(--ui-accent-border);
+  box-shadow: 0 0 0 2px var(--ui-accent-ring);
+}
+
+.angle-snap-degree {
+  color: var(--ui-control-text);
+  font-size: 0.75rem;
+}
+
 .dropdown-enter-active,
 .dropdown-leave-active {
   transition:

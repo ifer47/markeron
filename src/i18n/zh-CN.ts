@@ -133,7 +133,7 @@ export default {
     whiteboardSectionDesc:
       '默认进入选择屏幕叠加或白底画布。退出标注后保留：再次进入时恢复上次内容。按 W 切换时保留：在标注模式内切换屏幕/白板时不重置画布；关闭后每次按 W 进入白板均为空白画布。',
     angleSnapStep: '吸附角度步进',
-    angleSnapStepDesc: '按住 Alt 绘制直线时，选择吸附到的角度间隔。',
+    angleSnapStepDesc: '按住 Alt 绘制直线时，按此角度间隔吸附（1–90°）。设为 1° 可精确绘制特定角度。',
     defaultEntryMode: '默认进入',
     defaultEntryModeScreen: '屏幕标注',
     defaultEntryModeWhiteboard: '白板',

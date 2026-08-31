@@ -2048,7 +2048,7 @@ onMounted(async () => {
     applyLineWidthsFromConfig(cfg.general)
     preserveDrawings.value = cfg.general?.preserveDrawings ?? false
     whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
-    setAngleSnapStep((cfg.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15)
+    setAngleSnapStep(cfg.general?.angleSnapStep ?? 15)
     currentTheme = resolveThemePref(cfg.general)
     await applyTheme(currentTheme)
     stopThemeWatch = watchSystemTheme(() => currentTheme)
@@ -2069,7 +2069,7 @@ onMounted(async () => {
       // lineWidths: overlay is the sole writer; skip echo from our own save_general
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
       whiteboardPreserveDrawings.value = event.payload.general?.whiteboardPreserveDrawings ?? true
-      setAngleSnapStep((event.payload.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15)
+      setAngleSnapStep(event.payload.general?.angleSnapStep ?? 15)
       currentTheme = resolveThemePref(event.payload.general)
       void applyTheme(currentTheme)
     }),

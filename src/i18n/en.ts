@@ -135,7 +135,7 @@ export default {
     whiteboardSectionDesc:
       'Default entry chooses screen overlay or whiteboard. Keep after exit restores your last session when you re-enter. Keep on W toggle preserves drawings when switching modes without exiting; turn off to start with a blank whiteboard each time you press W.',
     angleSnapStep: 'Angle snap step',
-    angleSnapStepDesc: 'Choose how far straight lines snap while holding Alt.',
+    angleSnapStepDesc: 'Straight lines drawn while holding Alt snap to this angle (1–90°). Use 1° for precise angles.',
     defaultEntryMode: 'Default entry',
     defaultEntryModeScreen: 'Screen',
     defaultEntryModeWhiteboard: 'Whiteboard',

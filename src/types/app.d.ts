@@ -15,7 +15,7 @@ export interface AppConfig {
     locale?: string
     preserveDrawings: boolean
     whiteboardPreserveDrawings: boolean
-    angleSnapStep?: 15 | 30 | 45
+    angleSnapStep?: number
     toolbarVisibility?: ToolbarVisibility
     defaultEntryMode?: DefaultEntryMode
     eraserMode?: EraserMode

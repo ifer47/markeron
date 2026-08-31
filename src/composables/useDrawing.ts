@@ -75,7 +75,7 @@ export function useDrawing(
     },
   })
   const isDrawing = ref(false)
-  const angleSnapStep = ref<15 | 30 | 45>(15)
+  const angleSnapStep = ref(15)
   const eraserMode = ref<EraserMode>('stroke')
 
   /** Live ink buffer needs rebake (declared early for mid-gesture width sync). */
@@ -141,7 +141,7 @@ export function useDrawing(
   let objectEraserLastProcessedPt = 0
 
   function setAngleSnapStep(step: number) {
-    angleSnapStep.value = step === 30 || step === 45 ? step : 15
+    angleSnapStep.value = Number.isFinite(step) ? Math.min(90, Math.max(1, step)) : 15
   }
 
   interface DragSnapshot {

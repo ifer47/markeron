@@ -221,7 +221,11 @@ const eraserMode = ref<EraserMode>('stroke')
 const strokeSmoothing = ref<StrokeSmoothing>('standard')
 const preserveDrawings = ref(false)
 const whiteboardPreserveDrawings = ref(true)
-const angleSnapStep = ref<15 | 30 | 45>(15)
+const angleSnapStep = ref(15)
+
+function resolveAngleSnapStep(value?: number): number {
+  return typeof value === 'number' && value >= 1 && value <= 90 ? value : 15
+}
 
 function resolveThemePref(general?: AppConfig['general']): ThemePreference {
   const value = general?.theme
@@ -252,7 +256,7 @@ onMounted(async () => {
   strokeSmoothing.value = resolveStrokeSmoothing(cfg.general)
   preserveDrawings.value = cfg.general?.preserveDrawings ?? false
   whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
-  angleSnapStep.value = (cfg.general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15
+  angleSnapStep.value = resolveAngleSnapStep(cfg.general?.angleSnapStep)
   autoStartEnabled.value = resolveAutoStart(cfg.general)
   await reconcileAutoStartWithOs(cfg)
   syncLocaleFromConfig(cfg.general?.locale)
@@ -273,7 +277,7 @@ onMounted(async () => {
     strokeSmoothing.value = resolveStrokeSmoothing(general)
     preserveDrawings.value = general?.preserveDrawings ?? false
     whiteboardPreserveDrawings.value = general?.whiteboardPreserveDrawings ?? true
-    angleSnapStep.value = (general?.angleSnapStep as 15 | 30 | 45 | undefined) ?? 15
+    angleSnapStep.value = resolveAngleSnapStep(general?.angleSnapStep)
     syncLocaleFromConfig(general?.locale)
   })
 })

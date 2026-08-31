@@ -25,8 +25,8 @@ fn default_toggle_penetration() -> String {
     }
 }
 
-fn default_angle_snap_step() -> u16 {
-    15
+fn default_angle_snap_step() -> f64 {
+    15.0
 }
 
 fn default_auto_start() -> bool {
@@ -177,7 +177,7 @@ pub struct GeneralConfig {
     #[serde(default, rename = "whiteboardPreserveDrawings")]
     pub whiteboard_preserve_drawings: bool,
     #[serde(default = "default_angle_snap_step", rename = "angleSnapStep")]
-    pub angle_snap_step: u16,
+    pub angle_snap_step: f64,
     #[serde(default, rename = "toolbarVisibility")]
     pub toolbar_visibility: ToolbarVisibility,
     #[serde(default, rename = "defaultEntryMode")]
@@ -227,7 +227,7 @@ impl GeneralConfig {
     }
 
     pub fn normalized(mut self) -> Self {
-        if !matches!(self.angle_snap_step, 15 | 30 | 45) {
+        if !self.angle_snap_step.is_finite() || !(1.0..=90.0).contains(&self.angle_snap_step) {
             self.angle_snap_step = default_angle_snap_step();
         }
         self.drag_mode = Some(match self.drag_mode {
@@ -546,7 +546,7 @@ mod tests {
         assert_eq!(config.general.locale, Some("zh-CN".to_string()));
         assert!(config.general.preserve_drawings);
         assert!(!config.general.whiteboard_preserve_drawings);
-        assert_eq!(config.general.angle_snap_step, 30);
+        assert_eq!(config.general.angle_snap_step, 30.0);
     }
 
     #[test]
@@ -614,7 +614,7 @@ mod tests {
         assert_eq!(config.general.locale, None);
         assert!(!config.general.preserve_drawings);
         assert_eq!(config.general.whiteboard_preserve_drawings, true);
-        assert_eq!(config.general.angle_snap_step, 15);
+        assert_eq!(config.general.angle_snap_step, 15.0);
     }
 
     #[test]
@@ -652,7 +652,7 @@ mod tests {
         );
         assert_eq!(config.general.locale, Some("en".to_string()));
         assert!(config.general.preserve_drawings);
-        assert_eq!(config.general.angle_snap_step, 15);
+        assert_eq!(config.general.angle_snap_step, 15.0);
     }
 
     #[test]
@@ -670,7 +670,34 @@ mod tests {
         assert_eq!(config.general.drag_mode(), DragMode::Off);
         assert_eq!(config.general.locale, None);
         assert!(!config.general.preserve_drawings);
-        assert_eq!(config.general.angle_snap_step, 15);
+        assert_eq!(config.general.angle_snap_step, 15.0);
+    }
+
+    #[test]
+    fn normalized_clamps_out_of_range_angle_snap_step() {
+        let too_small = GeneralConfig {
+            angle_snap_step: 0.5,
+            ..GeneralConfig::default()
+        };
+        assert_eq!(too_small.normalized().angle_snap_step, 15.0);
+
+        let too_big = GeneralConfig {
+            angle_snap_step: 120.0,
+            ..GeneralConfig::default()
+        };
+        assert_eq!(too_big.normalized().angle_snap_step, 15.0);
+
+        let fine = GeneralConfig {
+            angle_snap_step: 1.0,
+            ..GeneralConfig::default()
+        };
+        assert_eq!(fine.normalized().angle_snap_step, 1.0);
+
+        let fractional = GeneralConfig {
+            angle_snap_step: 2.5,
+            ..GeneralConfig::default()
+        };
+        assert_eq!(fractional.normalized().angle_snap_step, 2.5);
     }
 
     #[test]

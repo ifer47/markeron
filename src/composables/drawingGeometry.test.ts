@@ -342,6 +342,13 @@ describe('snapPointToAngle', () => {
     expect(Math.hypot(snapped.x, snapped.y)).toBeCloseTo(Math.hypot(100, 50), 10)
   })
 
+  it('supports fine custom steps (1 degree) with fractional values', () => {
+    const snapped = snapPointToAngle({ x: 0, y: 0 }, { x: 100, y: 37 }, 1)
+    const angleDeg = (Math.atan2(snapped.y, snapped.x) * 180) / Math.PI
+    expect(angleDeg).toBeCloseTo(Math.round((Math.atan2(37, 100) * 180) / Math.PI), 5)
+    expect(Math.hypot(snapped.x, snapped.y)).toBeCloseTo(Math.hypot(100, 37), 10)
+  })
+
   it('returns a copy of the raw point when length is zero', () => {
     const raw = { x: 10, y: 10 }
     const snapped = snapPointToAngle({ x: 10, y: 10 }, raw)

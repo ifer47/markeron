@@ -560,7 +560,9 @@ async function enterWhiteboardMode(options?: { fromDefaultEntry?: boolean }) {
   showQuickColors.value = false
   textBoxPos.value = null
   void syncWhiteboardMode(true)
-  currentTool.value = 'pen'
+  if (!options?.fromDefaultEntry) {
+    currentTool.value = 'pen'
+  }
   logSessionEvent('whiteboard entered', {
     fromDefaultEntry: options?.fromDefaultEntry ?? false,
   })
@@ -1536,6 +1538,9 @@ function abortActivePointerInteraction() {
   if (isDrawing.value) {
     endDraw()
   }
+  if (toolBeforeModifier !== null) {
+    currentTool.value = toolBeforeModifier as Tool
+  }
   toolBeforeModifier = null
   hoveredActionInfo.value = null
   clearSelectionHover()
@@ -2139,7 +2144,6 @@ onMounted(async () => {
           showToolbarPopup.value = false
         }
         if (previousMode === 'hidden') {
-          currentTool.value = 'pen'
           applyDefaultEntryOnActivate()
         }
         void (async () => {

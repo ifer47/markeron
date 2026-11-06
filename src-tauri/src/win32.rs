@@ -372,7 +372,12 @@ pub fn create_hicon_from_rgba(
             let src_row = &rgba[y * row_bytes..(y + 1) * row_bytes];
             let dst_y = height_usize - 1 - y;
             let dst_row = &mut dest[dst_y * row_bytes..(dst_y + 1) * row_bytes];
-            for (dst, src) in dst_row.chunks_exact_mut(4).zip(src_row.chunks_exact(4)) {
+            for (dst, src) in dst_row
+                .as_chunks_mut::<4>()
+                .0
+                .iter_mut()
+                .zip(src_row.as_chunks::<4>().0)
+            {
                 dst[0] = src[2]; // B
                 dst[1] = src[1]; // G
                 dst[2] = src[0]; // R
@@ -539,7 +544,7 @@ mod tests {
             }
             let mut sum = 0f32;
             let mut count = 0usize;
-            for px in pixels.chunks_exact(4) {
+            for px in pixels.as_chunks::<4>().0 {
                 if px[3] > 200 {
                     // BGRA → Rec.601 luma
                     sum += 0.299 * px[2] as f32 + 0.587 * px[1] as f32 + 0.114 * px[0] as f32;

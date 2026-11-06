@@ -115,6 +115,16 @@ fn on_second_instance(app: &AppHandle) {
 
 /// Called from the settings webview after it mounts (window starts hidden to avoid white flash).
 pub fn reveal_settings_window(app: &AppHandle) {
+    #[cfg(target_os = "windows")]
+    {
+        // Re-apply after the webview mounts — Tauri may restore the default dark
+        // `icon.ico` between build() and first show.
+        let preference = lock_or_recover(&app.state::<AppState>().config)
+            .general
+            .theme;
+        let resolved = theme::resolve_theme(&preference);
+        theme::apply_windows_settings_window_icons(app, resolved);
+    }
     focus_settings_window(app, None);
 }
 

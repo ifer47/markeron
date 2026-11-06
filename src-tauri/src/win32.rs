@@ -295,14 +295,22 @@ pub fn get_monitor_rect_at_point_win32(x: i32, y: i32) -> Option<(i32, i32, u32,
     monitor_rect_from_point(x, y)
 }
 
-/// Create an `HICON` from premultiplied-capable RGBA bytes (row-major).
+/// Create an `HICON` from RGBA bytes (row-major, non-premultiplied alpha).
+///
+/// Uses `CreateIconIndirect` with a bottom-up 32bpp DIB (icon-compatible) and a
+/// zeroed 1-bit AND mask so transparency comes from the alpha channel.
+///
 /// Caller owns the handle and must eventually `DestroyIcon`.
 pub fn create_hicon_from_rgba(
     rgba: &[u8],
     width: u32,
     height: u32,
 ) -> Option<*mut std::ffi::c_void> {
-    use windows_sys::Win32::UI::WindowsAndMessaging::CreateIcon;
+    use windows_sys::Win32::Graphics::Gdi::{
+        CreateBitmap, CreateDIBSection, DeleteObject, GetDC, ReleaseDC, BITMAPINFO,
+        BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS, RGBQUAD,
+    };
+    use windows_sys::Win32::UI::WindowsAndMessaging::{CreateIconIndirect, ICONINFO};
 
     if width == 0 || height == 0 {
         return None;
@@ -311,25 +319,96 @@ pub fn create_hicon_from_rgba(
     if rgba.len() < pixel_count * 4 {
         return None;
     }
+    let row_bytes = (width as usize).checked_mul(4)?;
+    let height_usize = height as usize;
 
-    let mut bgra = rgba[..pixel_count * 4].to_vec();
-    let mut and_mask = Vec::with_capacity(pixel_count);
-    for chunk in bgra.as_chunks_mut::<4>().0 {
-        and_mask.push(chunk[3].wrapping_sub(u8::MAX));
-        chunk.swap(0, 2); // RGBA → BGRA
-    }
+    let bmi = BITMAPINFO {
+        bmiHeader: BITMAPINFOHEADER {
+            biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+            biWidth: width as i32,
+            // Bottom-up DIB — more compatible with CreateIconIndirect than top-down.
+            biHeight: height as i32,
+            biPlanes: 1,
+            biBitCount: 32,
+            biCompression: BI_RGB,
+            biSizeImage: (width.checked_mul(height)?.checked_mul(4)?),
+            biXPelsPerMeter: 0,
+            biYPelsPerMeter: 0,
+            biClrUsed: 0,
+            biClrImportant: 0,
+        },
+        bmiColors: [RGBQUAD {
+            rgbBlue: 0,
+            rgbGreen: 0,
+            rgbRed: 0,
+            rgbReserved: 0,
+        }],
+    };
 
-    let handle = unsafe {
-        CreateIcon(
+    let mut bits: *mut core::ffi::c_void = std::ptr::null_mut();
+    let (color, mask) = unsafe {
+        let hdc = GetDC(std::ptr::null_mut());
+        let color = CreateDIBSection(
+            hdc,
+            &bmi,
+            DIB_RGB_COLORS,
+            &mut bits,
             std::ptr::null_mut(),
+            0,
+        );
+        if !hdc.is_null() {
+            ReleaseDC(std::ptr::null_mut(), hdc);
+        }
+        if color.is_null() || bits.is_null() {
+            if !color.is_null() {
+                DeleteObject(color as _);
+            }
+            return None;
+        }
+
+        let dest = std::slice::from_raw_parts_mut(bits as *mut u8, pixel_count.checked_mul(4)?);
+        // Flip rows while converting RGBA → BGRA for bottom-up layout.
+        for y in 0..height_usize {
+            let src_row = &rgba[y * row_bytes..(y + 1) * row_bytes];
+            let dst_y = height_usize - 1 - y;
+            let dst_row = &mut dest[dst_y * row_bytes..(dst_y + 1) * row_bytes];
+            for (dst, src) in dst_row.chunks_exact_mut(4).zip(src_row.chunks_exact(4)) {
+                dst[0] = src[2]; // B
+                dst[1] = src[1]; // G
+                dst[2] = src[0]; // R
+                dst[3] = src[3]; // A
+            }
+        }
+
+        // 1-bit AND mask, rows DWORD-aligned. All zeros → rely on 32bpp alpha.
+        let stride = (width as usize).div_ceil(32) * 4;
+        let mask_bytes = vec![0u8; stride.checked_mul(height_usize)?];
+        let mask = CreateBitmap(
             width as i32,
             height as i32,
             1,
-            32,
-            and_mask.as_ptr(),
-            bgra.as_ptr(),
-        )
+            1,
+            mask_bytes.as_ptr() as *const _,
+        );
+        if mask.is_null() {
+            DeleteObject(color as _);
+            return None;
+        }
+        (color, mask)
     };
+
+    let info = ICONINFO {
+        fIcon: windows_sys::Win32::Foundation::TRUE,
+        xHotspot: 0,
+        yHotspot: 0,
+        hbmMask: mask,
+        hbmColor: color,
+    };
+    let handle = unsafe { CreateIconIndirect(&info) };
+    unsafe {
+        DeleteObject(color as _);
+        DeleteObject(mask as _);
+    }
     if handle.is_null() {
         None
     } else {
@@ -375,8 +454,122 @@ pub fn destroy_hicon(handle: *mut std::ffi::c_void) {
 
 #[cfg(test)]
 mod tests {
-    use super::rect_covers;
+    use super::{create_hicon_from_rgba, destroy_hicon, rect_covers};
     use windows_sys::Win32::Foundation::RECT;
+
+    fn rgba_from_png(bytes: &[u8], width: u32, height: u32) -> Vec<u8> {
+        use image::imageops::FilterType;
+        let img = image::load_from_memory(bytes).expect("png").to_rgba8();
+        if img.width() == width && img.height() == height {
+            return img.into_raw();
+        }
+        image::imageops::resize(&img, width, height, FilterType::Triangle).into_raw()
+    }
+
+    /// Sample opaque pixels from an HICON's color bitmap (top-down BGRA).
+    fn hicon_opaque_avg_luma(handle: *mut std::ffi::c_void) -> Option<(f32, usize)> {
+        use windows_sys::Win32::Graphics::Gdi::{
+            GetDC, GetDIBits, GetObjectW, ReleaseDC, BITMAP, BITMAPINFO, BITMAPINFOHEADER, BI_RGB,
+            DIB_RGB_COLORS, RGBQUAD,
+        };
+        use windows_sys::Win32::UI::WindowsAndMessaging::{GetIconInfo, ICONINFO};
+
+        unsafe {
+            let mut info = std::mem::zeroed::<ICONINFO>();
+            if GetIconInfo(handle, &mut info) == 0 || info.hbmColor.is_null() {
+                return None;
+            }
+            let mut bm = std::mem::zeroed::<BITMAP>();
+            if GetObjectW(
+                info.hbmColor as _,
+                std::mem::size_of::<BITMAP>() as i32,
+                &mut bm as *mut _ as _,
+            ) == 0
+            {
+                windows_sys::Win32::Graphics::Gdi::DeleteObject(info.hbmMask as _);
+                windows_sys::Win32::Graphics::Gdi::DeleteObject(info.hbmColor as _);
+                return None;
+            }
+            let w = bm.bmWidth.max(0) as u32;
+            let h = bm.bmHeight.unsigned_abs();
+            if w == 0 || h == 0 {
+                windows_sys::Win32::Graphics::Gdi::DeleteObject(info.hbmMask as _);
+                windows_sys::Win32::Graphics::Gdi::DeleteObject(info.hbmColor as _);
+                return None;
+            }
+            let mut bmi = BITMAPINFO {
+                bmiHeader: BITMAPINFOHEADER {
+                    biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                    biWidth: w as i32,
+                    biHeight: -(h as i32),
+                    biPlanes: 1,
+                    biBitCount: 32,
+                    biCompression: BI_RGB,
+                    biSizeImage: w * h * 4,
+                    biXPelsPerMeter: 0,
+                    biYPelsPerMeter: 0,
+                    biClrUsed: 0,
+                    biClrImportant: 0,
+                },
+                bmiColors: [RGBQUAD {
+                    rgbBlue: 0,
+                    rgbGreen: 0,
+                    rgbRed: 0,
+                    rgbReserved: 0,
+                }],
+            };
+            let mut pixels = vec![0u8; (w * h * 4) as usize];
+            let hdc = GetDC(std::ptr::null_mut());
+            let copied = GetDIBits(
+                hdc,
+                info.hbmColor,
+                0,
+                h,
+                pixels.as_mut_ptr() as _,
+                &mut bmi,
+                DIB_RGB_COLORS,
+            );
+            if !hdc.is_null() {
+                ReleaseDC(std::ptr::null_mut(), hdc);
+            }
+            windows_sys::Win32::Graphics::Gdi::DeleteObject(info.hbmMask as _);
+            windows_sys::Win32::Graphics::Gdi::DeleteObject(info.hbmColor as _);
+            if copied == 0 {
+                return None;
+            }
+            let mut sum = 0f32;
+            let mut count = 0usize;
+            for px in pixels.chunks_exact(4) {
+                if px[3] > 200 {
+                    // BGRA → Rec.601 luma
+                    sum += 0.299 * px[2] as f32 + 0.587 * px[1] as f32 + 0.114 * px[0] as f32;
+                    count += 1;
+                }
+            }
+            (count > 0).then_some((sum / count as f32, count))
+        }
+    }
+
+    #[test]
+    fn create_hicon_preserves_light_and_dark_glyph_luma() {
+        let dark_rgba = rgba_from_png(include_bytes!("../icons/icon.png"), 32, 32);
+        let light_rgba = rgba_from_png(include_bytes!("../icons/icon-light.png"), 32, 32);
+        let dark = create_hicon_from_rgba(&dark_rgba, 32, 32).expect("dark hicon");
+        let light = create_hicon_from_rgba(&light_rgba, 32, 32).expect("light hicon");
+        let (dark_luma, dark_n) = hicon_opaque_avg_luma(dark).expect("dark sample");
+        let (light_luma, light_n) = hicon_opaque_avg_luma(light).expect("light sample");
+        destroy_hicon(dark);
+        destroy_hicon(light);
+        assert!(dark_n > 0 && light_n > 0);
+        assert!(
+            dark_luma < 40.0,
+            "dark glyph should stay dark, got luma {dark_luma}"
+        );
+        assert!(
+            light_luma > 200.0,
+            "light glyph must stay bright for dark taskbars, got luma {light_luma}"
+        );
+    }
 
     #[test]
     fn rect_covers_requires_the_full_monitor() {

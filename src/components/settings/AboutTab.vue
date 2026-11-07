@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '../../i18n'
 import { useUpdater } from '../../composables/useUpdater'
 import { resolvePortableMode } from '../../utils/portable'
+import sponsorPayUrl from '../../assets/sponsor-pay.png'
 
 const { t } = useI18n()
 
 const portableMode = ref<boolean | null>(null)
+const payModalOpen = ref(false)
 const { status, newVersion, progress, checkForUpdate, downloadAndInstall } = useUpdater()
 
 const updateUiExpanded = computed(
@@ -21,6 +23,24 @@ const updateUiExpanded = computed(
 
 onMounted(async () => {
   portableMode.value = await resolvePortableMode()
+})
+
+function onEscape(event: KeyboardEvent) {
+  if (event.key === 'Escape' && payModalOpen.value) {
+    payModalOpen.value = false
+  }
+}
+
+watch(payModalOpen, (open) => {
+  if (open) {
+    window.addEventListener('keydown', onEscape)
+  } else {
+    window.removeEventListener('keydown', onEscape)
+  }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', onEscape)
 })
 
 async function openUrl(url: string) {
@@ -130,26 +150,30 @@ async function openUrl(url: string) {
           </span>
         </button>
         <button
+          type="button"
           class="w-full flex items-center justify-between px-4 py-3 ui-divider-b settings-row-hover-strong transition-colors cursor-pointer bg-transparent border-x-0 border-t-0"
-          @click="openUrl('https://afdian.com/a/markeron')"
+          :aria-label="t('about.sponsorPay')"
+          :title="t('about.sponsorPay')"
+          @click="payModalOpen = true"
         >
           <span class="settings-text-row-key">{{ t('about.sponsor') }}</span>
-          <span class="flex items-center gap-1.5 settings-text-accent-link">
-            {{ '\u7231\u53d1\u7535' }}
-            <svg
-              class="w-3 h-3 opacity-50"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          </span>
+          <svg
+            class="w-3.5 h-3.5 settings-text-accent-link"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" />
+            <path d="M14 14h3v3h-3z" />
+            <path d="M20 14v3" />
+            <path d="M14 20h6" />
+          </svg>
         </button>
         <button
           class="w-full flex items-center justify-between px-4 py-3 settings-row-hover-strong transition-colors cursor-pointer bg-transparent border-none"
@@ -172,5 +196,40 @@ async function openUrl(url: string) {
     </div>
 
     <p class="shrink-0 mt-auto pt-6 pb-1 settings-text-footer tracking-wide">&copy; 2026 ifer47 &middot; Open Source</p>
+
+    <Teleport to="body">
+      <div
+        v-if="payModalOpen"
+        class="settings-modal-backdrop fixed inset-0 z-100000 flex items-center justify-center p-6"
+        role="dialog"
+        aria-modal="true"
+        :aria-label="t('about.sponsorPayTitle')"
+        @click.self="payModalOpen = false"
+      >
+        <div class="settings-modal-panel relative max-w-[min(520px,92vw)] w-full rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            class="settings-modal-close absolute top-2.5 right-2.5 z-10 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer border-none"
+            :aria-label="t('about.sponsorPayClose')"
+            @click="payModalOpen = false"
+          >
+            <svg
+              class="w-3.5 h-3.5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+          <img :src="sponsorPayUrl" :alt="t('about.sponsorPayTitle')" class="block w-full h-auto" draggable="false" />
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>

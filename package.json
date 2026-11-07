@@ -49,8 +49,7 @@
     "release:check": "node scripts/release.mjs check",
     "release": "node scripts/release.mjs",
     "check:node": "node scripts/check-node.mjs",
-    "check:engines": "node scripts/check-lock-engines.mjs",
-    "sync:sponsors": "node scripts/sync-afdian-sponsors.mjs"
+    "check:engines": "node scripts/check-lock-engines.mjs"
   },
   "lint-staged": {
     "*.{ts,vue,css}": [

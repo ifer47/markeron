@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onUnmounted } from 'vue'
 import { useI18n } from '../../i18n'
-import afdianSponsors from '../../data/afdian-sponsors'
+import sponsorsData from '../../data/sponsors'
 
 const { t } = useI18n()
 
@@ -24,7 +24,7 @@ const viewportRef = ref<HTMLElement | null>(null)
 const creditSections = computed(() => [
   {
     kind: 'sponsors' as const,
-    sponsors: afdianSponsors.sponsors,
+    sponsors: sponsorsData.sponsors,
     emptyText: t('settings.creditsRoll.sponsorsEmpty'),
   },
 ])
@@ -204,7 +204,10 @@ onUnmounted(() => {
                     class="settings-sidebar-credits__sponsor"
                   >
                     <span class="settings-sidebar-credits__sponsor-name">{{ sponsor.name }}</span>
-                    <span v-if="formatSponsorPlan(sponsor.plan)" class="settings-sidebar-credits__sponsor-meta">
+                    <span
+                      v-if="sponsor.plan && formatSponsorPlan(sponsor.plan)"
+                      class="settings-sidebar-credits__sponsor-meta"
+                    >
                       {{ formatSponsorPlan(sponsor.plan) }}
                     </span>
                   </div>

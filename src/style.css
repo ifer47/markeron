@@ -100,13 +100,12 @@ html[data-theme='dark'] {
   --ui-footer-version-shake: rgba(10, 132, 255, 0.72);
   --ui-focus-ring: rgba(10, 132, 255, 0.35);
   --ui-credits-name: rgba(228, 210, 180, 0.72);
-  --ui-credits-sponsor-name: rgba(242, 228, 200, 0.92);
-  --ui-credits-sponsor-meta: rgba(195, 170, 135, 0.72);
   --ui-credits-closing: rgba(210, 190, 160, 0.62);
   --ui-credits-border: rgba(210, 185, 150, 0.1);
   --ui-credits-border-strong: rgba(210, 185, 150, 0.14);
   --ui-credits-title: rgba(236, 220, 190, 0.92);
-  --ui-credits-section-label: rgba(195, 170, 135, 0.48);
+  --ui-credits-sponsor-name: rgba(242, 228, 200, 0.92);
+  --ui-credits-sponsor-meta: rgba(195, 170, 135, 0.72);
   --ui-credits-body-bg: linear-gradient(
     180deg,
     rgba(225, 205, 170, 0.13) 0%,
@@ -227,13 +226,12 @@ html[data-theme='light'] {
   --ui-footer-version-shake: rgba(10, 132, 255, 0.8);
   --ui-focus-ring: rgba(10, 132, 255, 0.4);
   --ui-credits-name: rgba(90, 68, 40, 0.88);
-  --ui-credits-sponsor-name: rgba(70, 52, 30, 0.95);
-  --ui-credits-sponsor-meta: rgba(100, 78, 48, 0.8);
   --ui-credits-closing: rgba(85, 64, 38, 0.78);
   --ui-credits-border: rgba(120, 95, 60, 0.22);
   --ui-credits-border-strong: rgba(120, 95, 60, 0.28);
   --ui-credits-title: rgba(72, 54, 32, 0.95);
-  --ui-credits-section-label: rgba(110, 88, 55, 0.72);
+  --ui-credits-sponsor-name: rgba(70, 52, 30, 0.95);
+  --ui-credits-sponsor-meta: rgba(100, 78, 48, 0.8);
   --ui-credits-body-bg: linear-gradient(
     180deg,
     rgba(245, 236, 220, 0.96) 0%,
@@ -914,15 +912,6 @@ html.settings .ui-select {
   margin-bottom: 2px;
 }
 
-.settings-sidebar-credits__section-label {
-  margin-top: 10px;
-  margin-bottom: 5px;
-  text-align: center;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  color: var(--ui-credits-section-label);
-}
-
 .settings-sidebar-credits__name {
   margin: 0;
   padding: 8px 4px;
@@ -1074,6 +1063,29 @@ html.settings .ui-select {
 
 .settings-row-hover-strong:hover {
   background: var(--ui-nav-bg-hover);
+}
+
+.settings-modal-backdrop {
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.settings-modal-panel {
+  background: var(--ui-bg-elevated);
+  border: 1px solid var(--ui-border-strong);
+  box-shadow: var(--ui-shadow-popover);
+}
+
+.settings-modal-close {
+  color: var(--ui-text-btn-strong);
+  background: rgba(0, 0, 0, 0.45);
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.settings-modal-close:hover {
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.65);
 }
 
 .settings-locale-item {

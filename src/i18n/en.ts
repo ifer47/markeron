@@ -84,7 +84,7 @@ export default {
     sidebarOpenSource: 'OSS',
     creditsRoll: {
       title: 'Credits',
-      sponsorsEmpty: 'Every supporter on Afdian',
+      sponsorsEmpty: 'Every supporter',
       closing: 'Thank you for your support',
     },
     shortcutLabels: {
@@ -242,6 +242,9 @@ export default {
     license: 'License',
     feedback: 'Feedback',
     sponsor: 'Support development',
+    sponsorPay: 'Scan to pay',
+    sponsorPayTitle: 'WeChat / Alipay QR',
+    sponsorPayClose: 'Close',
     checkUpdate: 'Check for updates',
     checking: 'Checking...',
     updateAvailable: 'New version v{version} available',

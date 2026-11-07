@@ -36,7 +36,7 @@ MarkerOn does **not** send telemetry, crash reports, or user content to remote s
 Optional network use (installer builds only, when you choose to):
 
 * **Update checks / downloads** via the built-in updater (GitHub Releases metadata and installers), when you tap check/update in About
-* **Opening links you choose** (project homepage, help, sponsor, Store, and similar) through the system browser
+* **Opening links you choose** (project homepage, help, Store, and similar) through the system browser
 
 Portable builds do not use the in-app updater; update by downloading a new zip manually.
 

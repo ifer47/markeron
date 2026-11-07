@@ -84,7 +84,7 @@ export default {
     sidebarOpenSource: '开源',
     creditsRoll: {
       title: '致谢',
-      sponsorsEmpty: '爱发电上的每一位赞助者',
+      sponsorsEmpty: '每一位赞助者',
       closing: '感谢每一份支持',
     },
     shortcutLabels: {
@@ -237,6 +237,9 @@ export default {
     license: '开源协议',
     feedback: '反馈问题',
     sponsor: '赞助开发',
+    sponsorPay: '扫码赞助',
+    sponsorPayTitle: '微信 / 支付宝收款码',
+    sponsorPayClose: '关闭',
     checkUpdate: '检查更新',
     checking: '正在检查...',
     updateAvailable: '发现新版本 v{version}',

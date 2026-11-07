@@ -1,42 +1,78 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '../../i18n'
+import type { DiagnosticSummary } from '../../types/diagnostics'
 
 const { t } = useI18n()
 
 const description = ref('')
 const exporting = ref(false)
 const reporting = ref(false)
-const message = ref<{ type: 'success' | 'error'; text: string } | null>(null)
+const revealing = ref(false)
+const lastExportPath = ref<string | null>(null)
+const message = ref<{ type: 'success' | 'error' | 'warn'; text: string } | null>(null)
 
 const charCount = computed(() => description.value.length)
-
 const maxDescription = 500
 
-function showMessage(type: 'success' | 'error', text: string) {
+let messageTimer: ReturnType<typeof setTimeout> | null = null
+
+function showMessage(type: 'success' | 'error' | 'warn', text: string) {
   message.value = { type, text }
-  setTimeout(() => {
+  if (messageTimer) clearTimeout(messageTimer)
+  messageTimer = setTimeout(() => {
     message.value = null
-  }, 4000)
+  }, 5000)
+}
+
+async function fetchSummary(): Promise<DiagnosticSummary | null> {
+  try {
+    return await invoke<DiagnosticSummary>('get_diagnostics_summary')
+  } catch {
+    return null
+  }
 }
 
 async function exportDiagnostics() {
   if (exporting.value) return
   exporting.value = true
   message.value = null
+  const summary = await fetchSummary()
+  const emptyThisSession = !!summary && summary.sinceLaunch === 0
   try {
     const path = await invoke<string | null>('export_diagnostics', {
       description: description.value.trim() || null,
     })
     if (path) {
-      showMessage('success', t('diagnostics.exportSuccess', { path }))
+      lastExportPath.value = path
+      if (emptyThisSession) {
+        showMessage('warn', t('diagnostics.exportSuccessEmpty', { path }))
+      } else {
+        showMessage('success', t('diagnostics.exportSuccess', { path }))
+      }
+    } else if (emptyThisSession) {
+      showMessage('warn', t('diagnostics.emptyEventsHint'))
     }
   } catch (error) {
     console.error('Export diagnostics failed:', error)
     showMessage('error', t('diagnostics.exportFailed'))
   } finally {
     exporting.value = false
+  }
+}
+
+async function revealExport() {
+  const path = lastExportPath.value
+  if (!path || revealing.value) return
+  revealing.value = true
+  try {
+    await invoke('reveal_diagnostics_file', { path })
+  } catch (error) {
+    console.error('Reveal diagnostics file failed:', error)
+    showMessage('error', t('diagnostics.revealFailed'))
+  } finally {
+    revealing.value = false
   }
 }
 
@@ -57,6 +93,10 @@ async function openGithubIssue() {
     reporting.value = false
   }
 }
+
+onUnmounted(() => {
+  if (messageTimer) clearTimeout(messageTimer)
+})
 </script>
 
 <template>
@@ -103,6 +143,14 @@ async function openGithubIssue() {
       >
         {{ exporting ? t('diagnostics.exporting') : t('diagnostics.export') }}
       </button>
+      <button
+        v-if="lastExportPath"
+        class="settings-btn-accent-outline px-4 py-1.5 rounded-lg cursor-pointer disabled:opacity-50"
+        :disabled="revealing"
+        @click="revealExport"
+      >
+        {{ revealing ? t('diagnostics.revealing') : t('diagnostics.revealFolder') }}
+      </button>
     </div>
 
     <div class="min-h-9 mt-3 flex items-center">
@@ -110,7 +158,11 @@ async function openGithubIssue() {
         <div
           v-if="message"
           class="px-3 py-1.5 rounded-md"
-          :class="message.type === 'success' ? 'settings-msg-success' : 'settings-msg-error'"
+          :class="{
+            'settings-msg-success': message.type === 'success',
+            'settings-msg-error': message.type === 'error',
+            'settings-msg-warn': message.type === 'warn',
+          }"
         >
           {{ message.text }}
         </div>

@@ -203,7 +203,7 @@ pub fn run() {
             overlay_mode: Mutex::new(overlay::OverlayMode::Hidden),
             suppress_penetration_until: Mutex::new(None),
             whiteboard_mode: Mutex::new(false),
-            diagnostic_events: Mutex::new(Vec::new()),
+            diagnostic_events: Mutex::new(diagnostics::DiagnosticBuffer::default()),
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_config,
@@ -232,6 +232,8 @@ pub fn run() {
             diagnostics::export_diagnostics,
             diagnostics::open_github_issue_report,
             diagnostics::append_diagnostic_event,
+            diagnostics::get_diagnostics_summary,
+            diagnostics::reveal_diagnostics_file,
             clipboard::copy_screen,
             clipboard::copy_whiteboard,
         ])
@@ -239,6 +241,10 @@ pub fn run() {
             let handle = app.handle().clone();
             let log_guard = diagnostics::init_tracing(&handle)?;
             app.manage(log_guard);
+            {
+                let state = handle.state::<AppState>();
+                diagnostics::hydrate_from_disk(&state);
+            }
             if portable::is_portable() {
                 info!("Starting MarkerOn (portable mode)");
             } else {

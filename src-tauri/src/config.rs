@@ -364,7 +364,8 @@ pub struct AppState {
     /// Frontend whiteboard mode — penetration is screen-overlay only.
     pub whiteboard_mode: Mutex<bool>,
     /// Cross-window diagnostic ring buffer (overlay + settings are separate webviews).
-    pub diagnostic_events: Mutex<Vec<crate::diagnostics::DiagnosticEvent>>,
+    /// Priority / pointer events are capped separately; also mirrored to diagnostics.jsonl.
+    pub diagnostic_events: Mutex<crate::diagnostics::DiagnosticBuffer>,
 }
 
 /// Lock a mutex with poison recovery — if a thread panicked while holding

@@ -260,13 +260,20 @@ export default {
       'When something goes wrong, export a diagnostic bundle so developers can investigate without guessing. Reproduce the issue in annotation mode first, then export or open a GitHub issue.',
     privacyNotice:
       'Logs contain only technical data and settings — no account info, file contents, or drawing content.',
+    emptyEventsHint:
+      'No interaction events yet. Reproduce the issue in annotation mode first; otherwise the export only has environment and settings.',
     descriptionTitle: 'Problem description',
     descriptionPlaceholder:
       'Describe what happened and how to reproduce (optional). Example: repeated “Copied to clipboard” toast after each pen stroke on macOS trackpad.',
     export: 'Export logs',
     exporting: 'Exporting...',
     exportSuccess: 'Saved to {path}',
+    exportSuccessEmpty:
+      'Saved to {path}. No new interaction events in this session — reproduce the issue in annotation mode, then export again.',
     exportFailed: 'Export failed, please try again',
+    revealFolder: 'Show in folder',
+    revealing: 'Opening...',
+    revealFailed: 'Could not open the folder',
     reportGithub: 'Open GitHub issue',
     reporting: 'Opening...',
     issueOpened:

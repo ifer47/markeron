@@ -7,3 +7,15 @@ export interface DiagnosticEvent {
   message: string
   detail?: Record<string, unknown>
 }
+
+export interface DiagnosticSummary {
+  total: number
+  errors: number
+  warnings: number
+  sessions: number
+  actions: number
+  pointers: number
+  other: number
+  /** Events from this process only (excludes hydrated history). */
+  sinceLaunch: number
+}

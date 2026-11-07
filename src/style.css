@@ -93,6 +93,8 @@ html[data-theme='dark'] {
   --ui-status-success: rgba(74, 222, 128, 0.7);
   --ui-msg-success-bg: rgba(16, 185, 129, 0.1);
   --ui-msg-success-text: rgba(52, 211, 153, 0.8);
+  --ui-msg-warn-bg: rgba(251, 191, 36, 0.12);
+  --ui-msg-warn-text: rgba(251, 191, 36, 0.9);
   --ui-msg-error-bg: rgba(239, 68, 68, 0.1);
   --ui-msg-error-text: rgba(248, 113, 113, 0.8);
   --ui-footer-version: rgba(255, 255, 255, 0.36);
@@ -219,6 +221,8 @@ html[data-theme='light'] {
   --ui-status-success: rgba(22, 163, 74, 0.85);
   --ui-msg-success-bg: rgba(16, 185, 129, 0.12);
   --ui-msg-success-text: rgba(4, 120, 87, 0.9);
+  --ui-msg-warn-bg: rgba(245, 158, 11, 0.12);
+  --ui-msg-warn-text: rgba(180, 83, 9, 0.95);
   --ui-msg-error-bg: rgba(239, 68, 68, 0.1);
   --ui-msg-error-text: rgba(185, 28, 28, 0.9);
   --ui-footer-version: rgba(0, 0, 0, 0.4);
@@ -970,6 +974,12 @@ html.settings .ui-select {
 
 .settings-status-success {
   color: var(--ui-status-success);
+  font-size: var(--settings-fs-caption, 12.5px);
+}
+
+.settings-msg-warn {
+  background: var(--ui-msg-warn-bg);
+  color: var(--ui-msg-warn-text);
   font-size: var(--settings-fs-caption, 12.5px);
 }
 

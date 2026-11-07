@@ -59,18 +59,14 @@ pub fn rebuild_tray_menu(app: &AppHandle) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-/// Create the tray with the correct glyph up front (avoids a flash from a
-/// conf-default icon that may not match the Windows taskbar / flyout).
 fn install_main_tray(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
     let icon = theme::main_tray_icon()?;
     let s = i18n::strings();
-    let builder = TrayIconBuilder::with_id("main")
+    let _tray = TrayIconBuilder::with_id("main")
         .icon(icon)
         .tooltip(s.tray_tooltip)
-        .show_menu_on_left_click(false);
-    #[cfg(target_os = "macos")]
-    let builder = builder.icon_as_template(true);
-    let _tray = builder.build(app)?;
+        .show_menu_on_left_click(false)
+        .build(app)?;
     Ok(())
 }
 
@@ -86,16 +82,6 @@ fn focus_settings_window(app: &AppHandle, tab: Option<&str>) {
     macos::activate_for_settings(app);
     win.show().ok();
     win.set_focus().ok();
-    #[cfg(target_os = "windows")]
-    {
-        // `show()` / WebView2 can restore the bundled dark `icon.ico` after any
-        // earlier WM_SETICON — re-apply once the window is actually visible.
-        let preference = lock_or_recover(&app.state::<AppState>().config)
-            .general
-            .theme;
-        let resolved = theme::resolve_theme(&preference);
-        theme::apply_windows_settings_window_icons(app, resolved);
-    }
     if let Some(t) = tab {
         app.emit_to("settings", "switch-tab", t).ok();
     }
@@ -125,8 +111,6 @@ fn on_second_instance(app: &AppHandle) {
 
 /// Called from the settings webview after it mounts (window starts hidden to avoid white flash).
 pub fn reveal_settings_window(app: &AppHandle) {
-    // Windows icons are applied inside `focus_settings_window` *after* `show()`,
-    // because showing the webview can restore the bundled dark `icon.ico`.
     focus_settings_window(app, None);
 }
 
@@ -166,12 +150,7 @@ fn open_settings_tab(app: &AppHandle, tab: Option<&str>) {
             let preference = lock_or_recover(&app.state::<AppState>().config)
                 .general
                 .theme;
-            let resolved = theme::resolve_theme(&preference);
             theme::apply_app_theme(app, &preference);
-            // First open (still hidden): seed title-bar + taskbar icons. Final
-            // sync happens after `show()` in `focus_settings_window`.
-            #[cfg(target_os = "windows")]
-            theme::apply_windows_settings_window_icons(app, resolved);
         }
         Err(e) => warn!("Failed to open settings window: {}", e),
     }
@@ -264,7 +243,6 @@ pub fn run() {
                 config::apply_autostart_preference(&handle, &state, loaded.general.auto_start);
             }
 
-            // Tray before other chrome so Windows never shows a mismatched default glyph.
             install_main_tray(&handle)?;
             rebuild_tray_menu(&handle).ok();
 
@@ -296,9 +274,6 @@ pub fn run() {
                     }
                 });
             }
-
-            #[cfg(target_os = "windows")]
-            theme::start_windows_tray_theme_watcher(&handle);
 
             theme::apply_app_theme(&handle, &loaded.general.theme);
 
@@ -353,17 +328,6 @@ pub fn run() {
             // transparent backdrop; re-assert it as soon as the scale settles.
             tauri::WindowEvent::ScaleFactorChanged { .. } if window.label() == "overlay" => {
                 overlay::reassert_overlay_transparency(window.app_handle());
-            }
-            // WebView2 / set_theme may restore icon.ico after our post-show
-            // WM_SETICON; focus is a reliable later beat to re-apply.
-            #[cfg(target_os = "windows")]
-            tauri::WindowEvent::Focused(true) if window.label() == "settings" => {
-                let app = window.app_handle();
-                let preference = lock_or_recover(&app.state::<AppState>().config)
-                    .general
-                    .theme;
-                let resolved = theme::resolve_theme(&preference);
-                theme::apply_windows_settings_window_icons(app, resolved);
             }
             tauri::WindowEvent::Destroyed if window.label() == "settings" => {
                 #[cfg(target_os = "macos")]

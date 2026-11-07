@@ -1125,6 +1125,29 @@ html.settings .ui-select {
   font-weight: 600;
 }
 
+/* Compact sidebar brand mark — colored brush + quiet name */
+.settings-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 16px 12px;
+}
+
+.settings-sidebar-brand__mark {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: #3b64fc;
+}
+
+.settings-sidebar-brand__name {
+  color: var(--ui-text-label);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
 .settings-sidebar {
   background: var(--ui-bg-sidebar);
 }

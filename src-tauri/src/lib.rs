@@ -354,6 +354,17 @@ pub fn run() {
             tauri::WindowEvent::ScaleFactorChanged { .. } if window.label() == "overlay" => {
                 overlay::reassert_overlay_transparency(window.app_handle());
             }
+            // WebView2 / set_theme may restore icon.ico after our post-show
+            // WM_SETICON; focus is a reliable later beat to re-apply.
+            #[cfg(target_os = "windows")]
+            tauri::WindowEvent::Focused(true) if window.label() == "settings" => {
+                let app = window.app_handle();
+                let preference = lock_or_recover(&app.state::<AppState>().config)
+                    .general
+                    .theme;
+                let resolved = theme::resolve_theme(&preference);
+                theme::apply_windows_settings_window_icons(app, resolved);
+            }
             tauri::WindowEvent::Destroyed if window.label() == "settings" => {
                 #[cfg(target_os = "macos")]
                 macos::restore_accessory_policy(window.app_handle());

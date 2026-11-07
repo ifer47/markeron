@@ -23,16 +23,22 @@ export function computeTextBbox(action: DrawAction): DrawAction['bbox'] {
   const fs = action.fontSize ?? 24
   const lh = Math.round(fs * 1.3)
   const lines = (action.text ?? '').split('\n')
+  const lineCount = Math.max(1, lines.length)
   const outlinePad = textOutlinePadding(action.textOutline)
   const x = action.points[0].x
   const y = action.points[0].y
   const textWidth = action.textWidth ?? 200
+  // Match drawText / TextBox: line i is centered at y + i*lh, so content spans
+  // [y - lh/2, y - lh/2 + lineCount*lh]. The old y2 used +lineCount*lh + lh/2 and
+  // left an extra blank line under the selection frame.
+  const top = y - lh / 2
+  const bottom = top + lineCount * lh
 
   return {
     x1: x - 10 - outlinePad,
-    y1: y - lh / 2 - 10 - outlinePad,
+    y1: top - 10 - outlinePad,
     x2: x + textWidth + 20 + outlinePad,
-    y2: y + lines.length * lh + lh / 2 + 10 + outlinePad,
+    y2: bottom + 10 + outlinePad,
   }
 }
 

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { DrawAction, Point } from './drawingTypes'
 import {
   computeBbox,
+  computeTextBbox,
   bboxesIntersect,
   cloneActionWithOffset,
   offsetAttachedErasers,
@@ -640,11 +641,29 @@ describe('hitTestAction', () => {
         textWidth: 80,
         bbox: { x1: 30, y1: 20, x2: 160, y2: 150 },
       })
-      // within the multiline region
+      // within the multiline region (content height = lineCount * lh, plus 10px pad)
       const lh = Math.round(20 * 1.3)
       const boxY = 50 - lh / 2 - 10
       const boxBottom = boxY + 3 * lh + 20
       expect(hitTestAction(action, { x: 60, y: boxBottom - 5 })).toBe(true)
+      // one full line below the frame must miss (regression: old bbox was +lh too tall)
+      expect(hitTestAction(action, { x: 60, y: boxBottom + lh / 2 })).toBe(false)
+    })
+
+    it('computeTextBbox height matches line centers without an extra blank line', () => {
+      const fs = 24
+      const lh = Math.round(fs * 1.3)
+      const action = makeAction({
+        tool: 'text',
+        points: [{ x: 100, y: 100 }],
+        text: '多对对',
+        fontSize: fs,
+        textWidth: 80,
+      })
+      const box = computeTextBbox(action)!
+      expect(box.y1).toBe(100 - lh / 2 - 10)
+      expect(box.y2).toBe(100 - lh / 2 + lh + 10)
+      expect(box.y2 - box.y1).toBe(lh + 20)
     })
 
     it('returns false for text without text content', () => {

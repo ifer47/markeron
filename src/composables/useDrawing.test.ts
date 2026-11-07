@@ -786,6 +786,169 @@ describe('useDrawing', () => {
       drawing.startDraw({ x: 1, y: 1 })
       expect(drawing.isDrawing.value).toBe(false)
     })
+
+    it('reshape line endpoint is undoable and clears attached erasers', () => {
+      drawing.currentTool.value = 'line'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 100, y: 0 })
+      drawing.endDraw()
+      const line = drawing.findActionAt({ x: 50, y: 0 })!.action
+      line.attachedErasers = [
+        {
+          tool: 'eraser',
+          color: '#000',
+          lineWidth: 10,
+          opacity: 1,
+          points: [
+            { x: 10, y: 0 },
+            { x: 20, y: 0 },
+          ],
+        },
+      ]
+
+      drawing.setSelection([line])
+      expect(drawing.findReshapeHandleAt({ x: 100, y: 0 })?.id).toBe('p1')
+
+      drawing.beginReshape(line, 'p1')
+      drawing.updateReshape({ x: 140, y: 30 })
+      drawing.endReshape()
+
+      expect(line.points[0]).toMatchObject({ x: 0, y: 0 })
+      expect(line.points[1]).toMatchObject({ x: 140, y: 30 })
+      expect(line.attachedErasers).toBeUndefined()
+
+      drawing.undo()
+      expect(line.points[1]).toMatchObject({ x: 100, y: 0 })
+      expect(line.attachedErasers).toHaveLength(1)
+
+      drawing.redo()
+      expect(line.points[1]).toMatchObject({ x: 140, y: 30 })
+      expect(line.attachedErasers).toBeUndefined()
+    })
+
+    it('zero-move reshape click keeps geometric attached erasers', () => {
+      drawing.currentTool.value = 'line'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 100, y: 0 })
+      drawing.endDraw()
+      const line = drawing.findActionAt({ x: 50, y: 0 })!.action
+      const eraser = {
+        tool: 'eraser' as const,
+        color: '#000',
+        lineWidth: 10,
+        opacity: 1,
+        points: [
+          { x: 10, y: 0 },
+          { x: 20, y: 0 },
+        ],
+      }
+      line.attachedErasers = [eraser]
+
+      drawing.setSelection([line])
+      drawing.beginReshape(line, 'p1')
+      drawing.updateReshape({ x: 100, y: 0 }, false)
+      drawing.endReshape()
+
+      expect(line.points[1]).toMatchObject({ x: 100, y: 0 })
+      expect(line.attachedErasers).toEqual([eraser])
+      // No spurious undo entry for a no-op handle click (add stroke still undoable).
+      const undoCountBefore = drawing.canUndo.value
+      drawing.undo() // undoes the line add
+      expect(drawing.findActionAt({ x: 50, y: 0 })).toBeNull()
+      expect(undoCountBefore).toBe(true)
+    })
+
+    it('reshape rect corner keeps opposite corner fixed', () => {
+      addRect(10, 10, 100, 80)
+      const rect = drawing.findActionAt({ x: 10, y: 10 })!.action
+      drawing.setSelection([rect])
+
+      drawing.beginReshape(rect, 'br')
+      drawing.updateReshape({ x: 160, y: 120 })
+      drawing.endReshape()
+
+      expect(rect.points[0]).toMatchObject({ x: 10, y: 10 })
+      expect(rect.points[1]).toMatchObject({ x: 160, y: 120 })
+    })
+
+    it('cancelReshape restores geometry', () => {
+      drawing.currentTool.value = 'arrow'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 80, y: 40 })
+      drawing.endDraw()
+      const arrow = drawing.findActionAt({ x: 40, y: 20 })!.action
+      const p1 = { ...arrow.points[1] }
+
+      drawing.setSelection([arrow])
+      drawing.beginReshape(arrow, 'p0')
+      drawing.updateReshape({ x: -20, y: -20 })
+      drawing.cancelReshape()
+
+      expect(arrow.points[0]).toMatchObject({ x: 0, y: 0 })
+      expect(arrow.points[1]).toMatchObject(p1)
+      expect(drawing.canUndo.value).toBe(true) // add only
+    })
+
+    it('findReshapeHandleAt requires single reshapeable selection', () => {
+      addRect(10, 10, 40, 40)
+      addRect(80, 80, 120, 120)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      const b = drawing.findActionAt({ x: 80, y: 80 })!.action
+
+      drawing.setSelection([a, b])
+      expect(drawing.findReshapeHandleAt({ x: 10, y: 10 })).toBeNull()
+
+      drawing.setSelection([a])
+      expect(drawing.findReshapeHandleAt({ x: 10, y: 10 })?.id).toBe('tl')
+    })
+
+    it('reshape pen bbox scales points and keeps attached erasers undoably', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 100, y: 0 })
+      drawing.draw({ x: 100, y: 100 })
+      drawing.endDraw()
+      const pen = drawing.findActionAt({ x: 50, y: 0 })!.action
+      const beforePts = pen.points.map((p) => ({ x: p.x, y: p.y }))
+      const xs = beforePts.map((p) => p.x)
+      const ys = beforePts.map((p) => p.y)
+      const x0 = Math.min(...xs)
+      const y0 = Math.min(...ys)
+      const x1 = Math.max(...xs)
+      const y1 = Math.max(...ys)
+      pen.attachedErasers = [
+        {
+          tool: 'eraser',
+          color: '#000',
+          lineWidth: 10,
+          opacity: 1,
+          points: [
+            { x: (x0 + x1) / 2, y: y0 },
+            { x: (x0 + x1) / 2, y: (y0 + y1) / 2 },
+          ],
+        },
+      ]
+      const eraserBefore = pen.attachedErasers[0].points.map((p) => ({ x: p.x, y: p.y }))
+
+      drawing.setSelection([pen])
+      expect(drawing.findReshapeHandleAt({ x: x1, y: y1 })?.id).toBe('br')
+
+      const nx1 = x1 + (x1 - x0)
+      const ny1 = y1 + (y1 - y0)
+      drawing.beginReshape(pen, 'br')
+      drawing.updateReshape({ x: nx1, y: ny1 }, false)
+      drawing.endReshape()
+
+      expect(Math.max(...pen.points.map((p) => p.x))).toBeCloseTo(nx1, 5)
+      expect(Math.max(...pen.points.map((p) => p.y))).toBeCloseTo(ny1, 5)
+      expect(pen.attachedErasers).toHaveLength(1)
+      expect(pen.attachedErasers![0].points[1].x).toBeCloseTo(eraserBefore[1].x * 2 - x0, 5)
+      expect(pen.attachedErasers![0].points[1].y).toBeCloseTo(eraserBefore[1].y * 2 - y0, 5)
+
+      drawing.undo()
+      expect(pen.points.map((p) => ({ x: p.x, y: p.y }))).toEqual(beforePts)
+      expect(pen.attachedErasers![0].points.map((p) => ({ x: p.x, y: p.y }))).toEqual(eraserBefore)
+    })
   })
 
   describe('destroy', () => {

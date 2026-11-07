@@ -20,7 +20,8 @@ export default {
     crosshairCursorDot: 'Dot',
   },
   toolDesc: {
-    select: 'Marquee or click to select; drag to move; Delete removes selection',
+    select:
+      'Marquee or click to select; drag to move; drag endpoints/corners to reshape (Shift: aspect / angle); Delete removes selection',
     pen: 'Freehand strokes; press 1 again to switch pen icon / dot cursor',
     highlighter: 'Semi-transparent highlight',
     laser: 'Temporary ink that fades away; press 8 again to switch crosshair / dot cursor',
@@ -225,7 +226,8 @@ export default {
     exitAnnotation: 'Exit',
     dragAndText: 'Drag & text',
     dragDesc: 'Off / hover / hold modifier — set in General. Disabled with eraser.',
-    selectToolHint: 'With Select (V): marquee or click, drag to move; Delete / Backspace removes selection.',
+    selectToolHint:
+      'With Select (V): marquee or click, drag to move; drag endpoints/corners to reshape (hold Shift for aspect lock or line angle snap); Delete / Backspace removes selection.',
     editTextDesc: 'Double-click text to edit; in <kbd class="help-kbd">T</kbd> mode, double-click empty area to add.',
     confirmTextDesc:
       '<kbd class="help-kbd">Ctrl+Enter</kbd> / <kbd class="help-kbd">⌘+Return</kbd>, or double right-click.',

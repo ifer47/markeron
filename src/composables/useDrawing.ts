@@ -6,11 +6,25 @@ import {
   computeTextBbox,
   computeStampBbox,
   bboxesIntersect,
+  cloneActionWithOffset,
   offsetAttachedErasers,
   updateShapeHitCache,
   hitTestAction,
   snapPointToAngle,
 } from './drawingGeometry'
+import {
+  applyReshapeHandle,
+  aspectRatioOfBounds,
+  getActionReshapeBounds,
+  getReshapeHandles,
+  hitTestReshapeHandle,
+  isInkReshapeTool,
+  isReshapeableTool,
+  RESHAPE_HANDLE_HALF,
+  type ReshapeBounds,
+  type ReshapeHandle,
+  type ReshapeHandleId,
+} from './drawingReshape'
 import { drawActionDirect, drawLaserTrail } from './drawingRender'
 import { normalizeTextOutline } from '../constants/textOutline'
 import { stampFontSizeFromWidth } from '../constants/stamp'
@@ -435,6 +449,15 @@ export function useDrawing(
   /** Actions currently being dragged (supports multi-select move). */
   let draggingActions: DrawAction[] = []
   let draggingSet = new Set<DrawAction>()
+  /** Single-action reshape (Select tool handle drag). */
+  let reshapingAction: DrawAction | null = null
+  let reshapeHandleId: ReshapeHandleId | null = null
+  let reshapeBeforeSnap: DragSnapshot | null = null
+  /** Gesture-start geometry so Shift can toggle mid-drag without compounding. */
+  let reshapeOriginPoints: Point[] | null = null
+  let reshapeOriginEraserPoints: Point[][] | null = null
+  let reshapeOriginBounds: ReshapeBounds | null = null
+  let reshapeOriginAspect = 1
   let tempCanvas: HTMLCanvasElement | null = null
   let tempCtx: CanvasRenderingContext2D | null = null
   const pathCache = new WeakMap<DrawAction, Path2D>()
@@ -700,7 +723,9 @@ export function useDrawing(
   }
 
   function resolveActionBbox(action: DrawAction): DrawAction['bbox'] {
-    if (action.tool === 'text') return action.bbox ?? computeTextBbox(action)
+    // Always recompute text bounds so selection frames pick up geometry fixes
+    // (cached action.bbox may predate computeTextBbox changes in this session).
+    if (action.tool === 'text') return computeTextBbox(action)
     if (action.tool === 'stamp') return action.bbox ?? computeStampBbox(action)
     if (action.bbox) return action.bbox
     const pad = Math.max(20, action.lineWidth / 2 + 10)
@@ -724,8 +749,8 @@ export function useDrawing(
     const marquee = marqueeRect.value
     if (selected.length === 0 && !marquee) return
 
-    const dx = draggingSet.size > 0 ? dragOffsetX : 0
-    const dy = draggingSet.size > 0 ? dragOffsetY : 0
+    const dx = draggingSet.size > 0 && !reshapingAction ? dragOffsetX : 0
+    const dy = draggingSet.size > 0 && !reshapingAction ? dragOffsetY : 0
 
     ctx.save()
     ctx.lineWidth = 1.5
@@ -735,9 +760,27 @@ export function useDrawing(
     for (const action of selected) {
       const bbox = resolveActionBbox(action)
       if (!bbox) continue
-      const ox = draggingSet.has(action) ? dx : 0
-      const oy = draggingSet.has(action) ? dy : 0
+      const ox = draggingSet.has(action) && !reshapingAction ? dx : 0
+      const oy = draggingSet.has(action) && !reshapingAction ? dy : 0
       ctx.strokeRect(bbox.x1 + ox, bbox.y1 + oy, bbox.x2 - bbox.x1, bbox.y2 - bbox.y1)
+    }
+
+    // Reshape handles: single selected reshapeable shape only.
+    if (selected.length === 1 && isReshapeableTool(selected[0].tool)) {
+      const action = selected[0]
+      const ox = draggingSet.has(action) && !reshapingAction ? dx : 0
+      const oy = draggingSet.has(action) && !reshapingAction ? dy : 0
+      const half = RESHAPE_HANDLE_HALF
+      ctx.setLineDash([])
+      ctx.lineWidth = 1
+      for (const h of getReshapeHandles(action)) {
+        const hx = h.x + ox
+        const hy = h.y + oy
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
+        ctx.strokeStyle = 'rgba(0, 122, 255, 0.95)'
+        ctx.fillRect(hx - half, hy - half, half * 2, half * 2)
+        ctx.strokeRect(hx - half, hy - half, half * 2, half * 2)
+      }
     }
 
     if (marquee) {
@@ -752,6 +795,15 @@ export function useDrawing(
     }
 
     ctx.restore()
+  }
+
+  /** Handle under point for the current single selection (Select tool). */
+  function findReshapeHandleAt(p: Point): ReshapeHandle | null {
+    if (selectedActions.value.length !== 1) return null
+    const action = selectedActions.value[0]
+    if (!isReshapeableTool(action.tool)) return null
+    if (history.indexOf(action) === -1) return null
+    return hitTestReshapeHandle(action, p)
   }
 
   function clearSelection() {
@@ -1626,8 +1678,49 @@ export function useDrawing(
     flushRender()
   }
 
-  /** Abandon an in-progress drag without applying offset (e.g. Delete mid-drag). */
+  function clearReshapeState() {
+    reshapingAction = null
+    reshapeHandleId = null
+    reshapeBeforeSnap = null
+    reshapeOriginPoints = null
+    reshapeOriginEraserPoints = null
+    reshapeOriginBounds = null
+    reshapeOriginAspect = 1
+  }
+
+  function restoreReshapeOriginGeometry(action: DrawAction) {
+    if (!reshapeOriginPoints || reshapeOriginPoints.length !== action.points.length) return
+    for (let i = 0; i < action.points.length; i++) {
+      const src = reshapeOriginPoints[i]
+      const dst = action.points[i]
+      dst.x = src.x
+      dst.y = src.y
+      if (src.pressure != null) dst.pressure = src.pressure
+      else delete dst.pressure
+      if (src.t != null) dst.t = src.t
+      else delete dst.t
+    }
+    if (action.attachedErasers && reshapeOriginEraserPoints) {
+      for (let i = 0; i < action.attachedErasers.length; i++) {
+        const srcPts = reshapeOriginEraserPoints[i]
+        const ae = action.attachedErasers[i]
+        if (!srcPts || !ae) continue
+        for (let j = 0; j < ae.points.length && j < srcPts.length; j++) {
+          ae.points[j].x = srcPts[j].x
+          ae.points[j].y = srcPts[j].y
+        }
+      }
+    }
+  }
+
+  /** Abandon an in-progress drag / reshape without committing (e.g. Delete mid-gesture). */
   function cancelDrag() {
+    if (reshapingAction && reshapeBeforeSnap) {
+      restoreDragSnapshot(reshapingAction, reshapeBeforeSnap)
+      refreshActionGeometry(reshapingAction)
+      pathCache.delete(reshapingAction)
+    }
+    clearReshapeState()
     previewAction.value = null
     draggingActions = []
     draggingSet = new Set()
@@ -1637,6 +1730,115 @@ export function useDrawing(
     invalidateCache()
     previewDirty = true
     flushRender()
+  }
+
+  function beginReshape(action: DrawAction, handleId: ReshapeHandleId) {
+    if (history.indexOf(action) === -1) return
+    if (!isReshapeableTool(action.tool)) return
+    if (action.points.length < 2) return
+
+    reshapingAction = action
+    reshapeHandleId = handleId
+    reshapeBeforeSnap = takeDragSnapshot(action, history.indexOf(action))
+    // Deep-clone ink eraser attachments so live scale does not mutate the undo snapshot.
+    if (isInkReshapeTool(action.tool) && action.attachedErasers?.length) {
+      action.attachedErasers = action.attachedErasers.map((ae) => cloneActionWithOffset(ae, 0, 0))
+    }
+    reshapeOriginPoints = action.points.map(clonePoint)
+    reshapeOriginEraserPoints = action.attachedErasers?.map((ae) => ae.points.map(clonePoint)) ?? null
+    reshapeOriginBounds = getActionReshapeBounds(action)
+    reshapeOriginAspect = reshapeOriginBounds ? aspectRatioOfBounds(reshapeOriginBounds) : 1
+    draggingActions = [action]
+    draggingSet = new Set([action])
+    previewAction.value = action
+    useDragCanvas = false
+    dragOffsetX = 0
+    dragOffsetY = 0
+    invalidateCache()
+    previewDirty = true
+    scheduleRender()
+  }
+
+  function updateReshape(p: Point, constrain = false) {
+    if (!reshapingAction || !reshapeHandleId) return
+    restoreReshapeOriginGeometry(reshapingAction)
+    applyReshapeHandle(reshapingAction, reshapeHandleId, p, {
+      constrain,
+      originAspect: reshapeOriginAspect,
+      originBounds: reshapeOriginBounds ?? undefined,
+      angleSnapStep: angleSnapStep.value,
+    })
+    pathCache.delete(reshapingAction)
+    if (reshapingAction.attachedErasers) {
+      for (const ae of reshapingAction.attachedErasers) pathCache.delete(ae)
+    }
+    refreshActionGeometry(reshapingAction)
+    previewDirty = true
+    scheduleRender()
+  }
+
+  function endReshape() {
+    const action = reshapingAction
+    const before = reshapeBeforeSnap
+    const handleId = reshapeHandleId
+    clearReshapeState()
+
+    if (!action || !before || !handleId || history.indexOf(action) === -1) {
+      draggingActions = []
+      draggingSet = new Set()
+      previewAction.value = null
+      useDragCanvas = false
+      invalidateCache()
+      previewDirty = true
+      flushRender()
+      return
+    }
+
+    const changed =
+      before.points.length !== action.points.length ||
+      before.points.some((pt, i) => pt.x !== action.points[i].x || pt.y !== action.points[i].y)
+
+    // Geometric shapes: attachments no longer match after a real corner rewrite.
+    // Only clear when geometry actually changed — a zero-move handle click must not drop erasers.
+    // Ink: attachments were scaled with the stroke — keep them.
+    if (changed && !isInkReshapeTool(action.tool) && action.attachedErasers?.length) {
+      action.attachedErasers = undefined
+    }
+    pathCache.delete(action)
+    if (action.attachedErasers) {
+      for (const ae of action.attachedErasers) pathCache.delete(ae)
+    }
+    refreshActionGeometry(action)
+
+    const idx = history.indexOf(action)
+    // Raise to top (same as endDrag) for consistent stacking after edit.
+    if (idx !== -1 && idx !== history.length - 1) {
+      history.splice(idx, 1)
+      history.push(action)
+      historyIndexDirty = true
+    }
+    refreshActionInHitGrid(action, true)
+
+    if (changed) {
+      const to = takeDragSnapshot(action, history.indexOf(action))
+      undoStack.push({ type: 'drag', action, from: before, to })
+      redoStack.length = 0
+      markHistoryStacksChanged()
+    }
+
+    draggingActions = []
+    draggingSet = new Set()
+    previewAction.value = null
+    useDragCanvas = false
+    dragOffsetX = 0
+    dragOffsetY = 0
+    invalidateCache()
+    previewDirty = true
+    flushRender()
+  }
+
+  function cancelReshape() {
+    cancelDrag()
   }
 
   function undo() {
@@ -1857,6 +2059,7 @@ export function useDrawing(
     marqueeRect.value = null
     draggingActions = []
     draggingSet = new Set()
+    clearReshapeState()
     invalidateCache()
     currentAction.value = null
     previewAction.value = null
@@ -2009,6 +2212,11 @@ export function useDrawing(
     updateDragOffset,
     endDrag,
     cancelDrag,
+    findReshapeHandleAt,
+    beginReshape,
+    updateReshape,
+    endReshape,
+    cancelReshape,
     destroy,
     setAngleSnapStep,
   }

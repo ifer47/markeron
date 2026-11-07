@@ -20,7 +20,7 @@ export default {
     crosshairCursorDot: '圆点',
   },
   toolDesc: {
-    select: '框选或点选后可批量拖动；Delete 删除选中',
+    select: '框选或点选后可批量拖动；拖动手柄可调整（Shift 等比/角度）；Delete 删除选中',
     pen: '自由绘画；再按 1 切换钢笔图标 / 圆点光标',
     highlighter: '半透明高亮',
     laser: '临时笔迹，逐渐淡出；再按 8 切换十字准星 / 圆点光标',
@@ -221,7 +221,8 @@ export default {
     exitAnnotation: '退出',
     dragAndText: '拖拽与文字',
     dragDesc: '关闭 / 悬停 / 按住修饰键 — 在「常规」设置。橡皮擦下禁用。',
-    selectToolHint: '选择工具（V）下可框选、批量拖动；Delete / Backspace 删除选中。',
+    selectToolHint:
+      '选择工具（V）下可框选、批量拖动；拖动手柄可调整图形与笔迹（按住 Shift：角点等比缩放，直线/箭头端点角度吸附）；Delete / Backspace 删除选中。',
     editTextDesc: '双击文字编辑；<kbd class="help-kbd">T</kbd> 模式下双击空白处新建。',
     confirmTextDesc: '<kbd class="help-kbd">Ctrl+Enter</kbd> / <kbd class="help-kbd">⌘+Return</kbd>，或双击右键。',
     dragElement: '拖拽',

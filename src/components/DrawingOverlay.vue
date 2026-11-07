@@ -357,6 +357,10 @@ const {
   updateDragOffset,
   endDrag,
   cancelDrag,
+  findReshapeHandleAt,
+  beginReshape,
+  updateReshape,
+  endReshape,
   destroy,
 } = useDrawing(historyCanvasRef, previewCanvasRef)
 
@@ -586,7 +590,11 @@ function exitWhiteboardMode() {
 const hoveredActionInfo = shallowRef<{ action: DrawAction; index: number } | null>(null)
 /** Select tool: pointer is inside a selected action's bbox (drag-from-frame). */
 const pointerOverSelectionBbox = ref(false)
+/** Select tool: pointer over a reshape handle (endpoint / corner). */
+const pointerOverReshapeHandle = ref(false)
+const reshapeHandleCursor = ref('default')
 const isMoving = ref(false)
+const isReshaping = ref(false)
 const dragMode = ref<DragMode>('off')
 const penCursorStyle = ref<PenCursorStyle>('pen')
 const crosshairCursorStyle = ref<CrosshairCursorStyle>('crosshair')
@@ -632,11 +640,14 @@ function cancelMarqueeSelection() {
 
 function clearSelectionHover() {
   pointerOverSelectionBbox.value = false
+  pointerOverReshapeHandle.value = false
+  reshapeHandleCursor.value = 'default'
 }
 
 function cancelSelectGestures() {
   let cancelled = false
-  if (isDragging) {
+  if (isReshaping.value || isDragging) {
+    isReshaping.value = false
     isDragging = false
     isMoving.value = false
     cancelDrag()
@@ -1219,9 +1230,15 @@ function finishActivePointerInteraction() {
   resetRmbEraseGesture()
   releaseCapturedPointer()
   if (isDragging) {
+    const wasReshaping = isReshaping.value
     isDragging = false
+    isReshaping.value = false
     isMoving.value = false
-    endDrag()
+    if (wasReshaping) {
+      endReshape()
+    } else {
+      endDrag()
+    }
   } else if (isMarqueeSelecting) {
     cancelMarqueeSelection()
   } else if (isDrawing.value) {
@@ -1274,12 +1291,27 @@ async function onPointerDown(e: PointerEvent) {
 
   await ensureToolbarAboveOverlay()
 
-  // Select tool: click/marquee select, drag selected group (ignores dragMode).
-  // Drag starts from stroke hit OR anywhere inside a selected action's bbox.
+  // Select tool: click/marquee select, reshape handles, drag selected group (ignores dragMode).
+  // Priority: reshape handle → stroke/bbox drag → marquee.
   if (currentTool.value === 'select') {
     hideToolbarPopupForCanvasInteraction()
     const pos = { x: e.clientX, y: e.clientY }
     // Always hit-test at down position — hoveredActionInfo can be a frame stale after await.
+    // Handle hit wins over Shift multi-select so Shift+drag-handle can constrain from the start.
+    const reshapeHandle = findReshapeHandleAt(pos)
+    if (reshapeHandle && selectedActions.value.length === 1) {
+      const action = selectedActions.value[0]
+      isReshaping.value = true
+      isDragging = true
+      dragStartX = e.clientX
+      dragStartY = e.clientY
+      isMoving.value = true
+      reshapeHandleCursor.value = reshapeHandle.cursor
+      beginReshape(action, reshapeHandle.id)
+      updateReshape({ x: e.clientX, y: e.clientY }, e.shiftKey)
+      return
+    }
+
     const strokeHit = findActionAt(pos)
     const selectedBboxHit = findSelectedActionAt(pos)
 
@@ -1400,7 +1432,11 @@ function onPointerMove(e: PointerEvent) {
   }
 
   if (isDragging) {
-    updateDragOffset(e.clientX - dragStartX, e.clientY - dragStartY)
+    if (isReshaping.value) {
+      updateReshape({ x: e.clientX, y: e.clientY }, e.shiftKey)
+    } else {
+      updateDragOffset(e.clientX - dragStartX, e.clientY - dragStartY)
+    }
     return
   }
 
@@ -1430,13 +1466,28 @@ function onPointerMove(e: PointerEvent) {
             wantsHoverHitTest()
           ) {
             hoveredActionInfo.value = findActionAt(mousePos.value)
-            pointerOverSelectionBbox.value = currentTool.value === 'select' && !!findSelectedActionAt(mousePos.value)
+            if (currentTool.value === 'select') {
+              const handle = findReshapeHandleAt(mousePos.value)
+              if (handle) {
+                pointerOverReshapeHandle.value = true
+                reshapeHandleCursor.value = handle.cursor
+                pointerOverSelectionBbox.value = false
+              } else {
+                pointerOverReshapeHandle.value = false
+                reshapeHandleCursor.value = 'default'
+                pointerOverSelectionBbox.value = !!findSelectedActionAt(mousePos.value)
+              }
+            } else {
+              pointerOverReshapeHandle.value = false
+              pointerOverSelectionBbox.value = false
+            }
           }
         })
       }
     } else {
       hoveredActionInfo.value = null
       pointerOverSelectionBbox.value = false
+      pointerOverReshapeHandle.value = false
     }
     return
   }
@@ -1463,9 +1514,15 @@ function onPointerUp(e: PointerEvent) {
   releaseCapturedPointer()
 
   if (isDragging) {
+    const wasReshaping = isReshaping.value
     isDragging = false
+    isReshaping.value = false
     isMoving.value = false
-    endDrag()
+    if (wasReshaping) {
+      endReshape()
+    } else {
+      endDrag()
+    }
     stopPenRawUpdates()
     markPointerInteractionEnded()
     resetPointerGestureState()
@@ -1528,9 +1585,15 @@ function abortActivePointerInteraction() {
   resetRmbEraseGesture()
   releaseCapturedPointer()
   if (isDragging) {
+    const wasReshaping = isReshaping.value
     isDragging = false
+    isReshaping.value = false
     isMoving.value = false
-    endDrag()
+    if (wasReshaping) {
+      cancelDrag()
+    } else {
+      endDrag()
+    }
   }
   if (isMarqueeSelecting) {
     cancelMarqueeSelection()
@@ -1757,13 +1820,15 @@ async function refreshCustomCursorPosition() {
 
 const showDragCursor = computed(
   () =>
-    (currentTool.value === 'select' &&
+    !pointerOverReshapeHandle.value &&
+    !isReshaping.value &&
+    ((currentTool.value === 'select' &&
       (isMoving.value ||
         pointerOverSelectionBbox.value ||
         (!!hoveredActionInfo.value && !isDrawing.value && !isMarqueeSelecting))) ||
-    (isDragEnabled(dragMode.value) &&
-      (isMoving.value ||
-        (hoveredActionInfo.value && !isDrawing.value && dragMode.value === 'modifier' && pointerModDown.value))),
+      (isDragEnabled(dragMode.value) &&
+        (isMoving.value ||
+          (hoveredActionInfo.value && !isDrawing.value && dragMode.value === 'modifier' && pointerModDown.value)))),
 )
 
 const wantsCustomCursor = computed(
@@ -1785,6 +1850,9 @@ const wantsCustomCursor = computed(
 // Use system cursor as fallback whenever the SVG overlay cursor is suppressed.
 const canvasCursor = computed(() => {
   if (penetrationMode.value) return 'default'
+  if (isReshaping.value || pointerOverReshapeHandle.value) {
+    return isReshaping.value && reshapeHandleCursor.value === 'grab' ? 'grabbing' : reshapeHandleCursor.value
+  }
   if (showDragCursor.value) return 'move'
   if (currentTool.value === 'text') return 'text'
   if (currentTool.value === 'stamp') return 'crosshair'
@@ -2009,6 +2077,13 @@ function syncPointerModFromKey(e: KeyboardEvent) {
   }
 }
 
+/** Re-apply reshape when Shift is pressed/released mid-drag (no pointer move needed). */
+function syncReshapeConstraintFromKey(e: KeyboardEvent) {
+  if (!isReshaping.value) return
+  if (e.key !== 'Shift' && e.key !== 'ShiftLeft' && e.key !== 'ShiftRight') return
+  updateReshape({ x: lastPointerX, y: lastPointerY }, e.shiftKey)
+}
+
 function onKeyUp(e: KeyboardEvent) {
   trackCopyModifierKeyUp(e)
   if (e.key === 'Alt') {
@@ -2017,6 +2092,7 @@ function onKeyUp(e: KeyboardEvent) {
   if (e.key === 'Control' || e.key === 'Meta') {
     pointerModDown.value = false
   }
+  syncReshapeConstraintFromKey(e)
 }
 
 const unlisteners: UnlistenFn[] = []
@@ -2032,6 +2108,7 @@ onMounted(async () => {
   void scheduleOverlayResize()
   window.addEventListener('resize', debouncedResize)
   window.addEventListener('keydown', syncPointerModFromKey)
+  window.addEventListener('keydown', syncReshapeConstraintFromKey)
   window.addEventListener('keydown', onKeyDown)
   window.addEventListener('keyup', onKeyUp)
   watchDpr()
@@ -2249,6 +2326,7 @@ onUnmounted(() => {
   dprMediaQuery?.removeEventListener('change', onDprChange)
   dprMediaQuery = null
   window.removeEventListener('keydown', syncPointerModFromKey)
+  window.removeEventListener('keydown', syncReshapeConstraintFromKey)
   window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('keyup', onKeyUp)
   if (hoverRafId !== null) {

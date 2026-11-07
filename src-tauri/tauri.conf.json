@@ -54,7 +54,8 @@
         "installMode": "currentUser",
         "installerIcon": "./icons/installer-icon.ico",
         "sidebarImage": "./icons/installer-sidebar.bmp",
-        "languages": ["SimpChinese", "English"]
+        "languages": ["SimpChinese", "English"],
+        "installerHooks": "./windows/hooks.nsh"
       },
       "wix": {
         "language": "zh-CN",

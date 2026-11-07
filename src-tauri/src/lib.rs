@@ -82,6 +82,9 @@ fn focus_settings_window(app: &AppHandle, tab: Option<&str>) {
     macos::activate_for_settings(app);
     win.show().ok();
     win.set_focus().ok();
+    // `show()` / WebView2 can restore a shell-cached icon.ico; re-apply brand blue.
+    #[cfg(target_os = "windows")]
+    theme::apply_windows_brand_icons(app);
     if let Some(t) = tab {
         app.emit_to("settings", "switch-tab", t).ok();
     }
@@ -328,6 +331,12 @@ pub fn run() {
             // transparent backdrop; re-assert it as soon as the scale settles.
             tauri::WindowEvent::ScaleFactorChanged { .. } if window.label() == "overlay" => {
                 overlay::reassert_overlay_transparency(window.app_handle());
+            }
+            // WebView2 / set_theme may restore a cached icon.ico after post-show
+            // set_icon; focus is a reliable later beat to re-apply brand blue.
+            #[cfg(target_os = "windows")]
+            tauri::WindowEvent::Focused(true) if window.label() == "settings" => {
+                theme::apply_windows_brand_icons(window.app_handle());
             }
             tauri::WindowEvent::Destroyed if window.label() == "settings" => {
                 #[cfg(target_os = "macos")]

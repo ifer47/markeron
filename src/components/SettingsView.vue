@@ -18,6 +18,7 @@ import GeneralTab from './settings/GeneralTab.vue'
 import DiagnosticsTab from './settings/DiagnosticsTab.vue'
 import AboutTab from './settings/AboutTab.vue'
 import SettingsSidebarFooter from './settings/SettingsSidebarFooter.vue'
+import HelpTruncateLabel from './settings/HelpTruncateLabel.vue'
 
 const { t } = useI18n()
 
@@ -564,19 +565,19 @@ onUnmounted(() => {
             <div class="help-card-header">{{ t('help.globalShortcuts') }}</div>
             <div class="help-rows">
               <div class="help-row">
-                <span class="help-label">{{ t('help.toggleAnnotation') }}</span>
+                <HelpTruncateLabel :text="t('help.toggleAnnotation')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpGlobalKeys.toggle }}</kbd>
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.clearAll') }}</span>
+                <HelpTruncateLabel :text="t('help.clearAll')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpGlobalKeys.clear }}</kbd>
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.togglePenetration') }}</span>
+                <HelpTruncateLabel :text="t('help.togglePenetration')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpGlobalKeys.through }}</kbd>
                 </div>
@@ -588,49 +589,49 @@ onUnmounted(() => {
             <div class="help-card-header">{{ t('help.inSessionShortcuts') }}</div>
             <div class="help-rows">
               <div class="help-row">
-                <span class="help-label">{{ t('help.togglePenetrationLocal') }}</span>
+                <HelpTruncateLabel :text="t('help.togglePenetrationLocal')" />
                 <div class="help-keys"><kbd class="help-kbd">X</kbd></div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.settingsPanel') }}</span>
+                <HelpTruncateLabel :text="t('help.settingsPanel')" />
                 <div class="help-keys"><kbd class="help-kbd">Space</kbd></div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.exitDrawing') }}</span>
+                <HelpTruncateLabel :text="t('help.exitDrawing')" />
                 <div class="help-keys"><kbd class="help-kbd">Esc</kbd></div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.undo') }}</span>
+                <HelpTruncateLabel :text="t('help.undo')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpMod }}+Z</kbd>
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.redo') }}</span>
+                <HelpTruncateLabel :text="t('help.redo')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpMod }}+{{ helpShift }}+Z</kbd>
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.strokeWidth') }}</span>
+                <HelpTruncateLabel :text="t('help.strokeWidth')" />
                 <div class="help-keys"><kbd class="help-kbd">Ctrl</kbd> + Scroll</div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.copyScreen') }}</span>
+                <HelpTruncateLabel :text="t('help.copyScreen')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpMod }}+C</kbd>
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.eraserModeHint') }}</span>
+                <HelpTruncateLabel :text="t('help.eraserModeHint')" />
                 <div class="help-keys"><kbd class="help-kbd">7</kbd></div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.penCursorHint') }}</span>
+                <HelpTruncateLabel :text="t('help.penCursorHint')" />
                 <div class="help-keys"><kbd class="help-kbd">1</kbd></div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.crosshairCursorHint') }}</span>
+                <HelpTruncateLabel :text="t('help.crosshairCursorHint')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">3</kbd>–<kbd class="help-kbd">6</kbd>/<kbd class="help-kbd">8</kbd>
                 </div>
@@ -655,37 +656,37 @@ onUnmounted(() => {
             <div class="help-card-header">{{ t('help.modifierDraw') }}</div>
             <div class="help-rows">
               <div class="help-row">
-                <span class="help-label">{{ t('help.straightLine') }}</span>
+                <HelpTruncateLabel :text="t('help.straightLine')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpOpt }}</kbd> + {{ t('help.dragAction') }}
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('tools.rect') }}</span>
+                <HelpTruncateLabel :text="t('tools.rect')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpMod }}</kbd> + {{ t('help.dragAction') }}
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.square') }}</span>
+                <HelpTruncateLabel :text="t('help.square')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpMod }}+{{ helpOpt }}</kbd> + {{ t('help.dragAction') }}
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('tools.ellipse') }}</span>
+                <HelpTruncateLabel :text="t('tools.ellipse')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpShift }}</kbd> + {{ t('help.dragAction') }}
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.circle') }}</span>
+                <HelpTruncateLabel :text="t('help.circle')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpShift }}+{{ helpOpt }}</kbd> + {{ t('help.dragAction') }}
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('tools.arrow') }}</span>
+                <HelpTruncateLabel :text="t('tools.arrow')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpMod }}+{{ helpShift }}</kbd> + {{ t('help.dragAction') }}
                 </div>
@@ -697,21 +698,21 @@ onUnmounted(() => {
             <div class="help-card-header">{{ t('help.colorSwitch') }} · {{ t('help.whiteboardMode') }}</div>
             <div class="help-rows">
               <div class="help-row">
-                <span class="help-label">{{ t('help.prevColor') }}</span>
+                <HelpTruncateLabel :text="t('help.prevColor')" />
                 <div class="help-keys"><kbd class="help-kbd">Q</kbd> / <kbd class="help-kbd">E</kbd></div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.rightClickErase') }}</span>
+                <HelpTruncateLabel :text="t('help.rightClickErase')" />
                 <div class="help-keys">
                   <span class="help-keys-plain">{{ t('help.mouseRightClickHold') }}</span>
                 </div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.toggleWhiteboard') }}</span>
+                <HelpTruncateLabel :text="t('help.toggleWhiteboard')" />
                 <div class="help-keys"><kbd class="help-kbd">W</kbd></div>
               </div>
               <div class="help-row">
-                <span class="help-label">{{ t('help.copyWhiteboard') }}</span>
+                <HelpTruncateLabel :text="t('help.copyWhiteboard')" />
                 <div class="help-keys">
                   <kbd class="help-kbd">{{ helpMod }}+C</kbd>
                 </div>

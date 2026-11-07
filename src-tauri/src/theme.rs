@@ -73,8 +73,10 @@ pub fn apply_app_theme(app: &AppHandle, preference: &ThemePreference) {
 
     #[cfg(target_os = "windows")]
     {
-        // Appearance toggles only need the title-bar glyph (cached HICON swap).
-        apply_windows_settings_titlebar_icon(app, resolved);
+        // `set_theme` above can reset both ICON_SMALL and ICON_BIG to the
+        // bundled `icon.ico` (dark glyph). Re-apply title-bar (app theme) and
+        // taskbar (shell theme) from the HICON cache.
+        apply_windows_settings_window_icons(app, resolved);
     }
 }
 
@@ -297,35 +299,12 @@ pub fn apply_windows_settings_window_icons(app: &AppHandle, resolved: ResolvedTh
     }
 }
 
-/// Fast path for appearance toggles: only swap the cached title-bar glyph.
-#[cfg(target_os = "windows")]
-pub fn apply_windows_settings_titlebar_icon(app: &AppHandle, resolved: ResolvedTheme) {
-    if let Err(e) = apply_windows_settings_titlebar_icon_inner(app, resolved) {
-        warn!("Failed to update settings title-bar icon: {}", e);
-    }
-}
-
 #[cfg(target_os = "windows")]
 fn settings_hwnd(app: &AppHandle) -> Result<Option<isize>, Box<dyn std::error::Error>> {
     let Some(win) = app.get_webview_window("settings") else {
         return Ok(None);
     };
     Ok(Some(win.hwnd()?.0 as isize))
-}
-
-#[cfg(target_os = "windows")]
-fn apply_windows_settings_titlebar_icon_inner(
-    app: &AppHandle,
-    resolved: ResolvedTheme,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let Some(hwnd) = settings_hwnd(app)? else {
-        return Ok(());
-    };
-    warm_settings_icon_cache();
-    let (sm_w, sm_h) = icon_metric_size(true);
-    let small = cached_hicon_from_png(titlebar_icon_png(resolved), sm_w, sm_h)?;
-    crate::win32::set_window_small_icon(hwnd, small);
-    Ok(())
 }
 
 #[cfg(target_os = "windows")]

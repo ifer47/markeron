@@ -86,6 +86,16 @@ fn focus_settings_window(app: &AppHandle, tab: Option<&str>) {
     macos::activate_for_settings(app);
     win.show().ok();
     win.set_focus().ok();
+    #[cfg(target_os = "windows")]
+    {
+        // `show()` / WebView2 can restore the bundled dark `icon.ico` after any
+        // earlier WM_SETICON — re-apply once the window is actually visible.
+        let preference = lock_or_recover(&app.state::<AppState>().config)
+            .general
+            .theme;
+        let resolved = theme::resolve_theme(&preference);
+        theme::apply_windows_settings_window_icons(app, resolved);
+    }
     if let Some(t) = tab {
         app.emit_to("settings", "switch-tab", t).ok();
     }
@@ -115,16 +125,8 @@ fn on_second_instance(app: &AppHandle) {
 
 /// Called from the settings webview after it mounts (window starts hidden to avoid white flash).
 pub fn reveal_settings_window(app: &AppHandle) {
-    #[cfg(target_os = "windows")]
-    {
-        // Re-apply after the webview mounts — Tauri may restore the default dark
-        // `icon.ico` between build() and first show.
-        let preference = lock_or_recover(&app.state::<AppState>().config)
-            .general
-            .theme;
-        let resolved = theme::resolve_theme(&preference);
-        theme::apply_windows_settings_window_icons(app, resolved);
-    }
+    // Windows icons are applied inside `focus_settings_window` *after* `show()`,
+    // because showing the webview can restore the bundled dark `icon.ico`.
     focus_settings_window(app, None);
 }
 
@@ -166,8 +168,8 @@ fn open_settings_tab(app: &AppHandle, tab: Option<&str>) {
                 .theme;
             let resolved = theme::resolve_theme(&preference);
             theme::apply_app_theme(app, &preference);
-            // First open: sync title-bar + taskbar icons (subsequent appearance
-            // toggles only swap the cached title-bar HICON).
+            // First open (still hidden): seed title-bar + taskbar icons. Final
+            // sync happens after `show()` in `focus_settings_window`.
             #[cfg(target_os = "windows")]
             theme::apply_windows_settings_window_icons(app, resolved);
         }

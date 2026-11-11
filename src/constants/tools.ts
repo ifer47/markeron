@@ -12,7 +12,9 @@ import {
   Type,
   ListOrdered,
 } from '@lucide/vue'
-import type { Tool } from '../composables/drawingTypes'
+import type { StrokeDashStyle, Tool } from '../composables/drawingTypes'
+
+export type { StrokeDashStyle }
 
 export interface ToolDef {
   id: Tool
@@ -61,6 +63,12 @@ export interface ToolLineWidths {
 
 const STROKE_TOOLS = new Set<Tool>(['pen', 'laser', 'arrow', 'rect', 'ellipse', 'line'])
 
+/** Tools that honor the session stroke dash style (D / Shift+D). */
+const DASHABLE_TOOLS = new Set<Tool>(['pen', 'line', 'arrow', 'rect', 'ellipse'])
+
+/** Solid → dashed → dotted → solid (D); Shift+D reverses. */
+export const STROKE_DASH_STYLES: readonly StrokeDashStyle[] = ['solid', 'dashed', 'dotted']
+
 export function toolLineWidthGroup(tool: Tool): LineWidthGroup {
   if (tool === 'highlighter') return 'highlighter'
   if (tool === 'eraser') return 'eraser'
@@ -71,6 +79,35 @@ export function toolLineWidthGroup(tool: Tool): LineWidthGroup {
 
 export function isStrokeTool(tool: Tool): boolean {
   return STROKE_TOOLS.has(tool)
+}
+
+export function isDashableTool(tool: Tool): boolean {
+  return DASHABLE_TOOLS.has(tool)
+}
+
+export function normalizeStrokeDashStyle(value: unknown): StrokeDashStyle {
+  return value === 'dashed' || value === 'dotted' ? value : 'solid'
+}
+
+export function isNonSolidDashStyle(style: StrokeDashStyle | undefined | null): style is 'dashed' | 'dotted' {
+  return style === 'dashed' || style === 'dotted'
+}
+
+/** `direction` +1 = D, -1 = Shift+D. */
+export function nextStrokeDashStyle(current: StrokeDashStyle, direction: 1 | -1 = 1): StrokeDashStyle {
+  const i = STROKE_DASH_STYLES.indexOf(normalizeStrokeDashStyle(current))
+  const len = STROKE_DASH_STYLES.length
+  return STROKE_DASH_STYLES[(i + direction + len) % len]
+}
+
+/** Canvas `setLineDash` pattern scaled to stroke width. */
+export function shapeDashPattern(lineWidth: number, style: 'dashed' | 'dotted' = 'dashed'): number[] {
+  const w = Math.max(1, lineWidth)
+  if (style === 'dotted') {
+    // Near-zero dash + gap with round lineCap ≈ dots.
+    return [0.01, Math.max(2, w * 2.2)]
+  }
+  return [w * 4, w * 3]
 }
 
 export function createDefaultLineWidths(): ToolLineWidths {

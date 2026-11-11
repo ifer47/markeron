@@ -1,4 +1,5 @@
 import type { DrawAction, Point } from './drawingTypes'
+import { isDashableTool, isNonSolidDashStyle, shapeDashPattern } from '../constants/tools'
 import { getActiveTextOutline } from '../constants/textOutline'
 import {
   stampContrastColor,
@@ -62,7 +63,7 @@ export function drawLine(ctx: CanvasRenderingContext2D, start: Point, end: Point
   ctx.stroke()
 }
 
-export function drawArrow(ctx: CanvasRenderingContext2D, start: Point, end: Point) {
+export function drawArrow(ctx: CanvasRenderingContext2D, start: Point, end: Point, dashed = false) {
   const dx = end.x - start.x
   const dy = end.y - start.y
   const len = Math.sqrt(dx * dx + dy * dy)
@@ -82,6 +83,26 @@ export function drawArrow(ctx: CanvasRenderingContext2D, start: Point, end: Poin
   const baseFrac = 1 - actualHeadLen / len
   const baseX = start.x + dx * baseFrac
   const baseY = start.y + dy * baseFrac
+
+  // Filled shafts ignore setLineDash — stroke a dashed shaft and keep a solid head.
+  if (dashed) {
+    ctx.beginPath()
+    ctx.moveTo(start.x, start.y)
+    ctx.lineTo(baseX, baseY)
+    ctx.stroke()
+
+    ctx.save()
+    ctx.setLineDash([])
+    ctx.fillStyle = ctx.strokeStyle
+    ctx.beginPath()
+    ctx.moveTo(baseX + nx * headHalfW, baseY + ny * headHalfW)
+    ctx.lineTo(end.x, end.y)
+    ctx.lineTo(baseX - nx * headHalfW, baseY - ny * headHalfW)
+    ctx.closePath()
+    ctx.fill()
+    ctx.restore()
+    return
+  }
 
   ctx.save()
   ctx.fillStyle = ctx.strokeStyle
@@ -225,6 +246,9 @@ export function drawActionDirect(
   ctx.lineWidth = action.lineWidth
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
+  if (isNonSolidDashStyle(action.dashStyle) && isDashableTool(action.tool)) {
+    ctx.setLineDash(shapeDashPattern(action.lineWidth, action.dashStyle))
+  }
 
   if (action.tool === 'text') {
     drawText(ctx, action)
@@ -250,6 +274,11 @@ export function drawActionDirect(
   switch (action.tool) {
     case 'pen':
     case 'highlighter': {
+      // Non-solid pen: stroke the centerline (ink fill ignores setLineDash).
+      if (action.tool === 'pen' && isNonSolidDashStyle(action.dashStyle)) {
+        drawFreehand(ctx, pts)
+        break
+      }
       let path = pathCache?.get(action)
       if (!path) {
         path = buildInkPath(pts, action.lineWidth, true, action.pointerType)
@@ -287,7 +316,7 @@ export function drawActionDirect(
       drawLine(ctx, pts[0], pts[1])
       break
     case 'arrow':
-      drawArrow(ctx, pts[0], pts[1])
+      drawArrow(ctx, pts[0], pts[1], isNonSolidDashStyle(action.dashStyle))
       break
     case 'rect':
       drawRect(ctx, pts[0], pts[1])

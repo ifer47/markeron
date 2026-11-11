@@ -141,6 +141,7 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 | Action | Effect |
 | :--- | :--- |
 | <kbd>Q</kbd> / <kbd>E</kbd> | Previous / Next color |
+| <kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd> | Cycle solid → dashed → dotted (Shift reverses); pen, line, arrow, rectangle, ellipse |
 | Right-click | Hold to erase; release restores the previous tool |
 
 #### Other

@@ -11,6 +11,9 @@ export type Tool =
   | 'text'
   | 'stamp'
 
+/** Solid → dashed → dotted (D / Shift+D). Omitted on actions means solid. */
+export type StrokeDashStyle = 'solid' | 'dashed' | 'dotted'
+
 export interface Point {
   x: number
   y: number
@@ -53,6 +56,11 @@ export interface DrawAction {
    * mouse (and missing) stay uniform. Persisted with the action for redraw.
    */
   pointerType?: string
+  /**
+   * Stroke dash for pen / line / arrow / rect / ellipse.
+   * Omitted or `solid` = solid; `dashed` / `dotted` use centerline stroke for pen.
+   */
+  dashStyle?: StrokeDashStyle
   attachedErasers?: DrawAction[]
   text?: string
   fontSize?: number

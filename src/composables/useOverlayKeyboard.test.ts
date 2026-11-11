@@ -51,6 +51,7 @@ function createActions(): KeyboardActions & { calls: Record<string, unknown[][]>
     showPenTip: make('showPenTip') as KeyboardActions['showPenTip'],
     cycleCrosshairCursorStyle: make('cycleCrosshairCursorStyle') as KeyboardActions['cycleCrosshairCursorStyle'],
     showCrosshairTip: make('showCrosshairTip') as KeyboardActions['showCrosshairTip'],
+    cycleShapeDash: make('cycleShapeDash') as KeyboardActions['cycleShapeDash'],
     undo: make('undo') as KeyboardActions['undo'],
     redo: make('redo') as KeyboardActions['redo'],
     removeSelected: make('removeSelected') as KeyboardActions['removeSelected'],
@@ -372,6 +373,25 @@ describe('useOverlayKeyboard', () => {
     it('E cycles color forward', () => {
       handler(key('e'))
       expect(actions.calls.cycleColor[0]).toEqual([1])
+    })
+  })
+
+  describe('shape dash cycle', () => {
+    it('D cycles dash style forward', () => {
+      handler(key('d'))
+      expect(actions.calls.cycleShapeDash).toEqual([[1]])
+    })
+
+    it('Shift+D cycles dash style backward', () => {
+      handler(key('d', { shiftKey: true }))
+      expect(actions.calls.cycleShapeDash).toEqual([[-1]])
+    })
+
+    it('ignores Ctrl/Cmd+D', () => {
+      handler(key('d', { ctrlKey: true }))
+      expect(actions.calls.cycleShapeDash).toHaveLength(0)
+      handler(key('d', { metaKey: true }))
+      expect(actions.calls.cycleShapeDash).toHaveLength(0)
     })
   })
 

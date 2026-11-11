@@ -116,6 +116,7 @@ beforeEach(async () => {
       translate: vi.fn(),
       setTransform: vi.fn(),
       setLineDash: vi.fn(),
+      getLineDash: vi.fn(() => []),
       strokeRect: vi.fn(),
       fillRect: vi.fn(),
       fillText: vi.fn(),

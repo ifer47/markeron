@@ -61,8 +61,12 @@ import {
   createDefaultLineWidths,
   eraserLineWidth,
   highlighterLineWidth,
+  isDashableTool,
+  isNonSolidDashStyle,
+  normalizeStrokeDashStyle,
   resolveLineWidths,
   toolLineWidthGroup,
+  type StrokeDashStyle,
   type ToolLineWidths,
 } from '../constants/tools'
 
@@ -103,12 +107,37 @@ export function useDrawing(
   const angleSnapStep = ref(15)
   const eraserMode = ref<EraserMode>('stroke')
   const laserMode = ref<LaserMode>('trail')
+  /** Session stroke dash style for pen / shapes (D / Shift+D). */
+  const shapeDashStyle = ref<StrokeDashStyle>('solid')
 
   /** Live ink buffer needs rebake (declared early for mid-gesture width sync). */
   let inkPreviewDirty = true
 
   function setEraserMode(mode: EraserMode) {
     eraserMode.value = mode
+  }
+
+  function setShapeDashStyle(style: StrokeDashStyle) {
+    const next = normalizeStrokeDashStyle(style)
+    const prevNonSolid = isNonSolidDashStyle(shapeDashStyle.value)
+    shapeDashStyle.value = next
+    const action = currentAction.value
+    if (isDrawing.value && action && isDashableTool(action.tool)) {
+      const nextNonSolid = isNonSolidDashStyle(next)
+      action.dashStyle = nextNonSolid ? next : undefined
+      if (action.tool === 'pen') {
+        if (nextNonSolid && !prevNonSolid) {
+          // Leave the ink buffer; preview switches to dashed/dotted centerline stroke.
+          clearStrokeCanvas()
+        } else if (!nextNonSolid && prevNonSolid) {
+          initStrokeCanvas()
+          inkPreviewDirty = true
+          bakeIncrementalStroke(action)
+        }
+      }
+      previewDirty = true
+      scheduleRender()
+    }
   }
 
   function setLineWidths(widths: Partial<ToolLineWidths> | null | undefined) {
@@ -1078,7 +1107,7 @@ export function useDrawing(
           true,
           laserMode.value === 'writing',
         )
-      } else if (isInkTool(action.tool) && strokeCanvas) {
+      } else if (isInkTool(action.tool) && strokeCanvas && !isNonSolidDashStyle(action.dashStyle)) {
         if (inkPreviewDirty) bakeIncrementalStroke(action)
         drawLiveInk(ctx, action, dpr)
       } else {
@@ -1233,7 +1262,9 @@ export function useDrawing(
       markHistoryStacksChanged()
     }
 
-    const useInkBuffer = isInkTool(currentTool.value)
+    const dashNow =
+      isDashableTool(currentTool.value) && isNonSolidDashStyle(shapeDashStyle.value) ? shapeDashStyle.value : undefined
+    const useInkBuffer = isInkTool(currentTool.value) && !dashNow
     if (useInkBuffer) initStrokeCanvas()
 
     const opacity = currentTool.value === 'highlighter' ? 0.35 : 1
@@ -1254,6 +1285,7 @@ export function useDrawing(
       opacity,
       points: [startPoint],
       pointerType: point.pointerType ?? 'mouse',
+      ...(dashNow ? { dashStyle: dashNow } : {}),
     }
     previewDirty = true
     if (useInkBuffer) {
@@ -1528,7 +1560,7 @@ export function useDrawing(
     // resizeCanvas() clears bitmap state; keep the live ink buffer matched so
     // preview→history commit after a late DPI/geometry pass does not jump.
     const action = currentAction.value
-    if (isDrawing.value && action && isInkTool(action.tool)) {
+    if (isDrawing.value && action && isInkTool(action.tool) && !isNonSolidDashStyle(action.dashStyle)) {
       initStrokeCanvas()
       bakeIncrementalStroke(action)
     } else {
@@ -2165,6 +2197,8 @@ export function useDrawing(
     setEraserMode,
     laserMode,
     setLaserMode,
+    shapeDashStyle,
+    setShapeDashStyle,
     isDrawing,
     /** Active stroke width (for tests / diagnostics); null when not drawing. */
     getActiveStrokeLineWidth: () => currentAction.value?.lineWidth ?? null,

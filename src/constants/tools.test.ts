@@ -6,8 +6,11 @@ import {
   ERASER_WIDTH_SCALE,
   highlighterLineWidth,
   HIGHLIGHTER_WIDTH_SCALE,
+  isDashableTool,
+  nextStrokeDashStyle,
   normalizeLineWidth,
   resolveLineWidths,
+  shapeDashPattern,
   toolLineWidthGroup,
 } from './tools'
 
@@ -53,5 +56,31 @@ describe('line width helpers', () => {
       eraser: DEFAULT_LINE_WIDTH,
       text: DEFAULT_LINE_WIDTH,
     })
+  })
+
+  it('marks pen and geometric shapes as dashable', () => {
+    expect(isDashableTool('pen')).toBe(true)
+    expect(isDashableTool('line')).toBe(true)
+    expect(isDashableTool('arrow')).toBe(true)
+    expect(isDashableTool('rect')).toBe(true)
+    expect(isDashableTool('ellipse')).toBe(true)
+    expect(isDashableTool('highlighter')).toBe(false)
+    expect(isDashableTool('laser')).toBe(false)
+  })
+
+  it('scales dash pattern with stroke width', () => {
+    expect(shapeDashPattern(3)).toEqual([12, 9])
+    expect(shapeDashPattern(0)).toEqual([4, 3])
+    expect(shapeDashPattern(3, 'dotted')[0]).toBe(0.01)
+    expect(shapeDashPattern(3, 'dotted')[1]).toBeGreaterThan(shapeDashPattern(3, 'dotted')[0])
+  })
+
+  it('cycles stroke dash styles forward and backward', () => {
+    expect(nextStrokeDashStyle('solid', 1)).toBe('dashed')
+    expect(nextStrokeDashStyle('dashed', 1)).toBe('dotted')
+    expect(nextStrokeDashStyle('dotted', 1)).toBe('solid')
+    expect(nextStrokeDashStyle('solid', -1)).toBe('dotted')
+    expect(nextStrokeDashStyle('dotted', -1)).toBe('dashed')
+    expect(nextStrokeDashStyle('dashed', -1)).toBe('solid')
   })
 })

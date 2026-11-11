@@ -24,6 +24,7 @@ function createMockCanvas(): HTMLCanvasElement {
     translate: vi.fn(),
     setTransform: vi.fn(),
     setLineDash: vi.fn(),
+    getLineDash: vi.fn(() => []),
     strokeRect: vi.fn(),
     fillRect: vi.fn(),
     fillText: vi.fn(),
@@ -178,6 +179,38 @@ describe('useDrawing', () => {
       // Verify undo works (action was recorded correctly)
       drawing.undo()
       drawing.redo()
+    })
+
+    it('records dash style on dashable tools and ignores it for highlighter', () => {
+      drawing.setShapeDashStyle('dashed')
+
+      drawing.currentTool.value = 'line'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 100, y: 0 })
+      drawing.endDraw()
+      expect(drawing.findActionAt({ x: 50, y: 0 })!.action.dashStyle).toBe('dashed')
+
+      drawing.setShapeDashStyle('dotted')
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 20 })
+      drawing.draw({ x: 40, y: 20 })
+      drawing.endDraw()
+      expect(drawing.findActionAt({ x: 20, y: 20 })!.action.dashStyle).toBe('dotted')
+
+      drawing.currentTool.value = 'highlighter'
+      drawing.startDraw({ x: 0, y: 40 })
+      drawing.draw({ x: 40, y: 40 })
+      drawing.endDraw()
+      expect(drawing.findActionAt({ x: 20, y: 40 })!.action.dashStyle).toBeUndefined()
+    })
+
+    it('can change dash style mid-gesture on a shape', () => {
+      drawing.currentTool.value = 'rect'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 40, y: 30 })
+      drawing.setShapeDashStyle('dotted')
+      drawing.endDraw()
+      expect(drawing.findActionAt({ x: 10, y: 10 })!.action.dashStyle).toBe('dotted')
     })
 
     it('cancelDraw discards in-progress stroke without adding to history', () => {

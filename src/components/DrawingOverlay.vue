@@ -28,7 +28,15 @@ import {
 import type { AppConfig } from '../types/app'
 import { applyTheme, watchSystemTheme, type ThemePreference } from '../composables/useAppTheme'
 import TextBox from './TextBox.vue'
-import { TOOL_ICON_MAP, WIDTH_PRESETS, eraserLineWidth, resolveLineWidths } from '../constants/tools'
+import {
+  TOOL_ICON_MAP,
+  WIDTH_PRESETS,
+  eraserLineWidth,
+  isDashableTool,
+  nextStrokeDashStyle,
+  resolveLineWidths,
+  type StrokeDashStyle,
+} from '../constants/tools'
 import {
   cycleStampKind as cycleStampKindState,
   getStampKind,
@@ -323,6 +331,8 @@ const {
   eraserMode,
   setEraserMode,
   setLaserMode,
+  shapeDashStyle,
+  setShapeDashStyle,
   isDrawing,
   startDraw,
   draw,
@@ -1704,6 +1714,24 @@ async function cycleCrosshairCursorStyle(reason: 'keyboard' | 'toolbar' = 'keybo
   }
 }
 
+function shapeDashTipLabel(style: StrokeDashStyle) {
+  if (style === 'dashed') return t('tools.strokeDashed')
+  if (style === 'dotted') return t('tools.strokeDotted')
+  return t('tools.strokeSolid')
+}
+
+function showShapeDashTip() {
+  showTip(shapeDashTipLabel(shapeDashStyle.value))
+}
+
+function cycleShapeDash(direction: 1 | -1 = 1, reason: 'keyboard' = 'keyboard') {
+  if (!isDashableTool(currentTool.value)) return
+  const next = nextStrokeDashStyle(shapeDashStyle.value, direction)
+  setShapeDashStyle(next)
+  showShapeDashTip()
+  logActionEvent('shape dash cycled', { style: next, direction, reason })
+}
+
 function resetStampCounter() {
   const label = resetActiveStampCounter()
   showTip(t('tools.stampReset', { label }))
@@ -1743,6 +1771,7 @@ const onKeyDown = createKeyDownHandler(
     showPenTip,
     cycleCrosshairCursorStyle,
     showCrosshairTip,
+    cycleShapeDash,
     undo,
     redo,
     removeSelected: () => {

@@ -48,6 +48,8 @@ export interface KeyboardActions {
   cycleCrosshairCursorStyle?: () => void
   /** Tip for shape/laser including current crosshair style. */
   showCrosshairTip?: () => void
+  /** Cycle solid → dashed → dotted (D) or reverse (Shift+D). */
+  cycleShapeDash?: (direction: 1 | -1) => void
   undo: () => void
   redo: () => void
   removeSelected?: () => void
@@ -188,6 +190,14 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     if (e.key === 'e' || e.key === 'E') {
       logActionEvent('color cycled', { reason: 'keyboard', direction: 1 })
       actions.cycleColor(1)
+      return
+    }
+
+    // Stroke dash cycle (pen, line, arrow, rect, ellipse): D forward, Shift+D reverse.
+    // Ignore Ctrl/Meta so we don't steal OS chords (e.g. ⌘D / Ctrl+D).
+    // Non-dashable tools no-op inside cycleShapeDash (no tip).
+    if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      actions.cycleShapeDash?.(e.shiftKey ? -1 : 1)
       return
     }
 

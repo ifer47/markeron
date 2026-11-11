@@ -636,6 +636,10 @@ onUnmounted(() => {
                   <kbd class="help-kbd">3</kbd>–<kbd class="help-kbd">6</kbd>/<kbd class="help-kbd">8</kbd>
                 </div>
               </div>
+              <div class="help-row">
+                <HelpTruncateLabel :text="t('help.shapeDashHint')" />
+                <div class="help-keys"><kbd class="help-kbd">D</kbd> / <kbd class="help-kbd">Shift+D</kbd></div>
+              </div>
             </div>
           </div>
 

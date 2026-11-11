@@ -7,12 +7,12 @@ const { t } = useI18n()
 
 const APP_VERSION = __APP_VERSION__
 
-const CLICKS_NEEDED = 3
+const CLICKS_NEEDED = 1
 const CLICK_WINDOW_MS = 3000
 const SHAKE_MS = 480
-const UNROLL_MS = 650
+const UNROLL_MS = 560
 const HOLD_AFTER_SCROLL_MS = 2000
-const CLOSE_MS = 500
+const CLOSE_MS = 420
 
 type Phase = 'idle' | 'shake' | 'unroll' | 'scroll' | 'close'
 
@@ -28,10 +28,6 @@ const creditSections = computed(() => [
     emptyText: t('settings.creditsRoll.sponsorsEmpty'),
   },
 ])
-
-function formatSponsorPlan(plan: string) {
-  return plan.replace(/^⭐\s*/, '').trim()
-}
 
 const clickTimestamps: number[] = []
 let timers: ReturnType<typeof setTimeout>[] = []
@@ -189,11 +185,77 @@ onUnmounted(() => {
       role="presentation"
       aria-hidden="true"
     >
-      <div class="settings-sidebar-credits__rod" />
       <div class="settings-sidebar-credits__body">
+        <svg
+          class="settings-sidebar-credits__doodle settings-sidebar-credits__doodle--tl"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M7 15c-3.2-1.4-4.6-4.8-2.8-7.2 1.6-2.2 5-2.6 6.6-.4"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <svg
+          class="settings-sidebar-credits__doodle settings-sidebar-credits__doodle--tr"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M4 8c3.5-3.8 11-3.2 14 1.4M16.5 6.5c1.2 1.4 1.6 3.2.8 4.6"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <svg
+          class="settings-sidebar-credits__doodle settings-sidebar-credits__doodle--bl"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M7 6v10c0 1.2.8 2 2.2 2H17M9.5 14.5l-2.8 3.2"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <svg
+          class="settings-sidebar-credits__doodle settings-sidebar-credits__doodle--br"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M18 8c2.8 2.2 2.6 7.4-1.2 9.2-2.4 1.2-5.2.4-6-1.4"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+
         <div ref="viewportRef" class="settings-sidebar-credits__viewport">
           <div ref="trackRef" class="settings-sidebar-credits__track">
-            <p class="settings-sidebar-credits__title">{{ t('settings.creditsRoll.title') }}</p>
+            <p class="settings-sidebar-credits__title">
+              <span>{{ t('settings.creditsRoll.title') }}</span>
+              <svg class="settings-sidebar-credits__title-mark" viewBox="0 0 48 12" fill="none" aria-hidden="true">
+                <path
+                  d="M2 7.5c6.5-2.2 12.5-3.4 19-3.2 7.2.2 14.2 1.8 25 4.2"
+                  stroke="currentColor"
+                  stroke-width="3.4"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </p>
 
             <div v-for="(section, index) in creditSections" :key="index" class="settings-sidebar-credits__section">
               <template v-if="section.kind === 'sponsors'">
@@ -204,23 +266,24 @@ onUnmounted(() => {
                     class="settings-sidebar-credits__sponsor"
                   >
                     <span class="settings-sidebar-credits__sponsor-name">{{ sponsor.name }}</span>
-                    <span
-                      v-if="sponsor.plan && formatSponsorPlan(sponsor.plan)"
-                      class="settings-sidebar-credits__sponsor-meta"
-                    >
-                      {{ formatSponsorPlan(sponsor.plan) }}
-                    </span>
                   </div>
                 </template>
                 <p v-else class="settings-sidebar-credits__name">{{ section.emptyText }}</p>
               </template>
             </div>
 
-            <p class="settings-sidebar-credits__closing">{{ t('settings.creditsRoll.closing') }}</p>
+            <p class="settings-sidebar-credits__closing">
+              <span>{{ t('settings.creditsRoll.closing') }}</span>
+              <span class="settings-sidebar-credits__ink" aria-hidden="true">
+                <span class="settings-sidebar-credits__ink-dot"></span>
+                <span class="settings-sidebar-credits__ink-dot"></span>
+                <span class="settings-sidebar-credits__ink-dot"></span>
+                <span class="settings-sidebar-credits__ink-dot"></span>
+              </span>
+            </p>
           </div>
         </div>
       </div>
-      <div class="settings-sidebar-credits__rod" />
     </div>
   </div>
 </template>

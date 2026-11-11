@@ -55,6 +55,7 @@ winget install --id 9N6623X973JV --source msstore
 - **Lightweight & fast** — ~1.5 MB installer (Rust + Canvas), minimal memory; runs quietly in the system tray (no extra daemons or telemetry)
 - **Annotate anywhere** — draw over any app, including the taskbar
 - **11 tools** — select, pen, highlighter, laser, arrow, rectangle, ellipse, line, eraser, text, stamp
+- **Stroke styles** — press <kbd>D</kbd> to cycle solid → dashed → dotted (<kbd>Shift</kbd>+<kbd>D</kbd> reverses) for pen, line, arrow, rectangle, and ellipse
 - **Marquee batch edit** — press <kbd>V</kbd> for Select: box/click select, group drag, <kbd>Delete</kbd> to remove
 - **Flexible toolbar** — press <kbd>Space</kbd> to toggle, or enable **always-on** in Settings; compact panel with **Expand** for full options, undo, copy, and whiteboard actions in-panel; **independent floating window** with drawing / click-through toggles
 - **Click-through mode** — interact with apps below while staying in the session; toggle via toolbar buttons, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> (global), or <kbd>X</kbd> while drawing; disabled in whiteboard mode
@@ -110,6 +111,7 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 | Whiteboard toggle | <kbd>W</kbd> | <kbd>W</kbd> |
 | Undo / Redo | <kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> | <kbd>Command</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> |
 | Stroke width | <kbd>Ctrl</kbd> + Scroll | <kbd>Command</kbd> + Scroll (pen, laser & shapes share; highlighter/eraser/text separate) |
+| Stroke style (solid / dashed / dotted) | <kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd> | <kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd> (pen, line, arrow, rect, ellipse) |
 | Exit | <kbd>Esc</kbd> | <kbd>Esc</kbd> |
 
 <details>
@@ -136,7 +138,7 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 | Double-click existing text | Re-enter **edit mode** for that text |
 | Double-click empty area in <kbd>T</kbd> mode | Create a new text input at cursor position |
 
-#### Color Switching
+#### Color & Stroke Style
 
 | Action | Effect |
 | :--- | :--- |

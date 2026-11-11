@@ -55,6 +55,7 @@ winget install --id 9N6623X973JV --source msstore
 - **轻量高效** — 安装包仅 ~1.5 MB（Rust + Canvas），内存占用极低；托盘静默运行（无多余服务、无遥测）
 - **随处标注** — 在任何应用上方绘制，覆盖全屏包括任务栏
 - **11 种工具** — 选择、画笔、荧光笔、激光笔、箭头、矩形、椭圆、直线、橡皮擦、文字、序号
+- **线型切换** — 按 <kbd>D</kbd> 循环实线 → 虚线 → 点线（<kbd>Shift</kbd>+<kbd>D</kbd> 反向），适用于画笔、直线、箭头、矩形、椭圆
 - **框选批量编辑** — <kbd>V</kbd> 进入选择：框选 / 点选后整组拖动，<kbd>Delete</kbd> 批量删除
 - **灵活工具栏** — 按 <kbd>Space</kbd> 呼出，或在设置中**常驻显示**；紧凑面板，点「展开」查看完整选项，面板内可撤销、复制、切换白板；**独立浮动窗口**，含绘制 / 穿透模式切换按钮
 - **穿透模式** — 标注会话中可点击下层应用；工具栏按钮、<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>（全局）或 <kbd>X</kbd>（绘制中）切换；白板模式下不可用
@@ -110,6 +111,7 @@ winget install --id 9N6623X973JV --source msstore
 | 白板模式切换 | <kbd>W</kbd> | <kbd>W</kbd> |
 | 撤销 / 重做 | <kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> | <kbd>Command</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> |
 | 调整线宽 | <kbd>Ctrl</kbd> + 滚轮 | <kbd>Command</kbd> + 滚轮（画笔、激光笔与形状共用；荧光笔/橡皮擦/文字各自独立） |
+| 线型（实线 / 虚线 / 点线） | <kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd> | <kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd>（画笔、直线、箭头、矩形、椭圆） |
 | 退出标注 | <kbd>Esc</kbd> | <kbd>Esc</kbd> |
 
 <details>
@@ -136,11 +138,12 @@ winget install --id 9N6623X973JV --source msstore
 | 双击已有文字 | 重新进入该文字的**编辑模式** |
 | <kbd>T</kbd> 模式下双击空白处 | 在光标位置新建文字输入框 |
 
-#### 颜色切换
+#### 颜色与线型
 
 | 操作 | 功能 |
 | :--- | :--- |
 | <kbd>Q</kbd> / <kbd>E</kbd> | 上一个 / 下一个颜色 |
+| <kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd> | 循环实线 → 虚线 → 点线（Shift 反向）；适用于画笔、直线、箭头、矩形、椭圆 |
 | 鼠标右键 | 按住擦除，松开恢复原工具 |
 
 #### 其他

@@ -14,7 +14,7 @@ Source: https://github.com/ifer47/markeron
 
 MarkerOn waits in the system tray instead of opening a conventional main window. `Ctrl+Shift+D` on Windows or `Command+Shift+D` on macOS opens the transparent annotation layer.
 
-Number keys select pen, highlighter, arrow, rectangle, ellipse, line, eraser, and laser. `T` selects text, `N` selects stamp (press again to toggle digits/letters), `Q/E` cycles colors, `Ctrl/Command + wheel` changes width, and `Space` reveals the toolbar.
+Number keys select pen, highlighter, arrow, rectangle, ellipse, line, eraser, and laser. `T` selects text, `N` selects stamp (press again to toggle digits/letters), `Q/E` cycles colors, `D` cycles solid / dashed / dotted, `Ctrl/Command + wheel` changes width, and `Space` reveals the toolbar.
 
 Keyboard-first controls are not a novelty here. During a presentation, moving the pointer away from the subject to search through a toolbar makes the audience lose the thread. The shortcuts keep the interface out of the way until it is needed.
 

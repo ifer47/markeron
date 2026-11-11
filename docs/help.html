@@ -367,6 +367,12 @@
               </span>
             </div>
             <div class="help-shortcut-row" role="row">
+              <span class="help-shortcut-label" role="cell" data-i18n="helpPage.session.dash">Stroke style</span>
+              <span class="help-shortcut-keys" role="cell" data-i18n-html="helpPage.session.dashKeys">
+                <kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd>
+              </span>
+            </div>
+            <div class="help-shortcut-row" role="row">
               <span class="help-shortcut-label" role="cell" data-i18n="helpPage.session.copy">Copy screen</span>
               <span class="help-shortcut-keys" role="cell" data-i18n-html="helpPage.session.copyKeys">
                 <span class="kbd-combo"><kbd>Ctrl</kbd><span class="kbd-plus" aria-hidden="true">+</span><kbd>C</kbd></span>
@@ -378,6 +384,9 @@
           <p class="help-note t-scroll-reveal" data-i18n="helpPage.session.widthHint">
             Pen, laser, arrow, rectangle, ellipse, and line share one width; highlighter, eraser, and text each have their own.
           </p>
+          <p class="help-note t-scroll-reveal" data-i18n="helpPage.session.dashHint">
+            Cycle solid → dashed → dotted for pen, line, arrow, rectangle, and ellipse. Shift+D reverses.
+          </p>
         </div>
       </section>
 
@@ -387,7 +396,7 @@
             <p class="help-section-eyebrow" data-i18n="helpPage.draw.eyebrow">04</p>
             <h2 id="draw-title" data-i18n="helpPage.draw.title">Drawing modifiers, colors &amp; whiteboard</h2>
             <p class="help-section-lead" data-i18n="helpPage.draw.lead">
-              Hold modifiers while dragging to snap shapes. Cycle colors without leaving the canvas.
+              Hold modifiers while dragging to snap shapes. Cycle colors and stroke styles without leaving the canvas.
             </p>
           </div>
 
@@ -447,12 +456,18 @@
 
             <div class="help-draw-stack help-draw-stack--right">
               <div class="help-panel t-scroll-reveal" data-reveal-delay="1">
-                <h3 data-i18n="helpPage.draw.colorsTitle">Colors</h3>
+                <h3 data-i18n="helpPage.draw.colorsTitle">Colors &amp; stroke style</h3>
                 <div class="help-mini-table" role="table">
                   <div class="help-shortcut-row" role="row">
                     <span class="help-shortcut-label" role="cell" data-i18n="helpPage.draw.colorsPrevNext">Prev / next color</span>
                     <span class="help-shortcut-keys" role="cell" data-i18n-html="helpPage.draw.colorsKeys">
                       <kbd>Q</kbd> / <kbd>E</kbd>
+                    </span>
+                  </div>
+                  <div class="help-shortcut-row" role="row">
+                    <span class="help-shortcut-label" role="cell" data-i18n="helpPage.draw.dashStyle">Stroke style</span>
+                    <span class="help-shortcut-keys" role="cell" data-i18n-html="helpPage.draw.dashKeys">
+                      <kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd>
                     </span>
                   </div>
                   <div class="help-shortcut-row" role="row">

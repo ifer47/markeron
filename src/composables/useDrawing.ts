@@ -7,7 +7,9 @@ import {
   computeStampBbox,
   bboxesIntersect,
   cloneActionWithOffset,
+  getShapeRotation,
   offsetAttachedErasers,
+  rotatePointAround,
   updateShapeHitCache,
   hitTestAction,
   snapPointToAngle,
@@ -17,10 +19,12 @@ import {
   aspectRatioOfBounds,
   getActionReshapeBounds,
   getReshapeHandles,
+  selectionFrameBounds,
   hitTestReshapeHandle,
   isInkReshapeTool,
   isReshapeableTool,
   RESHAPE_HANDLE_HALF,
+  RESHAPE_ROTATE_HANDLE_OFFSET,
   type ReshapeBounds,
   type ReshapeHandle,
   type ReshapeHandleId,
@@ -213,6 +217,7 @@ export function useDrawing(
     bbox: DrawAction['bbox']
     rectHit: DrawAction['rectHit']
     ellipseHit: DrawAction['ellipseHit']
+    rotation?: number
   }
 
   type UndoEntry =
@@ -247,6 +252,7 @@ export function useDrawing(
       bbox: action.bbox ? { ...action.bbox } : undefined,
       rectHit: action.rectHit ? { ...action.rectHit } : undefined,
       ellipseHit: action.ellipseHit ? { ...action.ellipseHit } : undefined,
+      rotation: action.rotation,
     }
   }
 
@@ -256,6 +262,8 @@ export function useDrawing(
     action.bbox = snap.bbox ? { ...snap.bbox } : undefined
     action.rectHit = snap.rectHit ? { ...snap.rectHit } : undefined
     action.ellipseHit = snap.ellipseHit ? { ...snap.ellipseHit } : undefined
+    if (snap.rotation != null) action.rotation = snap.rotation
+    else delete action.rotation
     pathCache.delete(action)
   }
 
@@ -494,6 +502,8 @@ export function useDrawing(
   let reshapeOriginEraserPoints: Point[][] | null = null
   let reshapeOriginBounds: ReshapeBounds | null = null
   let reshapeOriginAspect = 1
+  let reshapeOriginRotation = 0
+  let reshapeRotateStartAngle = 0
   let tempCanvas: HTMLCanvasElement | null = null
   let tempCtx: CanvasRenderingContext2D | null = null
   const pathCache = new WeakMap<DrawAction, Path2D>()
@@ -794,11 +804,27 @@ export function useDrawing(
     ctx.strokeStyle = 'rgba(0, 122, 255, 0.95)'
 
     for (const action of selected) {
-      const bbox = resolveActionBbox(action)
-      if (!bbox) continue
       const ox = draggingSet.has(action) && !reshapingAction ? dx : 0
       const oy = draggingSet.has(action) && !reshapingAction ? dy : 0
-      ctx.strokeRect(bbox.x1 + ox, bbox.y1 + oy, bbox.x2 - bbox.x1, bbox.y2 - bbox.y1)
+      // Corner handles sit on geometric bounds. The dashed frame must share that
+      // box so its stroke runs through the handle centers. The padded hit bbox is
+      // for picking only and would leave the frame outside the four handles.
+      const localBounds = selectionFrameBounds(action)
+      if (localBounds) {
+        const rot = getShapeRotation(action)
+        const cx = (localBounds.x0 + localBounds.x1) / 2
+        const cy = (localBounds.y0 + localBounds.y1) / 2
+        ctx.save()
+        ctx.translate(cx + ox, cy + oy)
+        if (rot !== 0) ctx.rotate(rot)
+        ctx.translate(-cx, -cy)
+        ctx.strokeRect(localBounds.x0, localBounds.y0, localBounds.x1 - localBounds.x0, localBounds.y1 - localBounds.y0)
+        ctx.restore()
+      } else {
+        const bbox = resolveActionBbox(action)
+        if (!bbox) continue
+        ctx.strokeRect(bbox.x1 + ox, bbox.y1 + oy, bbox.x2 - bbox.x1, bbox.y2 - bbox.y1)
+      }
     }
 
     // Reshape handles: single selected reshapeable shape only.
@@ -807,15 +833,38 @@ export function useDrawing(
       const ox = draggingSet.has(action) && !reshapingAction ? dx : 0
       const oy = draggingSet.has(action) && !reshapingAction ? dy : 0
       const half = RESHAPE_HANDLE_HALF
+      const handles = getReshapeHandles(action)
       ctx.setLineDash([])
       ctx.lineWidth = 1
-      for (const h of getReshapeHandles(action)) {
+      // Stem from top-mid to rotate handle
+      const rotateHandle = handles.find((h) => h.id === 'rotate')
+      const bounds = getActionReshapeBounds(action)
+      if (rotateHandle && bounds) {
+        const rot = getShapeRotation(action)
+        const cx = (bounds.x0 + bounds.x1) / 2
+        const cy = (bounds.y0 + bounds.y1) / 2
+        const topMid = rotatePointAround({ x: cx, y: bounds.y0 }, cx, cy, rot)
+        ctx.beginPath()
+        ctx.strokeStyle = 'rgba(0, 122, 255, 0.75)'
+        ctx.moveTo(topMid.x + ox, topMid.y + oy)
+        ctx.lineTo(rotateHandle.x + ox, rotateHandle.y + oy)
+        ctx.stroke()
+      }
+      for (const h of handles) {
         const hx = h.x + ox
         const hy = h.y + oy
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
         ctx.strokeStyle = 'rgba(0, 122, 255, 0.95)'
-        ctx.fillRect(hx - half, hy - half, half * 2, half * 2)
-        ctx.strokeRect(hx - half, hy - half, half * 2, half * 2)
+        if (h.id === 'rotate') {
+          const r = half + 1.5
+          ctx.beginPath()
+          ctx.arc(hx, hy, r, 0, Math.PI * 2)
+          ctx.fill()
+          ctx.stroke()
+        } else {
+          ctx.fillRect(hx - half, hy - half, half * 2, half * 2)
+          ctx.strokeRect(hx - half, hy - half, half * 2, half * 2)
+        }
       }
     }
 
@@ -1730,6 +1779,8 @@ export function useDrawing(
     reshapeOriginEraserPoints = null
     reshapeOriginBounds = null
     reshapeOriginAspect = 1
+    reshapeOriginRotation = 0
+    reshapeRotateStartAngle = 0
   }
 
   function restoreReshapeOriginGeometry(action: DrawAction) {
@@ -1755,6 +1806,10 @@ export function useDrawing(
         }
       }
     }
+    if (action.tool === 'rect' || action.tool === 'ellipse') {
+      if (Math.abs(reshapeOriginRotation) < 1e-10) delete action.rotation
+      else action.rotation = reshapeOriginRotation
+    }
   }
 
   /** Abandon an in-progress drag / reshape without committing (e.g. Delete mid-gesture). */
@@ -1776,7 +1831,7 @@ export function useDrawing(
     flushRender()
   }
 
-  function beginReshape(action: DrawAction, handleId: ReshapeHandleId) {
+  function beginReshape(action: DrawAction, handleId: ReshapeHandleId, pointer?: Point) {
     if (history.indexOf(action) === -1) return
     if (!isReshapeableTool(action.tool)) return
     if (action.points.length < 2) return
@@ -1792,6 +1847,16 @@ export function useDrawing(
     reshapeOriginEraserPoints = action.attachedErasers?.map((ae) => ae.points.map(clonePoint)) ?? null
     reshapeOriginBounds = getActionReshapeBounds(action)
     reshapeOriginAspect = reshapeOriginBounds ? aspectRatioOfBounds(reshapeOriginBounds) : 1
+    reshapeOriginRotation = getShapeRotation(action)
+    if (handleId === 'rotate' && reshapeOriginBounds) {
+      const cx = (reshapeOriginBounds.x0 + reshapeOriginBounds.x1) / 2
+      const cy = (reshapeOriginBounds.y0 + reshapeOriginBounds.y1) / 2
+      const px = pointer?.x ?? cx
+      const py = pointer?.y ?? reshapeOriginBounds.y0 - RESHAPE_ROTATE_HANDLE_OFFSET
+      reshapeRotateStartAngle = Math.atan2(py - cy, px - cx)
+    } else {
+      reshapeRotateStartAngle = 0
+    }
     draggingActions = [action]
     draggingSet = new Set([action])
     previewAction.value = action
@@ -1811,6 +1876,8 @@ export function useDrawing(
       originAspect: reshapeOriginAspect,
       originBounds: reshapeOriginBounds ?? undefined,
       angleSnapStep: angleSnapStep.value,
+      originRotation: reshapeOriginRotation,
+      rotateStartAngle: reshapeRotateStartAngle,
     })
     pathCache.delete(reshapingAction)
     if (reshapingAction.attachedErasers) {
@@ -1840,7 +1907,8 @@ export function useDrawing(
 
     const changed =
       before.points.length !== action.points.length ||
-      before.points.some((pt, i) => pt.x !== action.points[i].x || pt.y !== action.points[i].y)
+      before.points.some((pt, i) => pt.x !== action.points[i].x || pt.y !== action.points[i].y) ||
+      (before.rotation ?? 0) !== (action.rotation ?? 0)
 
     // Geometric shapes: attachments no longer match after a real corner rewrite.
     // Only clear when geometry actually changed — a zero-move handle click must not drop erasers.

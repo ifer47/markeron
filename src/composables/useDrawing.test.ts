@@ -22,6 +22,7 @@ function createMockCanvas(): HTMLCanvasElement {
     quadraticCurveTo: vi.fn(),
     scale: vi.fn(),
     translate: vi.fn(),
+    rotate: vi.fn(),
     setTransform: vi.fn(),
     setLineDash: vi.fn(),
     getLineDash: vi.fn(() => []),
@@ -981,6 +982,30 @@ describe('useDrawing', () => {
 
       drawing.setSelection([a])
       expect(drawing.findReshapeHandleAt({ x: 10, y: 10 })?.id).toBe('tl')
+    })
+
+    it('rotate handle turns a rect and supports undo', () => {
+      // Non-square so 90° rotation clearly changes which edges are hittable.
+      addRect(0, 0, 100, 40)
+      const rect = drawing.findActionAt({ x: 0, y: 0 })!.action
+      drawing.setSelection([rect])
+
+      const rotate = drawing.findReshapeHandleAt({ x: 50, y: -28 })
+      expect(rotate?.id).toBe('rotate')
+
+      drawing.beginReshape(rect, 'rotate', { x: 50, y: -28 })
+      drawing.updateReshape({ x: 100, y: 20 }, false)
+      drawing.endReshape()
+
+      expect(rect.rotation).toBeCloseTo(Math.PI / 2, 5)
+      expect(rect.points[0]).toMatchObject({ x: 0, y: 0 })
+      expect(rect.points[1]).toMatchObject({ x: 100, y: 40 })
+      // Left mid of the unrotated rect misses; the rotated left edge sits near (50, -30).
+      expect(drawing.findActionAt({ x: 0, y: 20 })).toBeNull()
+      expect(drawing.findActionAt({ x: 50, y: -30 })).toBeTruthy()
+
+      drawing.undo()
+      expect(rect.rotation ?? 0).toBe(0)
     })
 
     it('reshape pen bbox scales points and keeps attached erasers undoably', () => {

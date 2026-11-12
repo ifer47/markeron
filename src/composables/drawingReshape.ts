@@ -1,7 +1,7 @@
 import type { DrawAction, Point, Tool } from './drawingTypes'
-import { snapPointToAngle } from './drawingGeometry'
+import { getShapeRotation, rotatePointAround, rotatePointsInPlace, snapPointToAngle } from './drawingGeometry'
 
-export type ReshapeHandleId = 'p0' | 'p1' | 'tl' | 'tr' | 'br' | 'bl'
+export type ReshapeHandleId = 'p0' | 'p1' | 'tl' | 'tr' | 'br' | 'bl' | 'rotate'
 
 export interface ReshapeHandle {
   id: ReshapeHandleId
@@ -14,14 +14,18 @@ export interface ReshapeHandle {
 export type ReshapeBounds = { x0: number; y0: number; x1: number; y1: number }
 
 export interface ReshapeApplyOptions {
-  /** Shift held: aspect lock for corners, angle snap for line/arrow endpoints. */
+  /** Shift held: aspect lock for corners, angle snap for line/arrow endpoints / rotate. */
   constrain?: boolean
   /** width/height at gesture start (corners only). */
   originAspect?: number
   /** Bounds at gesture start — corner/ink transforms are computed from this box. */
   originBounds?: ReshapeBounds
-  /** Degrees; used when constraining line/arrow endpoints. */
+  /** Degrees; used when constraining line/arrow endpoints or rotation. */
   angleSnapStep?: number
+  /** Rotation (radians) at gesture start — rect/ellipse rotate handle. */
+  originRotation?: number
+  /** atan2 from center to pointer at gesture start — rotate handle. */
+  rotateStartAngle?: number
 }
 
 /** Hit radius in CSS pixels — larger than typical stroke hit so handles win over move. */
@@ -29,6 +33,9 @@ export const RESHAPE_HANDLE_HIT_RADIUS = 10
 
 /** Visual half-size of the square handle (CSS px). */
 export const RESHAPE_HANDLE_HALF = 4
+
+/** Distance from the top edge midpoint to the rotate handle (local/CSS px). */
+export const RESHAPE_ROTATE_HANDLE_OFFSET = 28
 
 /** Minimum bbox edge after ink/corner scale so the stroke does not collapse. */
 export const RESHAPE_MIN_SIZE = 1
@@ -61,7 +68,16 @@ export function getPointsBounds(pts: Point[]): ReshapeBounds | null {
   return { x0, y0, x1, y1 }
 }
 
-/** Axis-aligned bounds used for corner handles / aspect lock. */
+/**
+ * Box the dashed selection frame shares with the four corner handles.
+ * Line and arrow use endpoint handles, so they keep the padded hit bbox.
+ */
+export function selectionFrameBounds(action: DrawAction): ReshapeBounds | null {
+  if (action.tool !== 'rect' && action.tool !== 'ellipse' && !isInkReshapeTool(action.tool)) return null
+  return getActionReshapeBounds(action)
+}
+
+/** Axis-aligned bounds used for corner handles / aspect lock (local space for rotated shapes). */
 export function getActionReshapeBounds(action: DrawAction): ReshapeBounds | null {
   const pts = action.points
   if (pts.length < 2) return null
@@ -93,6 +109,26 @@ function cornerHandles(x0: number, y0: number, x1: number, y1: number): ReshapeH
     { id: 'br', x: x1, y: y1, cursor: 'nwse-resize' },
     { id: 'bl', x: x0, y: y1, cursor: 'nesw-resize' },
   ]
+}
+
+function rotateHandleForBounds(b: ReshapeBounds, rotation = 0): ReshapeHandle {
+  const cx = (b.x0 + b.x1) / 2
+  const cy = (b.y0 + b.y1) / 2
+  const local = { x: cx, y: b.y0 - RESHAPE_ROTATE_HANDLE_OFFSET }
+  const world = rotatePointAround(local, cx, cy, rotation)
+  return { id: 'rotate', x: world.x, y: world.y, cursor: 'grab' }
+}
+
+/** Map local-space handles into world space when the shape has rotation. */
+function mapHandlesToWorld(handles: ReshapeHandle[], b: ReshapeBounds, rotation: number): ReshapeHandle[] {
+  if (!rotation) return handles
+  const cx = (b.x0 + b.x1) / 2
+  const cy = (b.y0 + b.y1) / 2
+  return handles.map((h) => {
+    if (h.id === 'rotate') return h
+    const world = rotatePointAround({ x: h.x, y: h.y }, cx, cy, rotation)
+    return { ...h, x: world.x, y: world.y }
+  })
 }
 
 export function oppositeCorner(bounds: ReshapeBounds, handleId: ReshapeHandleId): Point {
@@ -182,15 +218,20 @@ export function getReshapeHandles(action: DrawAction): ReshapeHandle[] {
   if (pts.length < 2) return []
 
   if (action.tool === 'line' || action.tool === 'arrow') {
+    const b = getPointsBounds(pts)
+    if (!b) return []
     return [
       { id: 'p0', x: pts[0].x, y: pts[0].y, cursor: 'grab' },
       { id: 'p1', x: pts[1].x, y: pts[1].y, cursor: 'grab' },
+      rotateHandleForBounds(b, 0),
     ]
   }
 
   const b = getActionReshapeBounds(action)
   if (!b) return []
-  return cornerHandles(b.x0, b.y0, b.x1, b.y1)
+  const rot = getShapeRotation(action)
+  const handles = [...cornerHandles(b.x0, b.y0, b.x1, b.y1), rotateHandleForBounds(b, rot)]
+  return mapHandlesToWorld(handles, b, rot)
 }
 
 export function hitTestReshapeHandle(
@@ -225,10 +266,24 @@ function resolveCornerFreePoint(
   return aspectLockedFreePoint(fixed, p, aspect)
 }
 
+function snapRotationDelta(
+  originRotation: number,
+  delta: number,
+  constrain: boolean | undefined,
+  angleSnapStep: number | undefined,
+): number {
+  if (!constrain) return delta
+  const stepDeg = angleSnapStep != null && Number.isFinite(angleSnapStep) && angleSnapStep > 0 ? angleSnapStep : 15
+  const step = (Math.PI / 180) * stepDeg
+  const total = originRotation + delta
+  const snapped = Math.round(total / step) * step
+  return snapped - originRotation
+}
+
 /**
- * Mutate `action.points` (and ink `attachedErasers`) for the given handle drag.
- * For corner/ink transforms, pass `originBounds` and restore points to the gesture-start
- * geometry before calling so Shift can toggle mid-drag without drift.
+ * Mutate `action.points` / `rotation` (and ink `attachedErasers`) for the given handle drag.
+ * For corner/ink/rotate transforms, pass `originBounds` and restore geometry to the gesture-start
+ * state before calling so Shift can toggle mid-drag without drift.
  */
 export function applyReshapeHandle(
   action: DrawAction,
@@ -238,6 +293,37 @@ export function applyReshapeHandle(
 ): void {
   const pts = action.points
   if (pts.length < 2) return
+
+  if (handleId === 'rotate') {
+    const originBounds = options?.originBounds ?? getActionReshapeBounds(action)
+    if (!originBounds) return
+    const cx = (originBounds.x0 + originBounds.x1) / 2
+    const cy = (originBounds.y0 + originBounds.y1) / 2
+    const originRotation = options?.originRotation ?? getShapeRotation(action)
+    const startAngle = options?.rotateStartAngle ?? Math.atan2(p.y - cy, p.x - cx)
+    const currentAngle = Math.atan2(p.y - cy, p.x - cx)
+    const delta = snapRotationDelta(
+      originRotation,
+      currentAngle - startAngle,
+      options?.constrain,
+      options?.angleSnapStep,
+    )
+
+    if (action.tool === 'rect' || action.tool === 'ellipse') {
+      const next = originRotation + delta
+      if (Math.abs(next) < 1e-10) delete action.rotation
+      else action.rotation = next
+      return
+    }
+
+    rotatePointsInPlace(pts, cx, cy, delta)
+    if (action.attachedErasers?.length) {
+      for (const ae of action.attachedErasers) {
+        if (ae.points.length > 0) rotatePointsInPlace(ae.points, cx, cy, delta)
+      }
+    }
+    return
+  }
 
   if (handleId === 'p0' || handleId === 'p1') {
     const idx = handleId === 'p0' ? 0 : 1
@@ -255,7 +341,16 @@ export function applyReshapeHandle(
 
   const originBounds = options?.originBounds ?? getActionReshapeBounds(action)
   if (!originBounds) return
-  const free = resolveCornerFreePoint(originBounds, handleId, p, options)
+
+  const rot = options?.originRotation ?? getShapeRotation(action)
+  let localPointer = p
+  if (rot !== 0 && (action.tool === 'rect' || action.tool === 'ellipse')) {
+    const cx = (originBounds.x0 + originBounds.x1) / 2
+    const cy = (originBounds.y0 + originBounds.y1) / 2
+    localPointer = rotatePointAround(p, cx, cy, -rot)
+  }
+
+  const free = resolveCornerFreePoint(originBounds, handleId, localPointer, options)
   const to = boundsAfterCornerDrag(originBounds, handleId, free)
   const boundsUnchanged =
     to.x0 === originBounds.x0 && to.y0 === originBounds.y0 && to.x1 === originBounds.x1 && to.y1 === originBounds.y1
@@ -272,7 +367,7 @@ export function applyReshapeHandle(
     return
   }
 
-  // rect / ellipse — rewrite the two diagonal points from the target box
+  // rect / ellipse — rewrite the two diagonal points from the target box (local space)
   pts[0].x = to.x0
   pts[0].y = to.y0
   pts[1].x = to.x1

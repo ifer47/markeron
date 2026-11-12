@@ -1334,7 +1334,7 @@ async function onPointerDown(e: PointerEvent) {
       dragStartY = e.clientY
       isMoving.value = true
       reshapeHandleCursor.value = reshapeHandle.cursor
-      beginReshape(action, reshapeHandle.id)
+      beginReshape(action, reshapeHandle.id, pos)
       updateReshape({ x: e.clientX, y: e.clientY }, e.shiftKey)
       return
     }

@@ -319,11 +319,19 @@ export function drawActionDirect(
       drawArrow(ctx, pts[0], pts[1], isNonSolidDashStyle(action.dashStyle))
       break
     case 'rect':
-      drawRect(ctx, pts[0], pts[1])
+    case 'ellipse': {
+      const rot = action.rotation
+      if (typeof rot === 'number' && Number.isFinite(rot) && rot !== 0) {
+        const cx = (pts[0].x + pts[1].x) / 2
+        const cy = (pts[0].y + pts[1].y) / 2
+        ctx.translate(cx, cy)
+        ctx.rotate(rot)
+        ctx.translate(-cx, -cy)
+      }
+      if (action.tool === 'rect') drawRect(ctx, pts[0], pts[1])
+      else drawEllipse(ctx, pts[0], pts[1])
       break
-    case 'ellipse':
-      drawEllipse(ctx, pts[0], pts[1])
-      break
+    }
   }
 
   ctx.restore()

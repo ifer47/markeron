@@ -9,6 +9,7 @@ import {
   hitTestReshapeHandle,
   isReshapeableTool,
   scalePointsToBounds,
+  selectionFrameBounds,
 } from './drawingReshape'
 
 function shape(tool: DrawAction['tool'], x0: number, y0: number, x1: number, y1: number): DrawAction {
@@ -36,25 +37,47 @@ describe('drawingReshape', () => {
     expect(isReshapeableTool('select')).toBe(false)
   })
 
-  it('getReshapeHandles returns endpoints for line/arrow', () => {
+  it('getReshapeHandles returns endpoints and rotate for line/arrow', () => {
     const line = shape('line', 10, 20, 100, 80)
-    expect(getReshapeHandles(line)).toEqual([
-      { id: 'p0', x: 10, y: 20, cursor: 'grab' },
-      { id: 'p1', x: 100, y: 80, cursor: 'grab' },
-    ])
+    const handles = getReshapeHandles(line)
+    expect(handles.map((h) => h.id)).toEqual(['p0', 'p1', 'rotate'])
+    expect(handles[0]).toMatchObject({ id: 'p0', x: 10, y: 20, cursor: 'grab' })
+    expect(handles[1]).toMatchObject({ id: 'p1', x: 100, y: 80, cursor: 'grab' })
+    expect(handles[2].id).toBe('rotate')
   })
 
-  it('getReshapeHandles returns corners for rect/ellipse', () => {
+  it('selectionFrameBounds matches corner handles, not the padded hit box', () => {
+    const ellipse = shape('ellipse', 10, 20, 100, 80)
+    expect(selectionFrameBounds(ellipse)).toEqual({ x0: 10, y0: 20, x1: 100, y1: 80 })
+    const pen: DrawAction = {
+      tool: 'pen',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [
+        { x: 10, y: 50 },
+        { x: 80, y: 90 },
+      ],
+    }
+    expect(selectionFrameBounds(pen)).toEqual({ x0: 10, y0: 50, x1: 80, y1: 90 })
+    expect(selectionFrameBounds(shape('line', 10, 20, 100, 80))).toBeNull()
+    expect(selectionFrameBounds(shape('text', 10, 20, 100, 80))).toBeNull()
+  })
+
+  it('getReshapeHandles returns corners and rotate for rect/ellipse', () => {
     const rect = shape('rect', 10, 80, 100, 20)
-    expect(getReshapeHandles(rect)).toEqual([
-      { id: 'tl', x: 10, y: 20, cursor: 'nwse-resize' },
-      { id: 'tr', x: 100, y: 20, cursor: 'nesw-resize' },
-      { id: 'br', x: 100, y: 80, cursor: 'nwse-resize' },
-      { id: 'bl', x: 10, y: 80, cursor: 'nesw-resize' },
-    ])
+    const handles = getReshapeHandles(rect)
+    expect(handles.map((h) => h.id)).toEqual(['tl', 'tr', 'br', 'bl', 'rotate'])
+    expect(handles.find((h) => h.id === 'tl')).toMatchObject({ x: 10, y: 20 })
+    expect(handles.find((h) => h.id === 'br')).toMatchObject({ x: 100, y: 80 })
+    expect(handles.find((h) => h.id === 'rotate')).toMatchObject({
+      x: 55,
+      y: 20 - 28,
+      cursor: 'grab',
+    })
   })
 
-  it('getReshapeHandles returns point-bounds corners for pen', () => {
+  it('getReshapeHandles returns point-bounds corners and rotate for pen', () => {
     const pen: DrawAction = {
       tool: 'pen',
       color: '#f00',
@@ -66,12 +89,65 @@ describe('drawingReshape', () => {
         { x: 80, y: 90 },
       ],
     }
-    expect(getReshapeHandles(pen)).toEqual([
-      { id: 'tl', x: 10, y: 10, cursor: 'nwse-resize' },
-      { id: 'tr', x: 80, y: 10, cursor: 'nesw-resize' },
-      { id: 'br', x: 80, y: 90, cursor: 'nwse-resize' },
-      { id: 'bl', x: 10, y: 90, cursor: 'nesw-resize' },
-    ])
+    const handles = getReshapeHandles(pen)
+    expect(handles.map((h) => h.id)).toEqual(['tl', 'tr', 'br', 'bl', 'rotate'])
+    expect(handles.find((h) => h.id === 'tl')).toMatchObject({ x: 10, y: 10 })
+    expect(handles.find((h) => h.id === 'br')).toMatchObject({ x: 80, y: 90 })
+  })
+
+  it('applyReshapeHandle rotate updates rect rotation without moving corners', () => {
+    const rect = shape('rect', 0, 0, 100, 100)
+    applyReshapeHandle(
+      rect,
+      'rotate',
+      { x: 100, y: 50 },
+      {
+        originBounds: { x0: 0, y0: 0, x1: 100, y1: 100 },
+        originRotation: 0,
+        rotateStartAngle: -Math.PI / 2,
+      },
+    )
+    // Drag from top (-π/2) to the right (0) → +90°
+    expect(rect.rotation).toBeCloseTo(Math.PI / 2, 5)
+    expect(rect.points[0]).toMatchObject({ x: 0, y: 0 })
+    expect(rect.points[1]).toMatchObject({ x: 100, y: 100 })
+  })
+
+  it('applyReshapeHandle rotate snaps when constrained', () => {
+    const rect = shape('rect', 0, 0, 100, 100)
+    applyReshapeHandle(
+      rect,
+      'rotate',
+      { x: 80, y: -10 },
+      {
+        constrain: true,
+        angleSnapStep: 45,
+        originBounds: { x0: 0, y0: 0, x1: 100, y1: 100 },
+        originRotation: 0,
+        rotateStartAngle: -Math.PI / 2,
+      },
+    )
+    const deg = ((rect.rotation ?? 0) * 180) / Math.PI
+    expect(deg % 45).toBeCloseTo(0, 5)
+  })
+
+  it('applyReshapeHandle rotate spins line endpoints around center', () => {
+    const line = shape('line', 0, 50, 100, 50)
+    applyReshapeHandle(
+      line,
+      'rotate',
+      { x: 100, y: 50 },
+      {
+        originBounds: { x0: 0, y0: 50, x1: 100, y1: 50 },
+        originRotation: 0,
+        rotateStartAngle: -Math.PI / 2,
+      },
+    )
+    // From top (-π/2) to the right (0) → +90°; horizontal line becomes vertical.
+    expect(line.points[0].x + line.points[1].x).toBeCloseTo(100, 5)
+    expect(line.points[0].y + line.points[1].y).toBeCloseTo(100, 5)
+    expect(Math.hypot(line.points[1].x - line.points[0].x, line.points[1].y - line.points[0].y)).toBeCloseTo(100, 5)
+    expect(Math.abs(line.points[0].x - line.points[1].x)).toBeCloseTo(0, 5)
   })
 
   it('hitTestReshapeHandle prefers the nearest handle in range', () => {

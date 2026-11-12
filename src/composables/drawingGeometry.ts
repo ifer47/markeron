@@ -2,9 +2,66 @@ import type { DrawAction, Point } from './drawingTypes'
 import { textOutlinePadding } from '../constants/textOutline'
 import { stampBboxPad, stampRadius } from '../constants/stamp'
 
+/** Rotate point `p` around `(cx, cy)` by `angle` radians. */
+export function rotatePointAround(p: Point, cx: number, cy: number, angle: number): Point {
+  if (!angle) return { x: p.x, y: p.y }
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const dx = p.x - cx
+  const dy = p.y - cy
+  return { x: cx + dx * cos - dy * sin, y: cy + dx * sin + dy * cos }
+}
+
+export function rotatePointsInPlace(pts: Point[], cx: number, cy: number, angle: number): void {
+  if (!angle || pts.length === 0) return
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  for (const pt of pts) {
+    const dx = pt.x - cx
+    const dy = pt.y - cy
+    pt.x = cx + dx * cos - dy * sin
+    pt.y = cy + dx * sin + dy * cos
+  }
+}
+
+export function getShapeRotation(action: DrawAction): number {
+  if (action.tool !== 'rect' && action.tool !== 'ellipse') return 0
+  const r = action.rotation
+  return typeof r === 'number' && Number.isFinite(r) ? r : 0
+}
+
 export function computeBbox(action: DrawAction, pad: number): DrawAction['bbox'] {
   const pts = action.points
   if (pts.length === 0) return undefined
+
+  const rot = getShapeRotation(action)
+  if (rot !== 0 && pts.length >= 2 && (action.tool === 'rect' || action.tool === 'ellipse')) {
+    const x0 = Math.min(pts[0].x, pts[1].x)
+    const y0 = Math.min(pts[0].y, pts[1].y)
+    const x1 = Math.max(pts[0].x, pts[1].x)
+    const y1 = Math.max(pts[0].y, pts[1].y)
+    const cx = (x0 + x1) / 2
+    const cy = (y0 + y1) / 2
+    const corners = [
+      rotatePointAround({ x: x0, y: y0 }, cx, cy, rot),
+      rotatePointAround({ x: x1, y: y0 }, cx, cy, rot),
+      rotatePointAround({ x: x1, y: y1 }, cx, cy, rot),
+      rotatePointAround({ x: x0, y: y1 }, cx, cy, rot),
+    ]
+    let minX = corners[0].x
+    let minY = corners[0].y
+    let maxX = corners[0].x
+    let maxY = corners[0].y
+    for (let i = 1; i < corners.length; i++) {
+      const c = corners[i]
+      if (c.x < minX) minX = c.x
+      if (c.y < minY) minY = c.y
+      if (c.x > maxX) maxX = c.x
+      if (c.y > maxY) maxY = c.y
+    }
+    return { x1: minX - pad, y1: minY - pad, x2: maxX + pad, y2: maxY + pad }
+  }
+
   let x1 = pts[0].x,
     y1 = pts[0].y,
     x2 = pts[0].x,
@@ -65,6 +122,7 @@ export function cloneActionWithOffset(action: DrawAction, dx: number, dy: number
       ...(pt.pressure != null ? { pressure: pt.pressure } : {}),
       ...(pt.t != null ? { t: pt.t } : {}),
     })),
+    ...(action.rotation != null ? { rotation: action.rotation } : {}),
     bbox: action.bbox
       ? {
           x1: action.bbox.x1 + dx,
@@ -205,11 +263,15 @@ export function hitTestAction(action: DrawAction, p: Point, extraMargin = 0): bo
         x1: Math.max(pts[0].x, pts[1].x),
         y1: Math.max(pts[0].y, pts[1].y),
       }
+      const rot = getShapeRotation(action)
+      const cx = (rect.x0 + rect.x1) / 2
+      const cy = (rect.y0 + rect.y1) / 2
+      const local = rot !== 0 ? rotatePointAround(p, cx, cy, -rot) : p
 
-      const d1 = distToSeg(p.x, p.y, rect.x0, rect.y0, rect.x1, rect.y0)
-      const d2 = distToSeg(p.x, p.y, rect.x1, rect.y0, rect.x1, rect.y1)
-      const d3 = distToSeg(p.x, p.y, rect.x1, rect.y1, rect.x0, rect.y1)
-      const d4 = distToSeg(p.x, p.y, rect.x0, rect.y1, rect.x0, rect.y0)
+      const d1 = distToSeg(local.x, local.y, rect.x0, rect.y0, rect.x1, rect.y0)
+      const d2 = distToSeg(local.x, local.y, rect.x1, rect.y0, rect.x1, rect.y1)
+      const d3 = distToSeg(local.x, local.y, rect.x1, rect.y1, rect.x0, rect.y1)
+      const d4 = distToSeg(local.x, local.y, rect.x0, rect.y1, rect.x0, rect.y0)
 
       if (Math.min(d1, d2, d3, d4) <= threshold) return true
     }
@@ -224,16 +286,18 @@ export function hitTestAction(action: DrawAction, p: Point, extraMargin = 0): bo
         rx: Math.abs(pts[1].x - pts[0].x) / 2,
         ry: Math.abs(pts[1].y - pts[0].y) / 2,
       }
+      const rot = getShapeRotation(action)
+      const local = rot !== 0 ? rotatePointAround(p, ellipse.cx, ellipse.cy, -rot) : p
 
       if (ellipse.rx < 1 || ellipse.ry < 1) {
-        return Math.hypot(p.x - ellipse.cx, p.y - ellipse.cy) <= threshold
+        return Math.hypot(local.x - ellipse.cx, local.y - ellipse.cy) <= threshold
       }
 
       if (
-        p.x < ellipse.cx - ellipse.rx - threshold ||
-        p.x > ellipse.cx + ellipse.rx + threshold ||
-        p.y < ellipse.cy - ellipse.ry - threshold ||
-        p.y > ellipse.cy + ellipse.ry + threshold
+        local.x < ellipse.cx - ellipse.rx - threshold ||
+        local.x > ellipse.cx + ellipse.rx + threshold ||
+        local.y < ellipse.cy - ellipse.ry - threshold ||
+        local.y > ellipse.cy + ellipse.ry + threshold
       )
         return false
 
@@ -242,7 +306,7 @@ export function hitTestAction(action: DrawAction, p: Point, extraMargin = 0): bo
         const angle = (j / 32) * Math.PI * 2
         const px = ellipse.cx + ellipse.rx * Math.cos(angle)
         const py = ellipse.cy + ellipse.ry * Math.sin(angle)
-        const dist = Math.hypot(p.x - px, p.y - py)
+        const dist = Math.hypot(local.x - px, local.y - py)
         if (dist < minDist) minDist = dist
       }
       return minDist <= threshold

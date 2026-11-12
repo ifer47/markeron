@@ -69,4 +69,10 @@ export interface DrawAction {
   bbox?: { x1: number; y1: number; x2: number; y2: number }
   rectHit?: { x0: number; y0: number; x1: number; y1: number }
   ellipseHit?: { cx: number; cy: number; rx: number; ry: number }
+  /**
+   * Rotation in radians around the shape center.
+   * Used by rect / ellipse (axis-aligned diagonal points stay in local space).
+   * Omitted or 0 = upright.
+   */
+  rotation?: number
 }

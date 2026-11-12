@@ -137,7 +137,7 @@ export default {
       'When enabled, pressing W to enter or exit whiteboard mode keeps the existing whiteboard content. Turn this off to start whiteboard mode with a clean canvas each time.',
     whiteboardSection: 'Whiteboard & content',
     whiteboardSectionDesc:
-      'Default entry chooses screen overlay or whiteboard. Keep after exit restores your last session when you re-enter. Keep on W toggle preserves drawings when switching modes without exiting; turn off to start with a blank whiteboard each time you press W.',
+      'Default entry chooses screen overlay or whiteboard. Board color sets a white or black canvas in whiteboard mode. Keep after exit restores your last session when you re-enter. Keep on W toggle preserves drawings when switching modes without exiting; turn off to start with a blank board each time you press W.',
     angleSnapStep: 'Angle snap step',
     angleSnapStepDesc: 'Straight lines drawn while holding Alt snap to this angle (1–90°). Use 1° for precise angles.',
     defaultEntryMode: 'Default entry',
@@ -145,6 +145,11 @@ export default {
     defaultEntryModeWhiteboard: 'Whiteboard',
     defaultEntryModeDesc:
       'Choose whether annotation mode starts on the screen overlay or directly in whiteboard mode. Press W anytime to switch.',
+    whiteboardBackground: 'Board color',
+    whiteboardBackgroundWhite: 'White',
+    whiteboardBackgroundBlack: 'Black',
+    whiteboardBackgroundDesc:
+      'Background color used while whiteboard mode is on. Does not affect screen overlay annotations.',
     eraserMode: 'Eraser mode',
     eraserModeStroke: 'Stroke',
     eraserModeObject: 'Object',

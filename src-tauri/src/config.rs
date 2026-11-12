@@ -162,6 +162,15 @@ pub enum DefaultEntryMode {
     Whiteboard,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum WhiteboardBackground {
+    #[serde(rename = "white")]
+    #[default]
+    White,
+    #[serde(rename = "black")]
+    Black,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum ThemePreference {
@@ -191,6 +200,8 @@ pub struct GeneralConfig {
     pub toolbar_visibility: ToolbarVisibility,
     #[serde(default, rename = "defaultEntryMode")]
     pub default_entry_mode: DefaultEntryMode,
+    #[serde(default, rename = "whiteboardBackground")]
+    pub whiteboard_background: WhiteboardBackground,
     #[serde(default, rename = "eraserMode")]
     pub eraser_mode: EraserMode,
     #[serde(default, rename = "laserMode")]
@@ -221,6 +232,7 @@ impl Default for GeneralConfig {
             angle_snap_step: default_angle_snap_step(),
             toolbar_visibility: ToolbarVisibility::Space,
             default_entry_mode: DefaultEntryMode::Screen,
+            whiteboard_background: WhiteboardBackground::White,
             eraser_mode: EraserMode::Stroke,
             laser_mode: LaserMode::Trail,
             pen_cursor_style: PenCursorStyle::Pen,
@@ -268,6 +280,12 @@ impl GeneralConfig {
             DefaultEntryMode::Screen | DefaultEntryMode::Whiteboard
         ) {
             self.default_entry_mode = DefaultEntryMode::Screen;
+        }
+        if !matches!(
+            self.whiteboard_background,
+            WhiteboardBackground::White | WhiteboardBackground::Black
+        ) {
+            self.whiteboard_background = WhiteboardBackground::White;
         }
         if !matches!(self.eraser_mode, EraserMode::Stroke | EraserMode::Object) {
             self.eraser_mode = EraserMode::Stroke;
@@ -771,6 +789,46 @@ mod tests {
     fn general_config_defaults_default_entry_mode() {
         let general = GeneralConfig::default();
         assert_eq!(general.default_entry_mode, DefaultEntryMode::Screen);
+    }
+
+    #[test]
+    fn general_config_defaults_whiteboard_background() {
+        let general = GeneralConfig::default();
+        assert_eq!(general.whiteboard_background, WhiteboardBackground::White);
+    }
+
+    #[test]
+    fn config_deserializes_whiteboard_background() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {
+                "whiteboardBackground": "black"
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            config.general.whiteboard_background,
+            WhiteboardBackground::Black
+        );
+    }
+
+    #[test]
+    fn missing_whiteboard_background_defaults_to_white() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {}
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            config.general.whiteboard_background,
+            WhiteboardBackground::White
+        );
     }
 
     #[test]

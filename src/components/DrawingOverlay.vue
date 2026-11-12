@@ -64,6 +64,11 @@ import { canStartElementDrag as canStartElementDragGate } from '../utils/dragInt
 import { isDragEnabled, resolveDragMode, type DragMode } from '../utils/dragMode'
 import { isToolbarPinned, resolveToolbarVisibility, type ToolbarVisibility } from '../utils/toolbarSettings'
 import { resolveDefaultEntryMode, shouldClearWhiteboardOnEntry, type DefaultEntryMode } from '../utils/entryMode'
+import {
+  resolveWhiteboardBackground,
+  whiteboardBackgroundColor,
+  type WhiteboardBackground,
+} from '../utils/whiteboardBackground'
 import { logDiagnostic, logSessionEvent, logActionEvent } from '../utils/diagnosticEvents'
 import type { MonitorLogicalBounds } from '../utils/toolbarPosition'
 import { toolbarPopupScreenPosition } from '../utils/toolbarPosition'
@@ -120,6 +125,8 @@ const mousePos = ref({ x: 0, y: 0 })
 const textBoxPos = ref<{ x: number; y: number } | null>(null)
 const whiteboardMode = ref(false)
 const defaultEntryMode = ref<DefaultEntryMode>('screen')
+const whiteboardBackground = ref<WhiteboardBackground>('white')
+const whiteboardBgColor = computed(() => whiteboardBackgroundColor(whiteboardBackground.value))
 
 const toolLabelMap = computed<Record<Tool, string>>(() => ({
   select: t('tools.select'),
@@ -485,6 +492,10 @@ async function syncOpenToolbarPopupWindow() {
 
 function applyDefaultEntryFromConfig(general?: AppConfig['general']) {
   defaultEntryMode.value = resolveDefaultEntryMode(general)
+}
+
+function applyWhiteboardBackgroundFromConfig(general?: AppConfig['general']) {
+  whiteboardBackground.value = resolveWhiteboardBackground(general)
 }
 
 function applyEraserModeFromConfig(general?: AppConfig['general']) {
@@ -2170,6 +2181,7 @@ onMounted(async () => {
     applyDragModeFromConfig(cfg.general)
     applyToolbarFromConfig(cfg.general)
     applyDefaultEntryFromConfig(cfg.general)
+    applyWhiteboardBackgroundFromConfig(cfg.general)
     applyEraserModeFromConfig(cfg.general)
     applyLaserModeFromConfig(cfg.general)
     applyPenCursorStyleFromConfig(cfg.general)
@@ -2192,6 +2204,7 @@ onMounted(async () => {
       applyDragModeFromConfig(event.payload.general)
       applyToolbarFromConfig(event.payload.general)
       applyDefaultEntryFromConfig(event.payload.general)
+      applyWhiteboardBackgroundFromConfig(event.payload.general)
       applyEraserModeFromConfig(event.payload.general)
       applyLaserModeFromConfig(event.payload.general)
       applyPenCursorStyleFromConfig(event.payload.general)
@@ -2435,7 +2448,7 @@ async function copyWhiteboard(reason = 'unknown') {
     logDiagnostic('copy', 'copyWhiteboard skipped', { reason, cause: 'already-copying' }, 'warn')
     return
   }
-  const dataUrl = exportAsDataURL('#FFFFFF')
+  const dataUrl = exportAsDataURL(whiteboardBgColor.value)
   if (!dataUrl) {
     logDiagnostic('copy', 'copyWhiteboard skipped', { reason, cause: 'empty-canvas' }, 'warn')
     return
@@ -2469,17 +2482,17 @@ function exitDrawing(reason: 'keyboard' | 'toolbar' | 'unknown' = 'unknown') {
   <div
     ref="containerRef"
     class="fixed top-0 left-0 w-screen h-screen z-99999"
-    :class="[
-      active && !penetrationMode ? 'pointer-events-auto' : 'pointer-events-none',
-      whiteboardMode ? 'bg-white' : '',
+    :class="[active && !penetrationMode ? 'pointer-events-auto' : 'pointer-events-none']"
+    :style="[
+      active && !penetrationMode ? { cursor: canvasCursor } : undefined,
+      whiteboardMode ? { backgroundColor: whiteboardBgColor } : undefined,
     ]"
-    :style="active && !penetrationMode ? { cursor: canvasCursor } : undefined"
   >
     <canvas
       ref="historyCanvasRef"
       class="absolute top-0 left-0 w-full h-full pointer-events-none"
       style="contain: strict"
-      :style="whiteboardMode ? { backgroundColor: '#FFFFFF' } : undefined"
+      :style="whiteboardMode ? { backgroundColor: whiteboardBgColor } : undefined"
     />
     <canvas
       ref="previewCanvasRef"

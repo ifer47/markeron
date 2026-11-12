@@ -18,6 +18,7 @@ export interface AppConfig {
     angleSnapStep?: number
     toolbarVisibility?: ToolbarVisibility
     defaultEntryMode?: DefaultEntryMode
+    whiteboardBackground?: WhiteboardBackground
     eraserMode?: EraserMode
     laserMode?: LaserMode
     penCursorStyle?: PenCursorStyle
@@ -36,6 +37,7 @@ export interface AppConfig {
 
 export type ToolbarVisibility = 'space' | 'always'
 export type DefaultEntryMode = 'screen' | 'whiteboard'
+export type WhiteboardBackground = 'white' | 'black'
 export type EraserMode = 'stroke' | 'object'
 export type LaserMode = 'trail' | 'writing'
 export type PenCursorStyle = 'pen' | 'dot'

@@ -6,6 +6,7 @@ import type { AppConfig, SaveResult } from '../types/app'
 import { resolveDragMode, type DragMode } from '../utils/dragMode'
 import { applyTheme, watchSystemTheme, type ThemePreference } from '../composables/useAppTheme'
 import { resolveDefaultEntryMode, type DefaultEntryMode } from '../utils/entryMode'
+import { resolveWhiteboardBackground, type WhiteboardBackground } from '../utils/whiteboardBackground'
 import { resolveEraserMode, type EraserMode } from '../utils/eraserMode'
 import { resolveLaserMode, type LaserMode } from '../utils/laserMode'
 import { resolveStrokeSmoothing, type StrokeSmoothing } from '../utils/strokeSmoothing'
@@ -219,6 +220,7 @@ const autoStartEnabled = ref(true)
 const theme = ref<ThemePreference>('dark')
 const dragMode = ref<DragMode>('off')
 const defaultEntryMode = ref<DefaultEntryMode>('screen')
+const whiteboardBackground = ref<WhiteboardBackground>('white')
 const eraserMode = ref<EraserMode>('stroke')
 const laserMode = ref<LaserMode>('trail')
 const strokeSmoothing = ref<StrokeSmoothing>('standard')
@@ -255,6 +257,7 @@ onMounted(async () => {
   stopThemeWatch = watchSystemTheme(() => theme.value)
   dragMode.value = resolveDragMode(cfg.general)
   defaultEntryMode.value = resolveDefaultEntryMode(cfg.general)
+  whiteboardBackground.value = resolveWhiteboardBackground(cfg.general)
   eraserMode.value = resolveEraserMode(cfg.general)
   laserMode.value = resolveLaserMode(cfg.general)
   strokeSmoothing.value = resolveStrokeSmoothing(cfg.general)
@@ -277,6 +280,7 @@ onMounted(async () => {
     void applyTheme(theme.value)
     dragMode.value = resolveDragMode(general)
     defaultEntryMode.value = resolveDefaultEntryMode(general)
+    whiteboardBackground.value = resolveWhiteboardBackground(general)
     eraserMode.value = resolveEraserMode(general)
     laserMode.value = resolveLaserMode(general)
     strokeSmoothing.value = resolveStrokeSmoothing(general)
@@ -523,6 +527,7 @@ onUnmounted(() => {
         :theme="theme"
         :drag-mode="dragMode"
         :default-entry-mode="defaultEntryMode"
+        :whiteboard-background="whiteboardBackground"
         :eraser-mode="eraserMode"
         :laser-mode="laserMode"
         :stroke-smoothing="strokeSmoothing"
@@ -533,6 +538,7 @@ onUnmounted(() => {
         @update:theme="theme = $event"
         @update:drag-mode="dragMode = $event"
         @update:default-entry-mode="defaultEntryMode = $event"
+        @update:whiteboard-background="whiteboardBackground = $event"
         @update:eraser-mode="eraserMode = $event"
         @update:laser-mode="laserMode = $event"
         @update:stroke-smoothing="strokeSmoothing = $event"

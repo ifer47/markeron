@@ -7,6 +7,8 @@ import type { DragMode } from '../../utils/dragMode'
 import { DRAG_MODE_OPTIONS } from '../../utils/dragMode'
 import type { DefaultEntryMode } from '../../utils/entryMode'
 import { DEFAULT_ENTRY_MODE_OPTIONS } from '../../utils/entryMode'
+import type { WhiteboardBackground } from '../../utils/whiteboardBackground'
+import { WHITEBOARD_BACKGROUND_OPTIONS } from '../../utils/whiteboardBackground'
 import type { EraserMode } from '../../utils/eraserMode'
 import { ERASER_MODE_OPTIONS } from '../../utils/eraserMode'
 import { LASER_MODE_OPTIONS, type LaserMode } from '../../utils/laserMode'
@@ -45,6 +47,7 @@ const localeDropdownRef = ref<HTMLElement | null>(null)
 const themeOptions = ['dark', 'light', 'system'] as const
 const dragModeOptions = DRAG_MODE_OPTIONS
 const defaultEntryModeOptions = DEFAULT_ENTRY_MODE_OPTIONS
+const whiteboardBackgroundOptions = WHITEBOARD_BACKGROUND_OPTIONS
 const eraserModeOptions = ERASER_MODE_OPTIONS
 const laserModeOptions = LASER_MODE_OPTIONS
 const strokeSmoothingOptions = STROKE_SMOOTHING_OPTIONS
@@ -77,6 +80,7 @@ const props = defineProps<{
   theme: ThemePreference
   dragMode: DragMode
   defaultEntryMode: DefaultEntryMode
+  whiteboardBackground: WhiteboardBackground
   eraserMode: EraserMode
   laserMode: LaserMode
   strokeSmoothing: StrokeSmoothing
@@ -90,6 +94,7 @@ const emit = defineEmits<{
   'update:theme': [value: ThemePreference]
   'update:dragMode': [value: DragMode]
   'update:defaultEntryMode': [value: DefaultEntryMode]
+  'update:whiteboardBackground': [value: WhiteboardBackground]
   'update:eraserMode': [value: EraserMode]
   'update:laserMode': [value: LaserMode]
   'update:strokeSmoothing': [value: StrokeSmoothing]
@@ -285,6 +290,7 @@ async function setDefaultEntryMode(mode: DefaultEntryMode) {
       cfg.general = {
         dragMode: props.dragMode,
         defaultEntryMode: mode,
+        whiteboardBackground: props.whiteboardBackground,
         preserveDrawings: false,
         whiteboardPreserveDrawings: true,
         angleSnapStep: props.angleSnapStep,
@@ -293,6 +299,27 @@ async function setDefaultEntryMode(mode: DefaultEntryMode) {
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
     console.error('Failed to save default entry mode:', error)
+  }
+}
+
+async function setWhiteboardBackground(background: WhiteboardBackground) {
+  if (background === props.whiteboardBackground) return
+  emit('update:whiteboardBackground', background)
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general)
+      cfg.general = {
+        dragMode: props.dragMode,
+        defaultEntryMode: props.defaultEntryMode,
+        whiteboardBackground: background,
+        preserveDrawings: false,
+        whiteboardPreserveDrawings: true,
+        angleSnapStep: props.angleSnapStep,
+      }
+    cfg.general.whiteboardBackground = background
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save whiteboard background:', error)
   }
 }
 
@@ -632,6 +659,22 @@ async function commitAngleSnapStep(step: number) {
               @click="setDefaultEntryMode(mode)"
             >
               {{ t(`settings.defaultEntryMode${mode === 'screen' ? 'Screen' : 'Whiteboard'}`) }}
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-card-row settings-card-row--divided">
+          <span class="settings-text-label">{{ t('settings.whiteboardBackground') }}</span>
+          <div class="flex items-center gap-1 shrink-0 flex-wrap justify-end max-w-[62%]">
+            <button
+              v-for="background in whiteboardBackgroundOptions"
+              :key="background"
+              class="px-2 py-1 rounded-md ui-segment leading-none transition-colors duration-120 whitespace-nowrap"
+              :class="{ 'ui-segment--active': whiteboardBackground === background }"
+              :aria-pressed="whiteboardBackground === background"
+              @click="setWhiteboardBackground(background)"
+            >
+              {{ t(`settings.whiteboardBackground${background === 'white' ? 'White' : 'Black'}`) }}
             </button>
           </div>
         </div>

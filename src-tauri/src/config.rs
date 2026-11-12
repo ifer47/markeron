@@ -33,6 +33,10 @@ fn default_auto_start() -> bool {
     true
 }
 
+fn default_stroke_straighten() -> bool {
+    true
+}
+
 fn default_line_width() -> u32 {
     3
 }
@@ -212,6 +216,8 @@ pub struct GeneralConfig {
     pub crosshair_cursor_style: CrosshairCursorStyle,
     #[serde(default, rename = "strokeSmoothing")]
     pub stroke_smoothing: StrokeSmoothing,
+    #[serde(default = "default_stroke_straighten", rename = "strokeStraighten")]
+    pub stroke_straighten: bool,
     #[serde(default, rename = "lineWidths")]
     pub line_widths: LineWidthsConfig,
     #[serde(default = "default_auto_start", rename = "autoStart")]
@@ -238,6 +244,7 @@ impl Default for GeneralConfig {
             pen_cursor_style: PenCursorStyle::Pen,
             crosshair_cursor_style: CrosshairCursorStyle::Crosshair,
             stroke_smoothing: StrokeSmoothing::Standard,
+            stroke_straighten: default_stroke_straighten(),
             line_widths: LineWidthsConfig::default(),
             auto_start: default_auto_start(),
             theme: ThemePreference::Dark,
@@ -795,6 +802,40 @@ mod tests {
     fn general_config_defaults_whiteboard_background() {
         let general = GeneralConfig::default();
         assert_eq!(general.whiteboard_background, WhiteboardBackground::White);
+    }
+
+    #[test]
+    fn general_config_defaults_stroke_straighten() {
+        let general = GeneralConfig::default();
+        assert!(general.stroke_straighten);
+    }
+
+    #[test]
+    fn missing_stroke_straighten_defaults_to_true() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {}
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert!(config.general.stroke_straighten);
+    }
+
+    #[test]
+    fn config_deserializes_stroke_straighten_off() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {
+                "strokeStraighten": false
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert!(!config.general.stroke_straighten);
     }
 
     #[test]

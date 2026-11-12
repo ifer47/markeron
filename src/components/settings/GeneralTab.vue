@@ -84,6 +84,7 @@ const props = defineProps<{
   eraserMode: EraserMode
   laserMode: LaserMode
   strokeSmoothing: StrokeSmoothing
+  strokeStraighten: boolean
   preserveDrawings: boolean
   whiteboardPreserveDrawings: boolean
   autoStartEnabled: boolean
@@ -98,6 +99,7 @@ const emit = defineEmits<{
   'update:eraserMode': [value: EraserMode]
   'update:laserMode': [value: LaserMode]
   'update:strokeSmoothing': [value: StrokeSmoothing]
+  'update:strokeStraighten': [value: boolean]
   'update:preserveDrawings': [value: boolean]
   'update:whiteboardPreserveDrawings': [value: boolean]
   'update:autoStartEnabled': [value: boolean]
@@ -270,6 +272,7 @@ async function setStrokeSmoothing(level: StrokeSmoothing) {
         defaultEntryMode: props.defaultEntryMode,
         eraserMode: props.eraserMode,
         strokeSmoothing: level,
+        strokeStraighten: props.strokeStraighten,
         preserveDrawings: false,
         whiteboardPreserveDrawings: true,
         angleSnapStep: props.angleSnapStep,
@@ -278,6 +281,27 @@ async function setStrokeSmoothing(level: StrokeSmoothing) {
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
     console.error('Failed to save stroke smoothing:', error)
+  }
+}
+
+async function toggleStrokeStraighten() {
+  const newValue = !props.strokeStraighten
+  emit('update:strokeStraighten', newValue)
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general)
+      cfg.general = {
+        dragMode: props.dragMode,
+        strokeSmoothing: props.strokeSmoothing,
+        strokeStraighten: newValue,
+        preserveDrawings: false,
+        whiteboardPreserveDrawings: true,
+        angleSnapStep: props.angleSnapStep,
+      }
+    cfg.general.strokeStraighten = newValue
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save stroke straighten setting:', error)
   }
 }
 
@@ -640,6 +664,24 @@ async function commitAngleSnapStep(step: number) {
           </div>
         </div>
         <p class="settings-card-desc">{{ t('settings.strokeSmoothingDesc') }}</p>
+
+        <div class="settings-card-row settings-card-row--divided">
+          <span class="settings-text-label">{{ t('settings.strokeStraighten') }}</span>
+          <button
+            role="switch"
+            :aria-checked="strokeStraighten"
+            :aria-label="t('settings.strokeStraighten')"
+            class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
+            :class="strokeStraighten ? 'settings-toggle-on' : 'settings-toggle-off'"
+            @click="toggleStrokeStraighten"
+          >
+            <span
+              class="absolute top-0.5 left-0.5 size-3.5 rounded-full bg-white shadow-md transition-transform duration-200"
+              :class="strokeStraighten ? 'translate-x-3.5' : 'translate-x-0'"
+            />
+          </button>
+        </div>
+        <p class="settings-card-desc">{{ t('settings.strokeStraightenDesc') }}</p>
       </div>
 
       <div class="settings-card">

@@ -167,6 +167,9 @@ export default {
     strokeSmoothingStrong: 'Strong',
     strokeSmoothingDesc:
       'Smooths freehand pen and highlighter strokes. Standard balances follow and ink quality; Strong softens more; Off keeps raw pointer samples. Pen/touch keep pressure-sensitive width; mouse strokes stay uniform.',
+    strokeStraighten: 'Straighten strokes',
+    strokeStraightenDesc:
+      'When enabled, nearly straight freehand pen and highlighter strokes snap to a clean line on release. Curved strokes are unchanged. Hold Alt while dragging to draw a perfect line instead.',
   },
   toolbar: {
     undo: 'Undo',

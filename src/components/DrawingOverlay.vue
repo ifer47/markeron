@@ -89,6 +89,7 @@ import {
 } from '../utils/crosshairCursor'
 import { resolveToolbarSelectTool } from '../utils/toolbarSelectTool'
 import { resolveStrokeSmoothing } from '../utils/strokeSmoothing'
+import { resolveStrokeStraighten } from '../utils/strokeStraighten'
 import { setStrokeSmoothing } from '../composables/strokeSmoothingState'
 import { normalizePressure } from '../constants/penStroke'
 import { useI18n } from '../i18n'
@@ -338,6 +339,7 @@ const {
   eraserMode,
   setEraserMode,
   setLaserMode,
+  setStrokeStraighten,
   shapeDashStyle,
   setShapeDashStyle,
   isDrawing,
@@ -516,6 +518,10 @@ function applyCrosshairCursorStyleFromConfig(general?: AppConfig['general']) {
 
 function applyStrokeSmoothingFromConfig(general?: AppConfig['general']) {
   setStrokeSmoothing(resolveStrokeSmoothing(general))
+}
+
+function applyStrokeStraightenFromConfig(general?: AppConfig['general']) {
+  setStrokeStraighten(resolveStrokeStraighten(general))
 }
 
 function applyLineWidthsFromConfig(general?: AppConfig['general']) {
@@ -2187,6 +2193,7 @@ onMounted(async () => {
     applyPenCursorStyleFromConfig(cfg.general)
     applyCrosshairCursorStyleFromConfig(cfg.general)
     applyStrokeSmoothingFromConfig(cfg.general)
+    applyStrokeStraightenFromConfig(cfg.general)
     applyLineWidthsFromConfig(cfg.general)
     preserveDrawings.value = cfg.general?.preserveDrawings ?? false
     whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
@@ -2210,6 +2217,7 @@ onMounted(async () => {
       applyPenCursorStyleFromConfig(event.payload.general)
       applyCrosshairCursorStyleFromConfig(event.payload.general)
       applyStrokeSmoothingFromConfig(event.payload.general)
+      applyStrokeStraightenFromConfig(event.payload.general)
       // lineWidths: overlay is the sole writer; skip echo from our own save_general
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
       whiteboardPreserveDrawings.value = event.payload.general?.whiteboardPreserveDrawings ?? true

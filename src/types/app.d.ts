@@ -24,6 +24,7 @@ export interface AppConfig {
     penCursorStyle?: PenCursorStyle
     crosshairCursorStyle?: CrosshairCursorStyle
     strokeSmoothing?: StrokeSmoothing
+    strokeStraighten?: boolean
     lineWidths?: {
       stroke: number
       highlighter: number

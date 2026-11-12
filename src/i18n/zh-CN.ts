@@ -161,6 +161,9 @@ export default {
     strokeSmoothingStrong: '强',
     strokeSmoothingDesc:
       '平滑钢笔与荧光笔笔迹。标准兼顾跟手与墨迹质量；强更柔和；关闭则保留原始采样点。笔/触控仍按压感变宽；鼠标为等宽。',
+    strokeStraighten: '笔画拉直',
+    strokeStraightenDesc:
+      '开启后，接近直线的钢笔/荧光笔自由笔画在松手时会规范为直线；明显弯曲的笔画不受影响。需要精确直线时可按住 Alt 拖动绘制。',
   },
   toolbar: {
     undo: '撤销',

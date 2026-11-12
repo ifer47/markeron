@@ -41,6 +41,7 @@ import {
   smoothPenPoint,
 } from '../constants/penStroke'
 import { getStrokeSmoothing } from './strokeSmoothingState'
+import { straightenStrokePoints } from '../utils/strokeStraighten'
 
 export type { Tool, Point, DrawAction } from './drawingTypes'
 export type { InputPointLike } from './drawingTypes'
@@ -107,6 +108,8 @@ export function useDrawing(
   const angleSnapStep = ref(15)
   const eraserMode = ref<EraserMode>('stroke')
   const laserMode = ref<LaserMode>('trail')
+  /** Snap nearly-straight pen/highlighter freehand to a 2-point line on pointer-up. */
+  const strokeStraighten = ref(true)
   /** Session stroke dash style for pen / shapes (D / Shift+D). */
   const shapeDashStyle = ref<StrokeDashStyle>('solid')
 
@@ -115,6 +118,10 @@ export function useDrawing(
 
   function setEraserMode(mode: EraserMode) {
     eraserMode.value = mode
+  }
+
+  function setStrokeStraighten(enabled: boolean) {
+    strokeStraighten.value = enabled
   }
 
   function setShapeDashStyle(style: StrokeDashStyle) {
@@ -1407,6 +1414,11 @@ export function useDrawing(
     if (!action) return
     isDrawing.value = false
 
+    if (strokeStraighten.value && (action.tool === 'pen' || action.tool === 'highlighter')) {
+      const straightened = straightenStrokePoints(action.points)
+      if (straightened) action.points = straightened
+    }
+
     if (action.tool !== 'laser') {
       const pad = Math.max(20, action.lineWidth / 2 + 10)
       action.bbox = computeBbox(action, pad)
@@ -2197,6 +2209,8 @@ export function useDrawing(
     setEraserMode,
     laserMode,
     setLaserMode,
+    strokeStraighten,
+    setStrokeStraighten,
     shapeDashStyle,
     setShapeDashStyle,
     isDrawing,

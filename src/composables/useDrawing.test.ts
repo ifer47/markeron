@@ -84,6 +84,8 @@ describe('useDrawing', () => {
 
   beforeEach(() => {
     ;({ drawing, previewCanvas } = setup())
+    // Keep freehand geometry intact unless a test opts into straighten.
+    drawing.setStrokeStraighten(false)
   })
 
   afterEach(() => {
@@ -220,6 +222,52 @@ describe('useDrawing', () => {
 
       expect(drawing.isDrawing.value).toBe(false)
       expect(drawing.canUndo.value).toBe(false)
+    })
+
+    it('straightens nearly straight pen strokes on endDraw when enabled', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.setStrokeStraighten(true)
+      drawing.startDraw({ x: 0, y: 0 })
+      for (let i = 1; i <= 20; i++) {
+        drawing.draw({ x: i * 10, y: (i % 2) * 0.2 })
+      }
+      drawing.endDraw()
+
+      const hit = drawing.findActionAt({ x: 100, y: 0 })
+      expect(hit).toBeTruthy()
+      expect(hit!.action.points).toHaveLength(2)
+      expect(hit!.action.points[0].x).toBeCloseTo(0, 5)
+      // Input streamline may pull the live tip slightly short of the raw last sample.
+      expect(hit!.action.points[1].x).toBeGreaterThan(180)
+      expect(hit!.action.points[1].y).toBeCloseTo(0, 0)
+    })
+
+    it('does not straighten curved pen strokes', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.setStrokeStraighten(true)
+      drawing.startDraw({ x: 0, y: 0 })
+      for (let i = 1; i <= 20; i++) {
+        drawing.draw({ x: i * 10, y: Math.sin(i / 3) * 40 })
+      }
+      drawing.endDraw()
+
+      const hit = drawing.findActionAt({ x: 100, y: 0 })
+      expect(hit).toBeTruthy()
+      expect(hit!.action.points.length).toBeGreaterThan(2)
+    })
+
+    it('skips straighten when the setting is off', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.setStrokeStraighten(false)
+      drawing.startDraw({ x: 0, y: 0 })
+      for (let i = 1; i <= 20; i++) {
+        drawing.draw({ x: i * 10, y: (i % 2) * 0.2 })
+      }
+      drawing.endDraw()
+
+      const hit = drawing.findActionAt({ x: 100, y: 0 })
+      expect(hit).toBeTruthy()
+      expect(hit!.action.points.length).toBeGreaterThan(2)
     })
   })
 

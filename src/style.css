@@ -102,7 +102,10 @@ html[data-theme='dark'] {
   --ui-footer-version-shake: rgba(10, 132, 255, 0.72);
   --ui-footer-sponsors: rgba(255, 255, 255, 0.34);
   --ui-footer-sponsors-hover: rgba(255, 255, 255, 0.5);
-  --ui-footer-emboss: 0 -0.5px 0 rgba(255, 255, 255, 0.14), 0 1px 0 rgba(0, 0, 0, 0.55);
+  /* Sponsors label: raised; version line: emboss */
+  --ui-footer-sponsors-fx: 0 -1px 0 rgba(255, 255, 255, 0.38), 0 1px 0 rgba(0, 0, 0, 0.92);
+  --ui-footer-line-fx:
+    0 -0.5px 0 rgba(255, 255, 255, 0.42), 0 0.5px 0 rgba(0, 0, 0, 0.88), 0 1.5px 2px rgba(0, 0, 0, 0.45);
   --ui-focus-ring: rgba(10, 132, 255, 0.35);
   --ui-credits-name: rgba(255, 255, 255, 0.55);
   --ui-credits-closing: rgba(255, 255, 255, 0.58);
@@ -223,7 +226,8 @@ html[data-theme='light'] {
   --ui-footer-version-shake: rgba(10, 132, 255, 0.8);
   --ui-footer-sponsors: rgba(0, 0, 0, 0.38);
   --ui-footer-sponsors-hover: rgba(0, 0, 0, 0.55);
-  --ui-footer-emboss: 0 1px 0 rgba(255, 255, 255, 0.92), 0 -0.5px 0 rgba(0, 0, 0, 0.08);
+  --ui-footer-sponsors-fx: 0 -1px 0 rgba(255, 255, 255, 1), 0 1px 0 rgba(0, 0, 0, 0.22);
+  --ui-footer-line-fx: 0 -0.5px 0 rgba(255, 255, 255, 1), 0 0.5px 0 rgba(0, 0, 0, 0.16), 0 1px 1.5px rgba(0, 0, 0, 0.1);
   --ui-focus-ring: rgba(10, 132, 255, 0.4);
   --ui-credits-name: rgba(0, 0, 0, 0.55);
   --ui-credits-closing: rgba(0, 0, 0, 0.62);
@@ -765,7 +769,7 @@ html.settings .ui-select {
   letter-spacing: 0.06em;
   line-height: 1.2;
   color: var(--ui-footer-sponsors);
-  text-shadow: var(--ui-footer-emboss);
+  text-shadow: var(--ui-footer-sponsors-fx);
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
@@ -799,7 +803,7 @@ html.settings .ui-select {
   margin: 0;
   font-size: var(--settings-fs-footer, 12.5px);
   line-height: 1.2;
-  text-shadow: var(--ui-footer-emboss);
+  text-shadow: var(--ui-footer-line-fx);
 }
 
 .settings-sidebar-footer__version-btn {

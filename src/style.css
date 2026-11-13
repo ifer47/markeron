@@ -692,6 +692,28 @@ html.settings .ui-select {
   font-size: var(--settings-fs-footer, 12.5px);
 }
 
+/* Muted contact email — intentionally weaker than body/footer chrome */
+.settings-contact-link {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ui-text-faint);
+  font: inherit;
+  font-size: var(--settings-fs-footer, 12.5px);
+  line-height: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.settings-contact-link:hover,
+.settings-contact-link:focus-visible {
+  color: var(--ui-text-subtle);
+  outline: none;
+}
+
 .settings-text-body {
   color: var(--ui-text-body);
   font-size: var(--settings-fs-body, 13.5px);

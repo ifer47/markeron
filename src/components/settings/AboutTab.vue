@@ -6,10 +6,15 @@ import { useUpdater } from '../../composables/useUpdater'
 import { resolvePortableMode } from '../../utils/portable'
 import sponsorPayUrl from '../../assets/sponsor-pay.png'
 
+/** Matches package.json / SECURITY.md */
+const CONTACT_EMAIL = 'iamajser@gmail.com'
+
 const { t } = useI18n()
 
 const portableMode = ref<boolean | null>(null)
 const payModalOpen = ref(false)
+const contactCopied = ref(false)
+let contactCopiedTimer: ReturnType<typeof setTimeout> | null = null
 const { status, newVersion, progress, checkForUpdate, downloadAndInstall } = useUpdater()
 
 const updateUiExpanded = computed(
@@ -20,6 +25,8 @@ const updateUiExpanded = computed(
       status.value === 'checking' ||
       status.value === 'up-to-date'),
 )
+
+const contactTitle = computed(() => (contactCopied.value ? t('about.contactCopied') : t('about.contactCopy')))
 
 onMounted(async () => {
   portableMode.value = await resolvePortableMode()
@@ -41,6 +48,9 @@ watch(payModalOpen, (open) => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', onEscape)
+  if (contactCopiedTimer) {
+    clearTimeout(contactCopiedTimer)
+  }
 })
 
 async function openUrl(url: string) {
@@ -48,6 +58,22 @@ async function openUrl(url: string) {
     await invoke('open_url', { url })
   } catch (error) {
     console.error('Failed to open URL:', error)
+  }
+}
+
+async function copyContactEmail() {
+  try {
+    await navigator.clipboard.writeText(CONTACT_EMAIL)
+    contactCopied.value = true
+    if (contactCopiedTimer) {
+      clearTimeout(contactCopiedTimer)
+    }
+    contactCopiedTimer = setTimeout(() => {
+      contactCopied.value = false
+      contactCopiedTimer = null
+    }, 1600)
+  } catch (error) {
+    console.error('Failed to copy contact email:', error)
   }
 }
 </script>
@@ -228,6 +254,20 @@ async function openUrl(url: string) {
             </svg>
           </button>
           <img :src="sponsorPayUrl" :alt="t('about.sponsorPayTitle')" class="block w-full h-auto" draggable="false" />
+          <div class="px-4 py-3 flex justify-center ui-divider-h">
+            <p class="m-0 settings-text-faint flex items-center gap-1.5 flex-wrap justify-center text-center">
+              <span>{{ t('about.sponsorContactHint') }}</span>
+              <button
+                type="button"
+                class="settings-contact-link"
+                :title="contactTitle"
+                :aria-label="contactTitle"
+                @click="copyContactEmail"
+              >
+                {{ CONTACT_EMAIL }}
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </Teleport>

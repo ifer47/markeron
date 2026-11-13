@@ -45,7 +45,7 @@ import {
   smoothPenPoint,
 } from '../constants/penStroke'
 import { getStrokeSmoothing } from './strokeSmoothingState'
-import { straightenStrokePoints } from '../utils/strokeStraighten'
+import { collapseStrokeToLine, STROKE_LINE_LOCK_HOLD_MS, strokeLineLockStillDistSq } from '../utils/strokeLineLock'
 
 export type { Tool, Point, DrawAction } from './drawingTypes'
 export type { InputPointLike } from './drawingTypes'
@@ -112,20 +112,70 @@ export function useDrawing(
   const angleSnapStep = ref(15)
   const eraserMode = ref<EraserMode>('stroke')
   const laserMode = ref<LaserMode>('trail')
-  /** Snap nearly-straight pen/highlighter freehand to a 2-point line on pointer-up. */
-  const strokeStraighten = ref(true)
   /** Session stroke dash style for pen / shapes (D / Shift+D). */
   const shapeDashStyle = ref<StrokeDashStyle>('solid')
 
   /** Live ink buffer needs rebake (declared early for mid-gesture width sync). */
   let inkPreviewDirty = true
 
+  /** Current freehand stroke locked to a 2-point line after a still hold. */
+  let strokeLineLocked = false
+  let lineLockStillX = 0
+  let lineLockStillY = 0
+  let lineLockTimer: ReturnType<typeof setTimeout> | null = null
+
   function setEraserMode(mode: EraserMode) {
     eraserMode.value = mode
   }
 
-  function setStrokeStraighten(enabled: boolean) {
-    strokeStraighten.value = enabled
+  function clearLineLockTimer() {
+    if (lineLockTimer != null) {
+      clearTimeout(lineLockTimer)
+      lineLockTimer = null
+    }
+  }
+
+  function resetLineLockState() {
+    clearLineLockTimer()
+    strokeLineLocked = false
+  }
+
+  function scheduleLineLockTimer() {
+    clearLineLockTimer()
+    lineLockTimer = setTimeout(() => {
+      lineLockTimer = null
+      tryLockStrokeToLine()
+    }, STROKE_LINE_LOCK_HOLD_MS)
+  }
+
+  function tryLockStrokeToLine() {
+    if (!isDrawing.value || strokeLineLocked) return
+    const action = currentAction.value
+    if (!action || (action.tool !== 'pen' && action.tool !== 'highlighter')) return
+
+    const collapsed = collapseStrokeToLine(action.points)
+    if (!collapsed) return
+    action.points = collapsed
+    strokeLineLocked = true
+    clearLineLockTimer()
+    // Drop the live ink buffer so locked preview redraws via drawActionOn each frame.
+    // Leaving strokeCanvas allocated would freeze the bake until inkPreviewDirty is set.
+    clearStrokeCanvas()
+    strokeCanvas = null
+    strokeCtx = null
+    previewDirty = true
+    scheduleRender()
+  }
+
+  function noteLineLockPointerActivity(x: number, y: number) {
+    if (strokeLineLocked) return
+    const dx = x - lineLockStillX
+    const dy = y - lineLockStillY
+    if (dx * dx + dy * dy >= strokeLineLockStillDistSq()) {
+      lineLockStillX = x
+      lineLockStillY = y
+      scheduleLineLockTimer()
+    }
   }
 
   function setShapeDashStyle(style: StrokeDashStyle) {
@@ -1313,6 +1363,7 @@ export function useDrawing(
   function startDraw(point: Point) {
     if (currentTool.value === 'text' || currentTool.value === 'stamp' || currentTool.value === 'select') return
     isDrawing.value = true
+    resetLineLockState()
     if (redoStack.length > 0) {
       redoStack.length = 0
       markHistoryStacksChanged()
@@ -1368,6 +1419,11 @@ export function useDrawing(
         historyDirty = true
       }
     }
+    if (currentTool.value === 'pen' || currentTool.value === 'highlighter') {
+      lineLockStillX = point.x
+      lineLockStillY = point.y
+      scheduleLineLockTimer()
+    }
     scheduleRender()
   }
 
@@ -1381,8 +1437,10 @@ export function useDrawing(
     if (!action || points.length === 0) return
 
     const pts = action.points
+    const inkLockedToLine = strokeLineLocked && (action.tool === 'pen' || action.tool === 'highlighter')
     const isFreehand =
-      action.tool === 'pen' || action.tool === 'highlighter' || action.tool === 'laser' || action.tool === 'eraser'
+      !inkLockedToLine &&
+      (action.tool === 'pen' || action.tool === 'highlighter' || action.tool === 'laser' || action.tool === 'eraser')
 
     if (isFreehand) {
       let last = pts[pts.length - 1]
@@ -1412,6 +1470,9 @@ export function useDrawing(
         pts.push(nextPoint)
         last = nextPoint
         appended = true
+        if (action.tool === 'pen' || action.tool === 'highlighter') {
+          noteLineLockPointerActivity(nextPoint.x, nextPoint.y)
+        }
       }
 
       if (!appended) return
@@ -1429,11 +1490,19 @@ export function useDrawing(
       const y = point.y ?? point.clientY
       if (x == null || y == null) return
 
-      let finalPoint = { x, y }
+      let finalPoint: Point = { x, y }
+      if (inkLockedToLine) {
+        finalPoint = {
+          x,
+          y,
+          pressure: normalizePressure(point.pressure ?? pts[1]?.pressure ?? pts[0]?.pressure),
+        }
+      }
       if (pts.length > 0) {
         const start = pts[0]
-        if (action.tool === 'line' || action.tool === 'arrow') {
-          finalPoint = isPerfect ? snapPointToAngle(start, { x, y }, angleSnapStep.value) : { x, y }
+        if (inkLockedToLine || action.tool === 'line' || action.tool === 'arrow') {
+          const snapped = isPerfect ? snapPointToAngle(start, { x, y }, angleSnapStep.value) : { x, y }
+          finalPoint = inkLockedToLine ? { ...finalPoint, x: snapped.x, y: snapped.y } : snapped
         } else if (isPerfect && (action.tool === 'rect' || action.tool === 'ellipse')) {
           const dx = x - start.x
           const dy = y - start.y
@@ -1462,11 +1531,7 @@ export function useDrawing(
     const action = currentAction.value
     if (!action) return
     isDrawing.value = false
-
-    if (strokeStraighten.value && (action.tool === 'pen' || action.tool === 'highlighter')) {
-      const straightened = straightenStrokePoints(action.points)
-      if (straightened) action.points = straightened
-    }
+    resetLineLockState()
 
     if (action.tool !== 'laser') {
       const pad = Math.max(20, action.lineWidth / 2 + 10)
@@ -1552,6 +1617,7 @@ export function useDrawing(
     if (!isDrawing.value) return
     if (currentAction.value?.tool === 'laser') laserReleasedAt = performance.now()
     isDrawing.value = false
+    resetLineLockState()
     currentAction.value = null
     clearStrokeCanvas()
     objectEraserBatch = []
@@ -2178,6 +2244,7 @@ export function useDrawing(
     useDragCanvas = false
     dragOffsetX = 0
     dragOffsetY = 0
+    resetLineLockState()
     clearStrokeCanvas()
     previewDirty = true
     markHistoryStacksChanged()
@@ -2235,6 +2302,7 @@ export function useDrawing(
   }
 
   function destroy() {
+    resetLineLockState()
     if (rafId !== null) {
       cancelAnimationFrame(rafId)
       rafId = null
@@ -2277,11 +2345,11 @@ export function useDrawing(
     setEraserMode,
     laserMode,
     setLaserMode,
-    strokeStraighten,
-    setStrokeStraighten,
     shapeDashStyle,
     setShapeDashStyle,
     isDrawing,
+    /** True after a still hold locked the active pen/highlighter stroke to a line. */
+    isStrokeLineLocked: () => strokeLineLocked,
     /** Active stroke width (for tests / diagnostics); null when not drawing. */
     getActiveStrokeLineWidth: () => currentAction.value?.lineWidth ?? null,
     getActiveStrokePointerType: () => currentAction.value?.pointerType ?? null,

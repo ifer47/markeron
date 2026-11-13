@@ -33,10 +33,6 @@ fn default_auto_start() -> bool {
     true
 }
 
-fn default_stroke_straighten() -> bool {
-    true
-}
-
 fn default_auto_revert_to_pen() -> bool {
     false
 }
@@ -220,8 +216,6 @@ pub struct GeneralConfig {
     pub crosshair_cursor_style: CrosshairCursorStyle,
     #[serde(default, rename = "strokeSmoothing")]
     pub stroke_smoothing: StrokeSmoothing,
-    #[serde(default = "default_stroke_straighten", rename = "strokeStraighten")]
-    pub stroke_straighten: bool,
     /// After finishing one arrow/rect/ellipse/line stroke, switch back to pen.
     #[serde(default = "default_auto_revert_to_pen", rename = "autoRevertToPen")]
     pub auto_revert_to_pen: bool,
@@ -251,7 +245,6 @@ impl Default for GeneralConfig {
             pen_cursor_style: PenCursorStyle::Pen,
             crosshair_cursor_style: CrosshairCursorStyle::Crosshair,
             stroke_smoothing: StrokeSmoothing::Standard,
-            stroke_straighten: default_stroke_straighten(),
             auto_revert_to_pen: default_auto_revert_to_pen(),
             line_widths: LineWidthsConfig::default(),
             auto_start: default_auto_start(),
@@ -813,19 +806,13 @@ mod tests {
     }
 
     #[test]
-    fn general_config_defaults_stroke_straighten() {
-        let general = GeneralConfig::default();
-        assert!(general.stroke_straighten);
-    }
-
-    #[test]
     fn general_config_defaults_auto_revert_to_pen_off() {
         let general = GeneralConfig::default();
         assert!(!general.auto_revert_to_pen);
     }
 
     #[test]
-    fn missing_stroke_straighten_defaults_to_true() {
+    fn missing_auto_revert_to_pen_defaults_to_false() {
         let json = r#"{
             "shortcuts": {
                 "toggleDrawing": "Ctrl+Shift+D",
@@ -834,12 +821,11 @@ mod tests {
             "general": {}
         }"#;
         let config: AppConfig = serde_json::from_str(json).unwrap();
-        assert!(config.general.stroke_straighten);
         assert!(!config.general.auto_revert_to_pen);
     }
 
     #[test]
-    fn config_deserializes_stroke_straighten_off() {
+    fn config_ignores_legacy_stroke_straighten_field() {
         let json = r#"{
             "shortcuts": {
                 "toggleDrawing": "Ctrl+Shift+D",
@@ -850,7 +836,7 @@ mod tests {
             }
         }"#;
         let config: AppConfig = serde_json::from_str(json).unwrap();
-        assert!(!config.general.stroke_straighten);
+        assert!(!config.general.auto_revert_to_pen);
     }
 
     #[test]

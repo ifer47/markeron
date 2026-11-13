@@ -169,9 +169,6 @@ export default {
     strokeSmoothingStrong: 'Strong',
     strokeSmoothingDesc:
       'Smooths freehand pen and highlighter strokes. Standard balances follow and ink quality; Strong softens more; Off keeps raw pointer samples. Pen/touch keep pressure-sensitive width; mouse strokes stay uniform.',
-    strokeStraighten: 'Straighten strokes',
-    strokeStraightenDesc:
-      'When enabled, nearly straight freehand pen and highlighter strokes snap to a clean line on release. Curved strokes are unchanged. Hold Alt while dragging to draw a perfect line instead.',
     autoRevertToPen: 'Return to pen after shape',
     autoRevertToPenDesc:
       'After drawing one line, arrow, rectangle, or ellipse, automatically switch back to the pen. Modifier-key temporary tools still restore the previous tool as before.',
@@ -212,6 +209,8 @@ export default {
     modifierDraw: 'Modifier + drag',
     thShape: 'Shape',
     straightLine: 'Line',
+    strokeLineLockHint: 'Pen / highlighter hold to straighten',
+    strokeLineLockGesture: 'Hold still ~0.5s',
     square: 'Square',
     circle: 'Circle',
     colorSwitch: 'Colors',

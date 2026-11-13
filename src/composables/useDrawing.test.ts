@@ -85,12 +85,11 @@ describe('useDrawing', () => {
 
   beforeEach(() => {
     ;({ drawing, previewCanvas } = setup())
-    // Keep freehand geometry intact unless a test opts into straighten.
-    drawing.setStrokeStraighten(false)
   })
 
   afterEach(() => {
     drawing.destroy()
+    vi.useRealTimers()
   })
 
   describe('initial state', () => {
@@ -225,50 +224,67 @@ describe('useDrawing', () => {
       expect(drawing.canUndo.value).toBe(false)
     })
 
-    it('straightens nearly straight pen strokes on endDraw when enabled', () => {
+    it('locks pen stroke to a line after holding still for 500ms, then previews by dragging', () => {
+      vi.useFakeTimers()
       drawing.currentTool.value = 'pen'
-      drawing.setStrokeStraighten(true)
-      drawing.startDraw({ x: 0, y: 0 })
-      for (let i = 1; i <= 20; i++) {
-        drawing.draw({ x: i * 10, y: (i % 2) * 0.2 })
+      drawing.startDraw({ x: 0, y: 0, pressure: 0.4 })
+      for (let i = 1; i <= 10; i++) {
+        drawing.draw({ x: i * 10, y: (i % 2) * 0.2, pressure: 0.5 })
       }
-      drawing.endDraw()
+      expect(drawing.isStrokeLineLocked()).toBe(false)
+      expect(drawing.getActiveStrokePointCount()).toBeGreaterThan(2)
 
-      const hit = drawing.findActionAt({ x: 100, y: 0 })
+      vi.advanceTimersByTime(500)
+      expect(drawing.isStrokeLineLocked()).toBe(true)
+      expect(drawing.getActiveStrokePointCount()).toBe(2)
+
+      drawing.draw({ x: 200, y: 50, pressure: 0.9 })
+      expect(drawing.getActiveStrokePointCount()).toBe(2)
+      const tip = drawing.getActiveStrokeFirstPoint()
+      expect(tip).toEqual({ x: 0, y: 0 })
+
+      drawing.endDraw()
+      const hit = drawing.findActionAt({ x: 100, y: 25 })
       expect(hit).toBeTruthy()
       expect(hit!.action.points).toHaveLength(2)
-      expect(hit!.action.points[0].x).toBeCloseTo(0, 5)
-      // Input streamline may pull the live tip slightly short of the raw last sample.
-      expect(hit!.action.points[1].x).toBeGreaterThan(180)
-      expect(hit!.action.points[1].y).toBeCloseTo(0, 0)
+      expect(hit!.action.points[0]).toMatchObject({ x: 0, y: 0 })
+      expect(hit!.action.points[1]).toMatchObject({ x: 200, y: 50, pressure: 0.9 })
+      expect(drawing.isStrokeLineLocked()).toBe(false)
+      vi.useRealTimers()
     })
 
-    it('does not straighten curved pen strokes', () => {
+    it('resets the line-lock timer when the pointer keeps moving', () => {
+      vi.useFakeTimers()
       drawing.currentTool.value = 'pen'
-      drawing.setStrokeStraighten(true)
       drawing.startDraw({ x: 0, y: 0 })
-      for (let i = 1; i <= 20; i++) {
-        drawing.draw({ x: i * 10, y: Math.sin(i / 3) * 40 })
-      }
-      drawing.endDraw()
+      drawing.draw({ x: 30, y: 0 })
+      vi.advanceTimersByTime(300)
+      drawing.draw({ x: 60, y: 0 })
+      vi.advanceTimersByTime(300)
+      expect(drawing.isStrokeLineLocked()).toBe(false)
+      expect(drawing.getActiveStrokePointCount()).toBeGreaterThan(2)
 
-      const hit = drawing.findActionAt({ x: 100, y: 0 })
-      expect(hit).toBeTruthy()
-      expect(hit!.action.points.length).toBeGreaterThan(2)
+      vi.advanceTimersByTime(500)
+      expect(drawing.isStrokeLineLocked()).toBe(true)
+      expect(drawing.getActiveStrokePointCount()).toBe(2)
+      drawing.endDraw()
+      vi.useRealTimers()
     })
 
-    it('skips straighten when the setting is off', () => {
+    it('keeps freehand strokes when released before the still hold', () => {
+      vi.useFakeTimers()
       drawing.currentTool.value = 'pen'
-      drawing.setStrokeStraighten(false)
       drawing.startDraw({ x: 0, y: 0 })
       for (let i = 1; i <= 20; i++) {
         drawing.draw({ x: i * 10, y: (i % 2) * 0.2 })
       }
+      vi.advanceTimersByTime(400)
       drawing.endDraw()
 
       const hit = drawing.findActionAt({ x: 100, y: 0 })
       expect(hit).toBeTruthy()
       expect(hit!.action.points.length).toBeGreaterThan(2)
+      vi.useRealTimers()
     })
   })
 

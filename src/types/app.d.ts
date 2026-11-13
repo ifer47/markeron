@@ -24,7 +24,6 @@ export interface AppConfig {
     penCursorStyle?: PenCursorStyle
     crosshairCursorStyle?: CrosshairCursorStyle
     strokeSmoothing?: StrokeSmoothing
-    strokeStraighten?: boolean
     /** After one arrow/rect/ellipse/line stroke, switch back to pen. Default off. */
     autoRevertToPen?: boolean
     lineWidths?: {

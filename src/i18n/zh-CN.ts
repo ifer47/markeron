@@ -163,9 +163,6 @@ export default {
     strokeSmoothingStrong: '强',
     strokeSmoothingDesc:
       '平滑钢笔与荧光笔笔迹。标准兼顾跟手与墨迹质量；强更柔和；关闭则保留原始采样点。笔/触控仍按压感变宽；鼠标为等宽。',
-    strokeStraighten: '笔画拉直',
-    strokeStraightenDesc:
-      '开启后，接近直线的钢笔/荧光笔自由笔画在松手时会规范为直线；明显弯曲的笔画不受影响。需要精确直线时可按住 Alt 拖动绘制。',
     autoRevertToPen: '画完图形后回到画笔',
     autoRevertToPenDesc:
       '用直线、箭头、矩形或椭圆画完一次后，自动切回画笔。用修饰键临时切换工具时，仍会恢复到切换前的工具。',
@@ -206,6 +203,8 @@ export default {
     modifierDraw: '修饰键 + 拖动',
     thShape: '图形',
     straightLine: '直线',
+    strokeLineLockHint: '画笔 / 荧光笔长按变直线',
+    strokeLineLockGesture: '按住停顿约 0.5 秒',
     square: '正方形',
     circle: '正圆',
     colorSwitch: '颜色',

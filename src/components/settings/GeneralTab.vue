@@ -85,6 +85,7 @@ const props = defineProps<{
   laserMode: LaserMode
   strokeSmoothing: StrokeSmoothing
   strokeStraighten: boolean
+  autoRevertToPen: boolean
   preserveDrawings: boolean
   whiteboardPreserveDrawings: boolean
   autoStartEnabled: boolean
@@ -100,6 +101,7 @@ const emit = defineEmits<{
   'update:laserMode': [value: LaserMode]
   'update:strokeSmoothing': [value: StrokeSmoothing]
   'update:strokeStraighten': [value: boolean]
+  'update:autoRevertToPen': [value: boolean]
   'update:preserveDrawings': [value: boolean]
   'update:whiteboardPreserveDrawings': [value: boolean]
   'update:autoStartEnabled': [value: boolean]
@@ -294,6 +296,7 @@ async function toggleStrokeStraighten() {
         dragMode: props.dragMode,
         strokeSmoothing: props.strokeSmoothing,
         strokeStraighten: newValue,
+        autoRevertToPen: props.autoRevertToPen,
         preserveDrawings: false,
         whiteboardPreserveDrawings: true,
         angleSnapStep: props.angleSnapStep,
@@ -302,6 +305,28 @@ async function toggleStrokeStraighten() {
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
     console.error('Failed to save stroke straighten setting:', error)
+  }
+}
+
+async function toggleAutoRevertToPen() {
+  const newValue = !props.autoRevertToPen
+  emit('update:autoRevertToPen', newValue)
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general)
+      cfg.general = {
+        dragMode: props.dragMode,
+        strokeSmoothing: props.strokeSmoothing,
+        strokeStraighten: props.strokeStraighten,
+        autoRevertToPen: newValue,
+        preserveDrawings: false,
+        whiteboardPreserveDrawings: true,
+        angleSnapStep: props.angleSnapStep,
+      }
+    cfg.general.autoRevertToPen = newValue
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save auto-revert-to-pen setting:', error)
   }
 }
 
@@ -682,6 +707,24 @@ async function commitAngleSnapStep(step: number) {
           </button>
         </div>
         <p class="settings-card-desc">{{ t('settings.strokeStraightenDesc') }}</p>
+
+        <div class="settings-card-row settings-card-row--divided">
+          <span class="settings-text-label">{{ t('settings.autoRevertToPen') }}</span>
+          <button
+            role="switch"
+            :aria-checked="autoRevertToPen"
+            :aria-label="t('settings.autoRevertToPen')"
+            class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
+            :class="autoRevertToPen ? 'settings-toggle-on' : 'settings-toggle-off'"
+            @click="toggleAutoRevertToPen"
+          >
+            <span
+              class="absolute top-0.5 left-0.5 size-3.5 rounded-full bg-white shadow-md transition-transform duration-200"
+              :class="autoRevertToPen ? 'translate-x-3.5' : 'translate-x-0'"
+            />
+          </button>
+        </div>
+        <p class="settings-card-desc">{{ t('settings.autoRevertToPenDesc') }}</p>
       </div>
 
       <div class="settings-card">

@@ -172,6 +172,9 @@ export default {
     strokeStraighten: 'Straighten strokes',
     strokeStraightenDesc:
       'When enabled, nearly straight freehand pen and highlighter strokes snap to a clean line on release. Curved strokes are unchanged. Hold Alt while dragging to draw a perfect line instead.',
+    autoRevertToPen: 'Return to pen after shape',
+    autoRevertToPenDesc:
+      'After drawing one line, arrow, rectangle, or ellipse, automatically switch back to the pen. Modifier-key temporary tools still restore the previous tool as before.',
   },
   toolbar: {
     undo: 'Undo',

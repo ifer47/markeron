@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { drawActionDirect, drawArrow, drawText, drawStamp } from './drawingRender'
+import { drawActionDirect, drawArrow, drawEllipse, drawText, drawStamp, isAxisAlignedCircle } from './drawingRender'
 import { shapeDashPattern } from '../constants/tools'
 import type { DrawAction } from './drawingTypes'
 
@@ -248,5 +248,66 @@ describe('drawingRender stamp', () => {
     expect(ctx.fillText).toHaveBeenCalledOnce()
     expect(calls).toEqual(['fill', 'fill', 'fill', 'label'])
     expect(ctx.fillStyle).toBe('#FFFFFF')
+  })
+})
+
+describe('drawingRender circle center', () => {
+  it('detects axis-aligned circles and rejects elongated ellipses', () => {
+    expect(isAxisAlignedCircle({ x: 0, y: 0 }, { x: 100, y: 100 })).toBe(true)
+    expect(isAxisAlignedCircle({ x: 0, y: 0 }, { x: 100, y: 60 })).toBe(false)
+    expect(isAxisAlignedCircle({ x: 10, y: 10 }, { x: 11, y: 11 })).toBe(false)
+  })
+
+  it('draws a center marker for perfect circles', () => {
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      ellipse: vi.fn(),
+      arc: vi.fn(),
+      stroke: vi.fn(),
+      fill: vi.fn(),
+      setLineDash: vi.fn(),
+      lineWidth: 3,
+      strokeStyle: '#FF0000',
+      fillStyle: '',
+      lineCap: 'butt',
+      lineJoin: 'miter',
+    } as unknown as CanvasRenderingContext2D
+
+    drawEllipse(ctx, { x: 0, y: 0 }, { x: 100, y: 100 }, { lineWidth: 3 })
+
+    expect(ctx.ellipse).toHaveBeenCalledOnce()
+    expect(ctx.stroke).toHaveBeenCalled()
+    expect(ctx.arc).toHaveBeenCalled()
+    expect(ctx.fill).toHaveBeenCalled()
+  })
+
+  it('omits the center marker for non-circular ellipses', () => {
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      ellipse: vi.fn(),
+      arc: vi.fn(),
+      stroke: vi.fn(),
+      fill: vi.fn(),
+      setLineDash: vi.fn(),
+      lineWidth: 3,
+      strokeStyle: '#FF0000',
+      fillStyle: '',
+      lineCap: 'butt',
+      lineJoin: 'miter',
+    } as unknown as CanvasRenderingContext2D
+
+    drawEllipse(ctx, { x: 0, y: 0 }, { x: 100, y: 40 }, { lineWidth: 3 })
+
+    expect(ctx.ellipse).toHaveBeenCalledOnce()
+    expect(ctx.arc).not.toHaveBeenCalled()
+    expect(ctx.fill).not.toHaveBeenCalled()
   })
 })

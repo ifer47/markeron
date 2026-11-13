@@ -166,6 +166,9 @@ export default {
     strokeStraighten: '笔画拉直',
     strokeStraightenDesc:
       '开启后，接近直线的钢笔/荧光笔自由笔画在松手时会规范为直线；明显弯曲的笔画不受影响。需要精确直线时可按住 Alt 拖动绘制。',
+    autoRevertToPen: '画完图形后回到画笔',
+    autoRevertToPenDesc:
+      '用直线、箭头、矩形或椭圆画完一次后，自动切回画笔。用修饰键临时切换工具时，仍会恢复到切换前的工具。',
   },
   toolbar: {
     undo: '撤销',

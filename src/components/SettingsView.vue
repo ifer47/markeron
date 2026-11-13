@@ -11,6 +11,7 @@ import { resolveEraserMode, type EraserMode } from '../utils/eraserMode'
 import { resolveLaserMode, type LaserMode } from '../utils/laserMode'
 import { resolveStrokeSmoothing, type StrokeSmoothing } from '../utils/strokeSmoothing'
 import { resolveStrokeStraighten } from '../utils/strokeStraighten'
+import { resolveAutoRevertToPen } from '../utils/autoRevertToPen'
 import { isEnabled } from '@tauri-apps/plugin-autostart'
 import { reconcileAutoStartState, resolveAutoStart } from '../utils/autoStart'
 import { isInstalledMode, supportsAutostart } from '../utils/portable'
@@ -226,6 +227,7 @@ const eraserMode = ref<EraserMode>('stroke')
 const laserMode = ref<LaserMode>('trail')
 const strokeSmoothing = ref<StrokeSmoothing>('standard')
 const strokeStraighten = ref(true)
+const autoRevertToPen = ref(false)
 const preserveDrawings = ref(false)
 const whiteboardPreserveDrawings = ref(true)
 const angleSnapStep = ref(15)
@@ -264,6 +266,7 @@ onMounted(async () => {
   laserMode.value = resolveLaserMode(cfg.general)
   strokeSmoothing.value = resolveStrokeSmoothing(cfg.general)
   strokeStraighten.value = resolveStrokeStraighten(cfg.general)
+  autoRevertToPen.value = resolveAutoRevertToPen(cfg.general)
   preserveDrawings.value = cfg.general?.preserveDrawings ?? false
   whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
   angleSnapStep.value = resolveAngleSnapStep(cfg.general?.angleSnapStep)
@@ -288,6 +291,7 @@ onMounted(async () => {
     laserMode.value = resolveLaserMode(general)
     strokeSmoothing.value = resolveStrokeSmoothing(general)
     strokeStraighten.value = resolveStrokeStraighten(general)
+    autoRevertToPen.value = resolveAutoRevertToPen(general)
     preserveDrawings.value = general?.preserveDrawings ?? false
     whiteboardPreserveDrawings.value = general?.whiteboardPreserveDrawings ?? true
     angleSnapStep.value = resolveAngleSnapStep(general?.angleSnapStep)
@@ -536,6 +540,7 @@ onUnmounted(() => {
         :laser-mode="laserMode"
         :stroke-smoothing="strokeSmoothing"
         :stroke-straighten="strokeStraighten"
+        :auto-revert-to-pen="autoRevertToPen"
         :preserve-drawings="preserveDrawings"
         :whiteboard-preserve-drawings="whiteboardPreserveDrawings"
         :auto-start-enabled="autoStartEnabled"
@@ -548,6 +553,7 @@ onUnmounted(() => {
         @update:laser-mode="laserMode = $event"
         @update:stroke-smoothing="strokeSmoothing = $event"
         @update:stroke-straighten="strokeStraighten = $event"
+        @update:auto-revert-to-pen="autoRevertToPen = $event"
         @update:preserve-drawings="preserveDrawings = $event"
         @update:whiteboard-preserve-drawings="whiteboardPreserveDrawings = $event"
         @update:auto-start-enabled="autoStartEnabled = $event"

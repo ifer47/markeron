@@ -125,7 +125,46 @@ export function drawRect(ctx: CanvasRenderingContext2D, start: Point, end: Point
   ctx.stroke()
 }
 
-export function drawEllipse(ctx: CanvasRenderingContext2D, start: Point, end: Point) {
+/** True when the axis-aligned ellipse from diagonal corners is effectively a circle. */
+export function isAxisAlignedCircle(start: Point, end: Point): boolean {
+  const rx = Math.abs(end.x - start.x) / 2
+  const ry = Math.abs(end.y - start.y) / 2
+  const r = Math.max(rx, ry)
+  if (r < 2) return false
+  return Math.abs(rx - ry) <= Math.max(1, r * 0.02)
+}
+
+/** Cross + dot at circle center (for math teaching). Uses current stroke/fill styles. */
+export function drawCircleCenter(ctx: CanvasRenderingContext2D, cx: number, cy: number, lineWidth: number) {
+  const arm = Math.max(4, lineWidth * 1.5)
+  const strokeW = Math.max(1, lineWidth * 0.45)
+  const dotR = Math.max(1.25, lineWidth * 0.35)
+
+  ctx.save()
+  ctx.setLineDash([])
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.lineWidth = strokeW
+  ctx.beginPath()
+  ctx.moveTo(cx - arm, cy)
+  ctx.lineTo(cx + arm, cy)
+  ctx.moveTo(cx, cy - arm)
+  ctx.lineTo(cx, cy + arm)
+  ctx.stroke()
+
+  ctx.fillStyle = typeof ctx.strokeStyle === 'string' ? ctx.strokeStyle : '#000'
+  ctx.beginPath()
+  ctx.arc(cx, cy, dotR, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+}
+
+export function drawEllipse(
+  ctx: CanvasRenderingContext2D,
+  start: Point,
+  end: Point,
+  options?: { lineWidth?: number; showCenter?: boolean },
+) {
   const cx = (start.x + end.x) / 2
   const cy = (start.y + end.y) / 2
   const rx = Math.abs(end.x - start.x) / 2
@@ -134,6 +173,11 @@ export function drawEllipse(ctx: CanvasRenderingContext2D, start: Point, end: Po
   ctx.beginPath()
   ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2)
   ctx.stroke()
+
+  const showCenter = options?.showCenter !== false && isAxisAlignedCircle(start, end)
+  if (showCenter) {
+    drawCircleCenter(ctx, cx, cy, options?.lineWidth ?? ctx.lineWidth)
+  }
 }
 
 export function drawText(ctx: CanvasRenderingContext2D, action: DrawAction) {
@@ -329,7 +373,7 @@ export function drawActionDirect(
         ctx.translate(-cx, -cy)
       }
       if (action.tool === 'rect') drawRect(ctx, pts[0], pts[1])
-      else drawEllipse(ctx, pts[0], pts[1])
+      else drawEllipse(ctx, pts[0], pts[1], { lineWidth: action.lineWidth })
       break
     }
   }

@@ -37,6 +37,10 @@ fn default_stroke_straighten() -> bool {
     true
 }
 
+fn default_auto_revert_to_pen() -> bool {
+    false
+}
+
 fn default_line_width() -> u32 {
     3
 }
@@ -218,6 +222,9 @@ pub struct GeneralConfig {
     pub stroke_smoothing: StrokeSmoothing,
     #[serde(default = "default_stroke_straighten", rename = "strokeStraighten")]
     pub stroke_straighten: bool,
+    /// After finishing one arrow/rect/ellipse/line stroke, switch back to pen.
+    #[serde(default = "default_auto_revert_to_pen", rename = "autoRevertToPen")]
+    pub auto_revert_to_pen: bool,
     #[serde(default, rename = "lineWidths")]
     pub line_widths: LineWidthsConfig,
     #[serde(default = "default_auto_start", rename = "autoStart")]
@@ -245,6 +252,7 @@ impl Default for GeneralConfig {
             crosshair_cursor_style: CrosshairCursorStyle::Crosshair,
             stroke_smoothing: StrokeSmoothing::Standard,
             stroke_straighten: default_stroke_straighten(),
+            auto_revert_to_pen: default_auto_revert_to_pen(),
             line_widths: LineWidthsConfig::default(),
             auto_start: default_auto_start(),
             theme: ThemePreference::Dark,
@@ -811,6 +819,12 @@ mod tests {
     }
 
     #[test]
+    fn general_config_defaults_auto_revert_to_pen_off() {
+        let general = GeneralConfig::default();
+        assert!(!general.auto_revert_to_pen);
+    }
+
+    #[test]
     fn missing_stroke_straighten_defaults_to_true() {
         let json = r#"{
             "shortcuts": {
@@ -821,6 +835,7 @@ mod tests {
         }"#;
         let config: AppConfig = serde_json::from_str(json).unwrap();
         assert!(config.general.stroke_straighten);
+        assert!(!config.general.auto_revert_to_pen);
     }
 
     #[test]
@@ -836,6 +851,21 @@ mod tests {
         }"#;
         let config: AppConfig = serde_json::from_str(json).unwrap();
         assert!(!config.general.stroke_straighten);
+    }
+
+    #[test]
+    fn config_deserializes_auto_revert_to_pen_on() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C"
+            },
+            "general": {
+                "autoRevertToPen": true
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert!(config.general.auto_revert_to_pen);
     }
 
     #[test]

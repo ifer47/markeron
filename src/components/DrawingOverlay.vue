@@ -90,6 +90,7 @@ import {
 import { resolveToolbarSelectTool } from '../utils/toolbarSelectTool'
 import { resolveStrokeSmoothing } from '../utils/strokeSmoothing'
 import { resolveStrokeStraighten } from '../utils/strokeStraighten'
+import { resolveAutoRevertToPen, toolAfterShapeStroke } from '../utils/autoRevertToPen'
 import { setStrokeSmoothing } from '../composables/strokeSmoothingState'
 import { noteStableViewportSample } from '../utils/overlayViewport'
 import { normalizePressure } from '../constants/penStroke'
@@ -523,6 +524,27 @@ function applyStrokeSmoothingFromConfig(general?: AppConfig['general']) {
 
 function applyStrokeStraightenFromConfig(general?: AppConfig['general']) {
   setStrokeStraighten(resolveStrokeStraighten(general))
+}
+
+const autoRevertToPen = ref(false)
+
+function applyAutoRevertToPenFromConfig(general?: AppConfig['general']) {
+  autoRevertToPen.value = resolveAutoRevertToPen(general)
+}
+
+/**
+ * Restore a real modifier-temp tool, or optionally snap one-shot shapes back to pen.
+ * Abort paths pass `allowAutoRevert: false` so interrupted sticky shapes stay selected.
+ */
+function restoreToolAfterStroke(options?: { allowAutoRevert?: boolean }) {
+  const next = toolAfterShapeStroke({
+    autoRevertToPen: autoRevertToPen.value,
+    toolBeforeModifier,
+    currentTool: currentTool.value,
+    allowAutoRevert: options?.allowAutoRevert !== false,
+  })
+  toolBeforeModifier = null
+  if (next !== null) currentTool.value = next
 }
 
 function applyLineWidthsFromConfig(general?: AppConfig['general']) {
@@ -1284,10 +1306,7 @@ function finishActivePointerInteraction() {
     cancelMarqueeSelection()
   } else if (isDrawing.value) {
     endDraw()
-    if (toolBeforeModifier !== null) {
-      currentTool.value = toolBeforeModifier as Tool
-      toolBeforeModifier = null
-    }
+    restoreToolAfterStroke()
   }
   stopPenRawUpdates()
   hoveredActionInfo.value = null
@@ -1610,8 +1629,9 @@ function onPointerUp(e: PointerEvent) {
     })
   }
   stopPenRawUpdates()
-  if (toolBeforeModifier !== null) {
-    currentTool.value = toolBeforeModifier as Tool
+  if (wasDrawing) {
+    restoreToolAfterStroke()
+  } else {
     toolBeforeModifier = null
   }
   markPointerInteractionEnded()
@@ -1642,10 +1662,8 @@ function abortActivePointerInteraction() {
   if (isDrawing.value) {
     endDraw()
   }
-  if (toolBeforeModifier !== null) {
-    currentTool.value = toolBeforeModifier as Tool
-  }
-  toolBeforeModifier = null
+  // Abort: restore real modifier-temp tools only — never auto-revert to pen.
+  restoreToolAfterStroke({ allowAutoRevert: false })
   hoveredActionInfo.value = null
   clearSelectionHover()
   pointerModDown.value = false
@@ -2208,6 +2226,7 @@ onMounted(async () => {
     applyCrosshairCursorStyleFromConfig(cfg.general)
     applyStrokeSmoothingFromConfig(cfg.general)
     applyStrokeStraightenFromConfig(cfg.general)
+    applyAutoRevertToPenFromConfig(cfg.general)
     applyLineWidthsFromConfig(cfg.general)
     preserveDrawings.value = cfg.general?.preserveDrawings ?? false
     whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
@@ -2232,6 +2251,7 @@ onMounted(async () => {
       applyCrosshairCursorStyleFromConfig(event.payload.general)
       applyStrokeSmoothingFromConfig(event.payload.general)
       applyStrokeStraightenFromConfig(event.payload.general)
+      applyAutoRevertToPenFromConfig(event.payload.general)
       // lineWidths: overlay is the sole writer; skip echo from our own save_general
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
       whiteboardPreserveDrawings.value = event.payload.general?.whiteboardPreserveDrawings ?? true

@@ -85,6 +85,8 @@ export default {
       about: '关于',
     },
     sidebarOpenSource: '开源',
+    sidebarSponsors: '赞助名单',
+    sidebarOpenReleases: '打开最新版本说明（v{version}）',
     creditsRoll: {
       title: '致谢',
       sponsorsEmpty: '每一位赞助者',

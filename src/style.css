@@ -100,6 +100,9 @@ html[data-theme='dark'] {
   --ui-footer-version: rgba(255, 255, 255, 0.36);
   --ui-footer-version-hover: rgba(255, 255, 255, 0.5);
   --ui-footer-version-shake: rgba(10, 132, 255, 0.72);
+  --ui-footer-sponsors: rgba(255, 255, 255, 0.34);
+  --ui-footer-sponsors-hover: rgba(255, 255, 255, 0.5);
+  --ui-footer-emboss: 0 -0.5px 0 rgba(255, 255, 255, 0.14), 0 1px 0 rgba(0, 0, 0, 0.55);
   --ui-focus-ring: rgba(10, 132, 255, 0.35);
   --ui-credits-name: rgba(255, 255, 255, 0.55);
   --ui-credits-closing: rgba(255, 255, 255, 0.58);
@@ -218,6 +221,9 @@ html[data-theme='light'] {
   --ui-footer-version: rgba(0, 0, 0, 0.4);
   --ui-footer-version-hover: rgba(0, 0, 0, 0.55);
   --ui-footer-version-shake: rgba(10, 132, 255, 0.8);
+  --ui-footer-sponsors: rgba(0, 0, 0, 0.38);
+  --ui-footer-sponsors-hover: rgba(0, 0, 0, 0.55);
+  --ui-footer-emboss: 0 1px 0 rgba(255, 255, 255, 0.92), 0 -0.5px 0 rgba(0, 0, 0, 0.08);
   --ui-focus-ring: rgba(10, 132, 255, 0.4);
   --ui-credits-name: rgba(0, 0, 0, 0.55);
   --ui-credits-closing: rgba(0, 0, 0, 0.62);
@@ -735,13 +741,65 @@ html.settings .ui-select {
   padding-bottom: 16px;
 }
 
+.settings-sidebar-footer__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  transition: opacity 280ms ease;
+}
+
+.settings-sidebar-footer__meta--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.settings-sidebar-footer__sponsors-btn {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: var(--settings-fs-footer, 12.5px);
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+  color: var(--ui-footer-sponsors);
+  text-shadow: var(--ui-footer-emboss);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition:
+    color 180ms ease,
+    text-shadow 180ms ease;
+}
+
+.settings-sidebar-footer__sponsors-btn:hover {
+  color: var(--ui-footer-sponsors-hover);
+}
+
+.settings-sidebar-footer__sponsors-btn:focus-visible {
+  outline: 1px solid var(--ui-focus-ring);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.settings-sidebar-footer__sponsors-btn.is-shaking {
+  color: var(--ui-footer-version-shake);
+  text-shadow: none;
+}
+
 .settings-sidebar-footer__line {
   display: flex;
   align-items: center;
   flex-wrap: nowrap;
   gap: 4px;
+  margin: 0;
   font-size: var(--settings-fs-footer, 12.5px);
   line-height: 1.2;
+  text-shadow: var(--ui-footer-emboss);
 }
 
 .settings-sidebar-footer__version-btn {
@@ -755,12 +813,15 @@ html.settings .ui-select {
   letter-spacing: 0.04em;
   line-height: inherit;
   color: var(--ui-footer-version);
+  text-shadow: inherit;
   white-space: nowrap;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
-  transition: color 180ms ease;
+  transition:
+    color 180ms ease,
+    text-shadow 180ms ease;
 }
 
 .settings-sidebar-footer__version-btn:hover {
@@ -771,10 +832,6 @@ html.settings .ui-select {
   outline: 1px solid var(--ui-focus-ring);
   outline-offset: 2px;
   border-radius: 2px;
-}
-
-.settings-sidebar-footer__version-btn.is-shaking {
-  color: var(--ui-footer-version-shake);
 }
 
 .settings-sidebar-footer__open {
@@ -801,12 +858,6 @@ html.settings .ui-select {
   z-index: 20;
 }
 
-.settings-sidebar-footer__line--hidden {
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 280ms ease;
-}
-
 .settings-sidebar-credits {
   position: absolute;
   left: 4px;
@@ -823,6 +874,7 @@ html.settings .ui-select {
   transform: translateY(0);
   opacity: 1;
   filter: blur(0);
+  pointer-events: auto;
   transition:
     transform 560ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 380ms ease,
@@ -833,6 +885,7 @@ html.settings .ui-select {
   transform: translateY(10px);
   opacity: 0;
   filter: blur(2px);
+  pointer-events: none;
   transition:
     transform 420ms cubic-bezier(0.55, 0, 1, 0.45),
     opacity 320ms ease,
@@ -841,7 +894,9 @@ html.settings .ui-select {
 
 .settings-sidebar-credits__body {
   position: relative;
-  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border-radius: 14px;
   background: var(--ui-credits-body-bg);
   border: 1px solid var(--ui-credits-body-border);
@@ -879,10 +934,10 @@ html.settings .ui-select {
 }
 
 .settings-sidebar-credits__viewport {
-  height: 210px;
+  /* 约三行赞助者高度，名单更多时仍有滚动空间 */
+  height: 108px;
   overflow: hidden;
-  border-radius: 14px;
-  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 1) 8%, rgba(0, 0, 0, 1) 92%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 1) 14%, rgba(0, 0, 0, 1) 86%, transparent 100%);
 }
 
 .settings-sidebar-credits__track {
@@ -892,6 +947,15 @@ html.settings .ui-select {
 
 .settings-sidebar-credits__track.is-scrolling {
   animation: settings-sidebar-credits-scroll var(--credits-duration, 8s) linear forwards;
+}
+
+.settings-sidebar-credits__track.is-scrolling.is-looping {
+  animation-iteration-count: infinite;
+}
+
+.settings-sidebar-credits:has(.settings-sidebar-credits__sponsor-name:hover)
+  .settings-sidebar-credits__track.is-scrolling {
+  animation-play-state: paused;
 }
 
 @keyframes settings-sidebar-credits-scroll {
@@ -906,12 +970,14 @@ html.settings .ui-select {
 
 .settings-sidebar-credits__title {
   position: relative;
+  z-index: 1;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 7px;
   margin: 0;
-  padding: 18px 10px 14px;
+  padding: 16px 10px 10px;
   text-align: center;
   font-size: 15px;
   font-weight: 700;
@@ -964,12 +1030,13 @@ html.settings .ui-select {
   justify-content: center;
   box-sizing: border-box;
   /* 每行含 1px 顶部分隔线，盒模型完全一致，文字相对上下线几何居中 */
-  height: 48px;
+  height: 36px;
   padding: 0 4px;
   border-top: 1px solid transparent;
 }
 
-.settings-sidebar-credits__sponsor + .settings-sidebar-credits__sponsor {
+.settings-sidebar-credits__sponsor + .settings-sidebar-credits__sponsor,
+.settings-sidebar-credits__section + .settings-sidebar-credits__section .settings-sidebar-credits__sponsor:first-child {
   border-top-color: var(--ui-credits-border);
 }
 
@@ -984,15 +1051,20 @@ html.settings .ui-select {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* 仅文字本身可触发暂停，行内空白区域不暂停 */
+  display: inline-block;
+  padding: 4px 2px;
 }
 
 .settings-sidebar-credits__closing {
   position: relative;
+  z-index: 1;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 4px;
-  padding: 12px 18px 16px;
+  padding: 10px 18px 14px;
   border-top: 1px solid var(--ui-credits-border-strong);
   font-size: 11.5px;
   letter-spacing: 0.04em;

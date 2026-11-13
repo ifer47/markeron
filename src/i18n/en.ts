@@ -86,6 +86,8 @@ export default {
       about: 'About',
     },
     sidebarOpenSource: 'OSS',
+    sidebarSponsors: 'Sponsor list',
+    sidebarOpenReleases: 'Open latest release notes (v{version})',
     creditsRoll: {
       title: 'Credits',
       sponsorsEmpty: 'Every supporter',

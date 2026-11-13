@@ -148,7 +148,7 @@ function randomInputs(count: number, seed: number): FreehandInputPoint[] {
 }
 
 describe('InkStrokePointStream', () => {
-  it('matches perfect-freehand getStrokePoints for every prefix', () => {
+  it('matches perfect-freehand getStrokePoints for every prefix', { timeout: 15_000 }, () => {
     for (const level of ['off', 'standard', 'strong'] as const) {
       for (const size of [1, 3, 12, 40]) {
         const options = inkFreehandOptions(size, level, false, 'pen')

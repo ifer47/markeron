@@ -12,6 +12,11 @@ use std::time::{Duration, Instant};
 #[cfg(windows)]
 static COVERED_FULLSCREEN_APP: AtomicIsize = AtomicIsize::new(0);
 
+/// Last monitor rect applied by `setup_overlay_size` (physical pixels).
+#[cfg(windows)]
+static LAST_OVERLAY_SETUP_RECT: std::sync::Mutex<Option<(i32, i32, u32, u32)>> =
+    std::sync::Mutex::new(None);
+
 fn set_ignore_cursor_events(window: &WebviewWindow, ignore: bool) {
     window.set_ignore_cursor_events(ignore).ok();
 }
@@ -151,6 +156,10 @@ pub fn notify_overlay_geometry_changed(app: &AppHandle) {
 pub fn setup_overlay_size(app: &AppHandle) {
     #[cfg(windows)]
     COVERED_FULLSCREEN_APP.store(0, Ordering::Relaxed);
+    #[cfg(windows)]
+    if let Ok(mut stored) = LAST_OVERLAY_SETUP_RECT.lock() {
+        *stored = None;
+    }
     #[cfg(target_os = "macos")]
     {
         // Detach before moving the overlay so an attached toolbar is not dragged
@@ -169,6 +178,9 @@ pub fn setup_overlay_size(app: &AppHandle) {
             }
             #[cfg(windows)]
             {
+                if let Ok(mut stored) = LAST_OVERLAY_SETUP_RECT.lock() {
+                    *stored = Some((x, y, w, h));
+                }
                 if let Ok(hwnd) = window.hwnd() {
                     // Sampled before the overlay is shown/focused, so this sees the app
                     // the user invoked the shortcut from.
@@ -214,6 +226,9 @@ pub fn setup_overlay_size(app: &AppHandle) {
             }
             #[cfg(not(target_os = "macos"))]
             {
+                if let Ok(mut stored) = LAST_OVERLAY_SETUP_RECT.lock() {
+                    *stored = Some((pos.x, pos.y, size.width, size.height));
+                }
                 window
                     .set_size(tauri::PhysicalSize::new(
                         size.width,
@@ -633,12 +648,23 @@ pub fn activate_drawing(app: &AppHandle, state: &AppState) {
         // Drop click-through before `show()` activates the window: Explorer does not treat a
         // WS_EX_TRANSPARENT foreground window as fullscreen and briefly raises the taskbar.
         set_ignore_cursor_events(&window, false);
+        // Re-fit while visible: sizing the hidden overlay (setup_overlay_size) leaves
+        // WebView2 on the previous monitor's client size / DPI until a visible resize.
+        // Cross-monitor A→hide→B then looked like B used A's resolution until the next show.
         #[cfg(windows)]
-        if COVERED_FULLSCREEN_APP.load(Ordering::Relaxed) != 0 {
-            if let Ok(hwnd) = window.hwnd() {
-                crate::win32::show_covering_window_without_activation(hwnd.0 as isize);
+        {
+            let setup_rect = LAST_OVERLAY_SETUP_RECT
+                .lock()
+                .ok()
+                .and_then(|guard| *guard)
+                .or_else(monitor::get_cursor_monitor_rect);
+            if let (Some((x, y, w, h)), Ok(hwnd)) = (setup_rect, window.hwnd()) {
+                let cover = COVERED_FULLSCREEN_APP.load(Ordering::Relaxed) != 0;
+                crate::win32::show_and_refit_overlay_window(hwnd.0 as isize, x, y, w, h, cover);
             }
         }
+        // Always go through Tauri show() so visibility state matches Win32 (SW_SHOWNA alone
+        // is not enough for wry/tao — same as the old fullscreen covering path).
         window.show().ok();
         window.set_always_on_top(true).ok();
         // Re-assert after show: some WebView2 builds only apply clear color once visible.

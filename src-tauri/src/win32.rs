@@ -108,27 +108,42 @@ pub fn position_window_on_monitor(
     }
 }
 
-/// Show a monitor-covering window without activating it, then re-fit it while visible.
+/// Show the overlay without activating it, then re-apply geometry while visible.
 ///
-/// Windows only re-evaluates whether a window is fullscreen when a visible window is
-/// resized; activation reuses that cached verdict. Sizing the overlay while hidden leaves
-/// it stale, so the first activation briefly raises the taskbar over a fullscreen app.
-pub fn show_covering_window_without_activation(hwnd: isize) {
-    use windows_sys::Win32::Foundation::{HWND, RECT as WinRect};
-    use windows_sys::Win32::UI::WindowsAndMessaging::{
-        GetWindowRect, ShowWindow, SWP_NOZORDER, SW_SHOWNA,
+/// `SetWindowPos` while the window is still hidden does not reliably update WebView2's
+/// client size / per-monitor DPI. Cross-monitor reactivation then keeps the previous
+/// display's CSS viewport (wrong resolution) until a later show. Nudging size while
+/// visible forces WM_SIZE / DPI catch-up — same idea as the fullscreen covering path (#81).
+///
+/// Callers must still invoke Tauri `window.show()` afterward so wry/tao visibility
+/// state stays in sync with the Win32 `ShowWindow(SW_SHOWNA)`.
+///
+/// Non-cover nudges stay 1px short of the monitor (`H-2` → `H-1`) so we never briefly
+/// become an exact monitor-covering topmost window (that strips taskbar Mica, #81).
+pub fn show_and_refit_overlay_window(
+    hwnd: isize,
+    x: i32,
+    y: i32,
+    width: u32,
+    height: u32,
+    cover_monitor: bool,
+) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNA};
+
+    let w = width.max(1) as i32;
+    let h_full = height.max(1) as i32;
+    let h_short = height.saturating_sub(1).max(1) as i32;
+    let (h_nudge, h_final) = if cover_monitor {
+        (h_short, h_full)
+    } else {
+        let h_nudge = height.saturating_sub(2).max(1) as i32;
+        (h_nudge, h_short)
     };
 
     unsafe {
-        let mut rc: WinRect = std::mem::zeroed();
-        if GetWindowRect(hwnd as HWND, &mut rc) == 0 {
-            return;
-        }
-        let (w, h) = (rc.right - rc.left, rc.bottom - rc.top);
-        ShowWindow(hwnd as HWND, SW_SHOWNA);
-        let flags = SWP_NOACTIVATE | SWP_NOZORDER;
-        SetWindowPos(hwnd, 0, rc.left, rc.top, w, (h - 1).max(1), flags);
-        SetWindowPos(hwnd, 0, rc.left, rc.top, w, h, flags);
+        ShowWindow(hwnd as _, SW_SHOWNA);
+        SetWindowPos(hwnd, HWND_TOPMOST, x, y, w, h_nudge, SWP_NOACTIVATE);
+        SetWindowPos(hwnd, HWND_TOPMOST, x, y, w, h_final, SWP_NOACTIVATE);
     }
 }
 

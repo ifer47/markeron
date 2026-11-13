@@ -91,6 +91,7 @@ import { resolveToolbarSelectTool } from '../utils/toolbarSelectTool'
 import { resolveStrokeSmoothing } from '../utils/strokeSmoothing'
 import { resolveStrokeStraighten } from '../utils/strokeStraighten'
 import { setStrokeSmoothing } from '../composables/strokeSmoothingState'
+import { noteStableViewportSample } from '../utils/overlayViewport'
 import { normalizePressure } from '../constants/penStroke'
 import { useI18n } from '../i18n'
 
@@ -941,6 +942,9 @@ function viewportLayoutKey(): string {
   return `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio || 1}`
 }
 
+/** Layout key from the last hidden session — reject early "stable" samples after cross-monitor activate. */
+let staleViewportKey: string | null = null
+
 /**
  * Wait until CSS viewport + DPR stop changing (WebView2 per-monitor DPI catch-up).
  * @returns true when the viewport held steady for `neededStable` samples.
@@ -948,18 +952,28 @@ function viewportLayoutKey(): string {
 async function waitForStableViewport(): Promise<boolean> {
   const maxFrames = isMacOS() ? 4 : 16
   const neededStable = isMacOS() ? 1 : 3
-  let last = ''
-  let stable = 0
+  // Reject a few samples of the previous monitor size; keep this short so same-monitor
+  // reactivation (common path) does not add ~200ms before strokes are allowed.
+  const allowStaleAfterSamples = isMacOS() ? 0 : 3
+  let state = { last: '', stable: 0 }
   for (let i = 0; i < maxFrames; i++) {
     await afterLayoutFrames(1)
-    const key = viewportLayoutKey()
-    if (key === last && window.innerWidth > 0) {
-      stable += 1
-      if (stable >= neededStable) return true
-    } else {
-      stable = 0
-      last = key
+    if (window.innerWidth <= 0) {
+      state = { last: '', stable: 0 }
+      continue
     }
+    const key = viewportLayoutKey()
+    const next = noteStableViewportSample(key, state, {
+      neededStable,
+      staleKey: staleViewportKey,
+      sampleIndex: i,
+      allowStaleAfterSamples,
+    })
+    state = { last: next.last, stable: next.stable }
+    if (staleViewportKey && key !== staleViewportKey) {
+      staleViewportKey = null
+    }
+    if (next.accepted) return true
   }
   return false
 }
@@ -2250,6 +2264,11 @@ onMounted(async () => {
       showQuickColors.value = false
       textBoxPos.value = null
       if (mode === 'hidden') {
+        // Remember this session's CSS size so the next activate does not treat a
+        // stale WebView2 viewport (previous monitor) as already settled.
+        if (window.innerWidth > 0 && window.innerHeight > 0) {
+          staleViewportKey = viewportLayoutKey()
+        }
         abortActivePointerInteraction()
         flushPersistLineWidths()
         whiteboardMode.value = false

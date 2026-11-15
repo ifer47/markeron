@@ -139,25 +139,14 @@ jobs:
 
             return body;
 
-  build:
+  # Windows stays parallel with macOS. Both macOS targets share one runner so we only
+  # need a single macos-latest (arm64) allocation — GitHub has been cancelling the
+  # second concurrent macOS job after ~15m with "not acquired by Runner".
+  build-windows:
     needs: release-notes
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-            args: ''
-            slug: windows
-          - platform: macos-latest
-            args: '--target aarch64-apple-darwin'
-            slug: macos-aarch64
-          - platform: macos-latest
-            args: '--target x86_64-apple-darwin'
-            slug: macos-x64
-
-    runs-on: ${{ matrix.platform }}
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -167,17 +156,10 @@ jobs:
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - run: npm ci
 
-      - name: Configure macOS ad-hoc signing
-        if: matrix.platform == 'macos-latest'
-        run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
-
       - name: Import code-signing certificate (Windows)
-        if: matrix.platform == 'windows-latest'
         id: codesign
         shell: powershell
         env:
@@ -200,7 +182,6 @@ jobs:
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
-        id: tauri
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -213,14 +194,13 @@ jobs:
           prerelease: false
           updaterJsonPreferNsis: true
           includeUpdaterJson: true
-          args: ${{ matrix.args }} ${{ steps.codesign.outputs.sign_args }}
+          args: ${{ steps.codesign.outputs.sign_args }}
 
       - name: Stash updater fragment
         shell: bash
         run: |
-          # tauri-action writes latest.json to the project root (not under bundle/)
           if [ -f latest.json ]; then
-            cp latest.json "updater-${{ matrix.slug }}.json"
+            cp latest.json updater-windows.json
           else
             echo "Updater fragment not found after build (expected ./latest.json)"
             find . -name 'latest.json' 2>/dev/null || true
@@ -229,17 +209,15 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: updater-${{ matrix.slug }}
-          path: updater-${{ matrix.slug }}.json
+          name: updater-windows
+          path: updater-windows.json
           if-no-files-found: error
 
       - name: Build MSIX
-        if: matrix.platform == 'windows-latest'
         shell: bash
         run: bash scripts/build-msix.sh
 
       - name: Upload MSIX to release
-        if: matrix.platform == 'windows-latest'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -248,12 +226,10 @@ jobs:
           gh release upload "${{ github.ref_name }}" "$MSIX" --clobber
 
       - name: Build portable zip
-        if: matrix.platform == 'windows-latest'
         shell: bash
         run: bash scripts/build-portable.sh
 
       - name: Upload portable zip to release
-        if: matrix.platform == 'windows-latest'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -261,8 +237,94 @@ jobs:
           ZIP=$(ls src-tauri/target/release/bundle/portable/*_portable.zip)
           gh release upload "${{ github.ref_name }}" "$ZIP" --clobber
 
+  build-macos:
+    needs: release-notes
+    permissions:
+      contents: write
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - run: npm ci
+
+      - name: Configure macOS ad-hoc signing
+        run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+
+      - name: Build and release (aarch64)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'MarkerOn ${{ github.ref_name }}'
+          releaseBody: ${{ needs.release-notes.outputs.body }}
+          releaseDraft: true
+          prerelease: false
+          updaterJsonPreferNsis: true
+          includeUpdaterJson: true
+          args: --target aarch64-apple-darwin
+
+      - name: Stash updater fragment (aarch64)
+        run: |
+          if [ -f latest.json ]; then
+            cp latest.json updater-macos-aarch64.json
+          else
+            echo "Updater fragment not found after aarch64 build (expected ./latest.json)"
+            find . -name 'latest.json' 2>/dev/null || true
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: updater-macos-aarch64
+          path: updater-macos-aarch64.json
+          if-no-files-found: error
+
+      - name: Build and release (x86_64)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'MarkerOn ${{ github.ref_name }}'
+          releaseBody: ${{ needs.release-notes.outputs.body }}
+          releaseDraft: true
+          prerelease: false
+          updaterJsonPreferNsis: true
+          includeUpdaterJson: true
+          args: --target x86_64-apple-darwin
+
+      - name: Stash updater fragment (x86_64)
+        run: |
+          if [ -f latest.json ]; then
+            cp latest.json updater-macos-x64.json
+          else
+            echo "Updater fragment not found after x86_64 build (expected ./latest.json)"
+            find . -name 'latest.json' 2>/dev/null || true
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: updater-macos-x64
+          path: updater-macos-x64.json
+          if-no-files-found: error
+
   publish-release:
-    needs: build
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write

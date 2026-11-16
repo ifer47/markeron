@@ -258,7 +258,7 @@ describe('drawingRender circle center', () => {
     expect(isAxisAlignedCircle({ x: 10, y: 10 }, { x: 11, y: 11 })).toBe(false)
   })
 
-  it('draws a center marker for perfect circles', () => {
+  it('draws a center dot for perfect circles', () => {
     const ctx = {
       save: vi.fn(),
       restore: vi.fn(),
@@ -281,8 +281,10 @@ describe('drawingRender circle center', () => {
 
     expect(ctx.ellipse).toHaveBeenCalledOnce()
     expect(ctx.stroke).toHaveBeenCalled()
-    expect(ctx.arc).toHaveBeenCalled()
+    expect(ctx.arc).toHaveBeenCalledWith(50, 50, expect.any(Number), 0, Math.PI * 2)
     expect(ctx.fill).toHaveBeenCalled()
+    expect(ctx.moveTo).not.toHaveBeenCalled()
+    expect(ctx.lineTo).not.toHaveBeenCalled()
   })
 
   it('omits the center marker for non-circular ellipses', () => {

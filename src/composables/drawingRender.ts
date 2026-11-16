@@ -134,24 +134,12 @@ export function isAxisAlignedCircle(start: Point, end: Point): boolean {
   return Math.abs(rx - ry) <= Math.max(1, r * 0.02)
 }
 
-/** Cross + dot at circle center (for math teaching). Uses current stroke/fill styles. */
+/** Dot at circle center (for math teaching). Uses current stroke/fill styles. */
 export function drawCircleCenter(ctx: CanvasRenderingContext2D, cx: number, cy: number, lineWidth: number) {
-  const arm = Math.max(4, lineWidth * 1.5)
-  const strokeW = Math.max(1, lineWidth * 0.45)
-  const dotR = Math.max(1.25, lineWidth * 0.35)
+  const dotR = Math.max(1.75, lineWidth * 0.45)
 
   ctx.save()
   ctx.setLineDash([])
-  ctx.lineCap = 'round'
-  ctx.lineJoin = 'round'
-  ctx.lineWidth = strokeW
-  ctx.beginPath()
-  ctx.moveTo(cx - arm, cy)
-  ctx.lineTo(cx + arm, cy)
-  ctx.moveTo(cx, cy - arm)
-  ctx.lineTo(cx, cy + arm)
-  ctx.stroke()
-
   ctx.fillStyle = typeof ctx.strokeStyle === 'string' ? ctx.strokeStyle : '#000'
   ctx.beginPath()
   ctx.arc(cx, cy, dotR, 0, Math.PI * 2)

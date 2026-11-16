@@ -90,6 +90,7 @@ import {
 import { resolveToolbarSelectTool } from '../utils/toolbarSelectTool'
 import { resolveStrokeSmoothing } from '../utils/strokeSmoothing'
 import { resolveAutoRevertToPen, toolAfterShapeStroke } from '../utils/autoRevertToPen'
+import { resolveModifierTempTool } from '../utils/modifierTempTool'
 import { setStrokeSmoothing } from '../composables/strokeSmoothingState'
 import { noteStableViewportSample } from '../utils/overlayViewport'
 import { normalizePressure } from '../constants/penStroke'
@@ -1362,7 +1363,7 @@ async function onPointerDown(e: PointerEvent) {
       isMoving.value = true
       reshapeHandleCursor.value = reshapeHandle.cursor
       beginReshape(action, reshapeHandle.id, pos)
-      updateReshape({ x: e.clientX, y: e.clientY }, e.shiftKey)
+      updateReshape({ x: e.clientX, y: e.clientY }, e.shiftKey, e.altKey)
       return
     }
 
@@ -1443,18 +1444,16 @@ async function onPointerDown(e: PointerEvent) {
 
   hideToolbarPopupForCanvasInteraction()
 
-  if (modDown(e) && e.shiftKey) {
-    toolBeforeModifier = currentTool.value
-    currentTool.value = 'arrow'
-  } else if (modDown(e)) {
-    toolBeforeModifier = currentTool.value
-    currentTool.value = 'rect'
-  } else if (e.shiftKey) {
-    toolBeforeModifier = currentTool.value
-    currentTool.value = 'ellipse'
-  } else if (e.altKey) {
-    toolBeforeModifier = currentTool.value
-    currentTool.value = 'line'
+  {
+    const tempTool = resolveModifierTempTool(currentTool.value, {
+      mod: modDown(e),
+      shift: e.shiftKey,
+      alt: e.altKey,
+    })
+    if (tempTool !== null) {
+      toolBeforeModifier = currentTool.value
+      currentTool.value = tempTool
+    }
   }
 
   capturePointer(e)
@@ -1487,7 +1486,7 @@ function onPointerMove(e: PointerEvent) {
 
   if (isDragging) {
     if (isReshaping.value) {
-      updateReshape({ x: e.clientX, y: e.clientY }, e.shiftKey)
+      updateReshape({ x: e.clientX, y: e.clientY }, e.shiftKey, e.altKey)
     } else {
       updateDragOffset(e.clientX - dragStartX, e.clientY - dragStartY)
     }
@@ -2149,11 +2148,13 @@ function syncPointerModFromKey(e: KeyboardEvent) {
   }
 }
 
-/** Re-apply reshape when Shift is pressed/released mid-drag (no pointer move needed). */
+/** Re-apply reshape when Shift/Alt is pressed/released mid-drag (no pointer move needed). */
 function syncReshapeConstraintFromKey(e: KeyboardEvent) {
   if (!isReshaping.value) return
-  if (e.key !== 'Shift' && e.key !== 'ShiftLeft' && e.key !== 'ShiftRight') return
-  updateReshape({ x: lastPointerX, y: lastPointerY }, e.shiftKey)
+  const isShift = e.key === 'Shift' || e.key === 'ShiftLeft' || e.key === 'ShiftRight'
+  const isAlt = e.key === 'Alt' || e.key === 'AltLeft' || e.key === 'AltRight'
+  if (!isShift && !isAlt) return
+  updateReshape({ x: lastPointerX, y: lastPointerY }, e.shiftKey, e.altKey)
 }
 
 function onKeyUp(e: KeyboardEvent) {

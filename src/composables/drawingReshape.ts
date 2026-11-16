@@ -16,6 +16,8 @@ export type ReshapeBounds = { x0: number; y0: number; x1: number; y1: number }
 export interface ReshapeApplyOptions {
   /** Shift held: aspect lock for corners, angle snap for line/arrow endpoints / rotate. */
   constrain?: boolean
+  /** Alt held: scale corners from the box center instead of the opposite corner. */
+  fromCenter?: boolean
   /** width/height at gesture start (corners only). */
   originAspect?: number
   /** Bounds at gesture start — corner/ink transforms are computed from this box. */
@@ -164,6 +166,33 @@ export function aspectLockedFreePoint(fixed: Point, raw: Point, aspect: number):
     x: fixed.x + signX * w,
     y: fixed.y + signY * h,
   }
+}
+
+/**
+ * Axis-aligned box grown from the center of `from` toward pointer `p`.
+ * With `constrain`, keeps `aspect` (width/height) using the larger axis demand.
+ */
+export function boundsAfterCenterScale(
+  from: ReshapeBounds,
+  p: Point,
+  options?: { constrain?: boolean; aspect?: number },
+): ReshapeBounds {
+  const cx = (from.x0 + from.x1) / 2
+  const cy = (from.y0 + from.y1) / 2
+  const minHalf = RESHAPE_MIN_SIZE / 2
+  let halfW: number
+  let halfH: number
+  if (options?.constrain) {
+    const a = options.aspect != null && options.aspect > 0 && Number.isFinite(options.aspect) ? options.aspect : 1
+    const dx = Math.abs(p.x - cx)
+    const dy = Math.abs(p.y - cy)
+    halfH = Math.max(minHalf, dx / a, dy)
+    halfW = halfH * a
+  } else {
+    halfW = Math.max(minHalf, Math.abs(p.x - cx))
+    halfH = Math.max(minHalf, Math.abs(p.y - cy))
+  }
+  return { x0: cx - halfW, y0: cy - halfH, x1: cx + halfW, y1: cy + halfH }
 }
 
 /**
@@ -350,8 +379,16 @@ export function applyReshapeHandle(
     localPointer = rotatePointAround(p, cx, cy, -rot)
   }
 
-  const free = resolveCornerFreePoint(originBounds, handleId, localPointer, options)
-  const to = boundsAfterCornerDrag(originBounds, handleId, free)
+  const to = options?.fromCenter
+    ? boundsAfterCenterScale(originBounds, localPointer, {
+        constrain: options.constrain,
+        aspect: options.originAspect ?? aspectRatioOfBounds(originBounds),
+      })
+    : boundsAfterCornerDrag(
+        originBounds,
+        handleId,
+        resolveCornerFreePoint(originBounds, handleId, localPointer, options),
+      )
   const boundsUnchanged =
     to.x0 === originBounds.x0 && to.y0 === originBounds.y0 && to.x1 === originBounds.x1 && to.y1 === originBounds.y1
   // Zero-move (or no-op after constrain): keep original point order / attachments intact.

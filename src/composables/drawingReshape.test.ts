@@ -3,6 +3,7 @@ import type { DrawAction } from './drawingTypes'
 import {
   applyReshapeHandle,
   aspectLockedFreePoint,
+  boundsAfterCenterScale,
   boundsAfterCornerDrag,
   getPointsBounds,
   getReshapeHandles,
@@ -241,6 +242,47 @@ describe('drawingReshape', () => {
     expect((b.x1 - b.x0) / (b.y1 - b.y0)).toBeCloseTo(2, 5)
     expect(b.x0).toBe(0)
     expect(b.y0).toBe(0)
+  })
+
+  it('boundsAfterCenterScale keeps the box centered while growing', () => {
+    const from = { x0: 0, y0: 0, x1: 100, y1: 80 }
+    // Center (50, 40); pointer at (120, 100) → halfW=70, halfH=60.
+    const to = boundsAfterCenterScale(from, { x: 120, y: 100 })
+    expect(to).toEqual({ x0: -20, y0: -20, x1: 120, y1: 100 })
+  })
+
+  it('applyReshapeHandle scales ellipse from center when fromCenter is set', () => {
+    const ellipse = shape('ellipse', 0, 0, 100, 100)
+    applyReshapeHandle(
+      ellipse,
+      'br',
+      { x: 120, y: 120 },
+      {
+        fromCenter: true,
+        originBounds: { x0: 0, y0: 0, x1: 100, y1: 100 },
+      },
+    )
+    expect(ellipse.points[0]).toMatchObject({ x: -20, y: -20 })
+    expect(ellipse.points[1]).toMatchObject({ x: 120, y: 120 })
+  })
+
+  it('applyReshapeHandle fromCenter + constrain keeps aspect around the center', () => {
+    const rect = shape('rect', 0, 0, 100, 50)
+    applyReshapeHandle(
+      rect,
+      'br',
+      { x: 150, y: 200 },
+      {
+        fromCenter: true,
+        constrain: true,
+        originAspect: 2,
+        originBounds: { x0: 0, y0: 0, x1: 100, y1: 50 },
+      },
+    )
+    const b = getPointsBounds(rect.points)!
+    expect((b.x1 - b.x0) / (b.y1 - b.y0)).toBeCloseTo(2, 5)
+    expect((b.x0 + b.x1) / 2).toBeCloseTo(50, 5)
+    expect((b.y0 + b.y1) / 2).toBeCloseTo(25, 5)
   })
 
   it('applyReshapeHandle snaps line endpoints to angle when constrained', () => {

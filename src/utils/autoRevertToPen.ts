@@ -18,8 +18,8 @@ export function isOneShotShapeTool(tool: Tool): boolean {
  * After a stroke ends: restore a *real* modifier-temp tool first; otherwise
  * optionally switch one-shot shape tools back to pen.
  *
- * Same-tool modifiers (e.g. already on ellipse + Shift for a perfect circle) do
- * not count as a temp switch — auto-revert may still apply.
+ * Same-tool modifiers (e.g. already on ellipse + Shift, which re-selects ellipse)
+ * do not count as a temp switch — auto-revert may still apply.
  *
  * Pass `allowAutoRevert: false` on abort paths so sticky shape tools stay put.
  * Returns the tool to apply, or null when nothing should change.

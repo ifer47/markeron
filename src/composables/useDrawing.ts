@@ -1957,11 +1957,12 @@ export function useDrawing(
     scheduleRender()
   }
 
-  function updateReshape(p: Point, constrain = false) {
+  function updateReshape(p: Point, constrain = false, fromCenter = false) {
     if (!reshapingAction || !reshapeHandleId) return
     restoreReshapeOriginGeometry(reshapingAction)
     applyReshapeHandle(reshapingAction, reshapeHandleId, p, {
       constrain,
+      fromCenter,
       originAspect: reshapeOriginAspect,
       originBounds: reshapeOriginBounds ?? undefined,
       angleSnapStep: angleSnapStep.value,

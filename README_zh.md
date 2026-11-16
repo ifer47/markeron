@@ -134,7 +134,7 @@ winget install --id 9N6623X973JV --source msstore
 
 | 操作 | 功能 |
 | :--- | :--- |
-| 选择工具（<kbd>V</kbd>） | 框选或点选；选中后可整组拖动；拖角点缩放、顶部手柄旋转（<kbd>Shift</kbd> 吸附）；<kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除；<kbd>Esc</kbd> 清空选中 |
+| 选择工具（<kbd>V</kbd>） | 框选或点选；选中后可整组拖动；拖角点缩放、顶部手柄旋转（<kbd>Shift</kbd> 吸附；<kbd>Alt</kbd> 从中心缩放）；<kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除；<kbd>Esc</kbd> 清空选中 |
 | 元素拖拽 | 在「常规」设置中选择：**关闭** / **悬停拖动** / **按住 Ctrl 才拖动** |
 | 双击已有文字 | 重新进入该文字的**编辑模式** |
 | <kbd>T</kbd> 模式下双击空白处 | 在光标位置新建文字输入框 |

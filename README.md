@@ -134,7 +134,7 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 
 | Action | Effect |
 | :--- | :--- |
-| Select tool (<kbd>V</kbd>) | Marquee or click to select; drag selection as a group; drag corners to resize, top handle to rotate (<kbd>Shift</kbd> snaps); <kbd>Delete</kbd> / <kbd>Backspace</kbd> to remove; <kbd>Esc</kbd> clears selection |
+| Select tool (<kbd>V</kbd>) | Marquee or click to select; drag selection as a group; drag corners to resize, top handle to rotate (<kbd>Shift</kbd> snaps; <kbd>Alt</kbd> resizes from the center); <kbd>Delete</kbd> / <kbd>Backspace</kbd> to remove; <kbd>Esc</kbd> clears selection |
 | Element dragging | In General settings: **Off** / **Hover drag** / **Hold Ctrl to drag** |
 | Double-click existing text | Re-enter **edit mode** for that text |
 | Double-click empty area in <kbd>T</kbd> mode | Create a new text input at cursor position |

@@ -27,6 +27,7 @@ import {
 } from '../utils/toolbarWindow'
 import type { MonitorLogicalBounds } from '../utils/toolbarPosition'
 import { isPointerOverPanelRect } from '../utils/toolbarPanelHover'
+import { resolvePointerScreenCss } from '../utils/toolbarDragScreen'
 import { LogicalPosition } from '@tauri-apps/api/dpi'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -283,6 +284,8 @@ let captureTarget: HTMLElement | null = null
 let windowDragOffset = { x: 0, y: 0 }
 let dragMonitorBounds: MonitorLogicalBounds | null = null
 let dragCssToLogical = 1
+/** CSS window origin captured at drag start — used when event screen coords are unusable. */
+let dragFallbackOriginCss = { x: 0, y: 0 }
 
 /** Inputs are CSS px (screen coords / panel height); output is Tauri logical px. */
 function clampStandaloneWindowPosition(left: number, top: number, panelH: number) {
@@ -291,6 +294,36 @@ function clampStandaloneWindowPosition(left: number, top: number, panelH: number
     return { left: left * r, top: top * r }
   }
   return clampToolbarWindowPosition(left * r, top * r, panelW.value * r, panelH * r, dragMonitorBounds)
+}
+
+/**
+ * Window top-left in CSS px for reconstructing pen/touch screen coords.
+ * Windows: live `window.screenX` (lags with setPosition — avoids double-counting).
+ * macOS: origin frozen at drag start (WKWebView `window.screenX` is unreliable).
+ */
+function standaloneDragWindowOriginCss(): { x: number; y: number } {
+  if (isMacOS()) return dragFallbackOriginCss
+  return { x: window.screenX, y: window.screenY }
+}
+
+function readStandaloneWindowOriginCss(): { x: number; y: number } {
+  if (isMacOS()) {
+    const origin = getToolbarWindowScreenOrigin()
+    const r = dragCssToLogical || 1
+    return { x: origin.x / r, y: origin.y / r }
+  }
+  return { x: window.screenX, y: window.screenY }
+}
+
+function captureStandalonePointerScreen(e: PointerEvent): void {
+  const screen = resolvePointerScreenCss(
+    { screenX: e.screenX, screenY: e.screenY, clientX: e.clientX, clientY: e.clientY },
+    standaloneDragWindowOriginCss(),
+  )
+  lastDragX = e.clientX
+  lastDragY = e.clientY
+  lastScreenX = screen.x
+  lastScreenY = screen.y
 }
 
 function scheduleDragUpdate() {
@@ -331,22 +364,31 @@ function startDrag(e: PointerEvent) {
   captureTarget = e.currentTarget as HTMLElement
   captureTarget.setPointerCapture(e.pointerId)
   e.preventDefault()
-  lastDragX = e.clientX
-  lastDragY = e.clientY
-  lastScreenX = e.screenX
-  lastScreenY = e.screenY
   if (props.standaloneWindow) {
     windowDragOffset = { x: e.clientX, y: e.clientY }
     dragMonitorBounds = null
     dragCssToLogical = getCachedCssToLogicalRatio()
+    dragFallbackOriginCss = readStandaloneWindowOriginCss()
+    captureStandalonePointerScreen(e)
     void fetchOverlayMonitorBounds().then((bounds) => {
       dragMonitorBounds = bounds
     })
     void resolveCssToLogicalRatio().then((ratio) => {
       dragCssToLogical = ratio
     })
+    if (isMacOS()) {
+      void refreshToolbarWindowScreenOrigin().then((origin) => {
+        if (!isDragging.value) return
+        const r = dragCssToLogical || 1
+        dragFallbackOriginCss = { x: origin.x / r, y: origin.y / r }
+      })
+    }
     return
   }
+  lastDragX = e.clientX
+  lastDragY = e.clientY
+  lastScreenX = e.screenX
+  lastScreenY = e.screenY
   cachedPanelH = panelRef.value?.offsetHeight ?? 400
   dragOffset.value = {
     x: e.clientX - panelLeft.value,
@@ -357,10 +399,14 @@ function startDrag(e: PointerEvent) {
 function onPointerMove(e: PointerEvent) {
   if (!isDragging.value) return
   if (dragPointerId !== null && e.pointerId !== dragPointerId) return
-  lastDragX = e.clientX
-  lastDragY = e.clientY
-  lastScreenX = e.screenX
-  lastScreenY = e.screenY
+  if (props.standaloneWindow) {
+    captureStandalonePointerScreen(e)
+  } else {
+    lastDragX = e.clientX
+    lastDragY = e.clientY
+    lastScreenX = e.screenX
+    lastScreenY = e.screenY
+  }
   scheduleDragUpdate()
 }
 

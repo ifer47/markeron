@@ -60,3 +60,8 @@ NUL
 # Brainstorm / agent session artifacts
 .superpowers/
 .worktrees/
+
+# Local GNU-toolchain build: the NSIS installer must ship WebView2Loader.dll
+# next to markeron.exe, otherwise the app dies with "找不到 WebView2Loader.dll".
+src-tauri/WebView2Loader.dll
+src-tauri/tauri.local.conf.json

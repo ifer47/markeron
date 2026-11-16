@@ -23,8 +23,10 @@ export function collapseStrokeToLine(points: LineLockPoint[]): LineLockPoint[] |
   if (points.length < 1) return null
   const start = points[0]
   const end = points[points.length - 1]
+  // Uniform ink width: both caps share one pressure (prefer tip / hold pressure).
+  const pressure = end.pressure ?? start.pressure
   return [
-    { x: start.x, y: start.y, pressure: start.pressure },
-    { x: end.x, y: end.y, pressure: end.pressure },
+    { x: start.x, y: start.y, pressure },
+    { x: end.x, y: end.y, pressure },
   ]
 }

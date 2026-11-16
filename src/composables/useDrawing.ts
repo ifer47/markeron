@@ -1519,6 +1519,10 @@ export function useDrawing(
       } else {
         pts[1] = finalPoint
       }
+      // Locked ink lines must keep both caps the same width while the tip moves.
+      if (inkLockedToLine && pts.length >= 2 && finalPoint.pressure != null) {
+        pts[0] = { ...pts[0], pressure: finalPoint.pressure }
+      }
     }
 
     previewDirty = true

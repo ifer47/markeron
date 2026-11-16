@@ -13,7 +13,7 @@ describe('strokeLineLock', () => {
     expect(strokeLineLockStillDistSq()).toBe(100)
   })
 
-  it('collapses a polyline to start and end', () => {
+  it('collapses a polyline to start and end with uniform pressure', () => {
     const out = collapseStrokeToLine([
       { x: 0, y: 0, pressure: 0.4 },
       { x: 10, y: 1 },
@@ -21,8 +21,19 @@ describe('strokeLineLock', () => {
       { x: 100, y: 2, pressure: 0.8 },
     ])
     expect(out).toEqual([
-      { x: 0, y: 0, pressure: 0.4 },
+      { x: 0, y: 0, pressure: 0.8 },
       { x: 100, y: 2, pressure: 0.8 },
+    ])
+  })
+
+  it('falls back to start pressure when the tip has none', () => {
+    const out = collapseStrokeToLine([
+      { x: 0, y: 0, pressure: 0.35 },
+      { x: 40, y: 0 },
+    ])
+    expect(out).toEqual([
+      { x: 0, y: 0, pressure: 0.35 },
+      { x: 40, y: 0, pressure: 0.35 },
     ])
   })
 

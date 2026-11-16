@@ -247,9 +247,30 @@ describe('useDrawing', () => {
       const hit = drawing.findActionAt({ x: 100, y: 25 })
       expect(hit).toBeTruthy()
       expect(hit!.action.points).toHaveLength(2)
-      expect(hit!.action.points[0]).toMatchObject({ x: 0, y: 0 })
+      // Locked ink stays uniform: tip pressure is mirrored to both caps.
+      expect(hit!.action.points[0]).toMatchObject({ x: 0, y: 0, pressure: 0.9 })
       expect(hit!.action.points[1]).toMatchObject({ x: 200, y: 50, pressure: 0.9 })
       expect(drawing.isStrokeLineLocked()).toBe(false)
+      vi.useRealTimers()
+    })
+
+    it('equalizes start/end pressure when locking without further drag', () => {
+      vi.useFakeTimers()
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0, pressure: 0.4 })
+      for (let i = 1; i <= 10; i++) {
+        drawing.draw({ x: i * 10, y: 0, pressure: 0.5 })
+      }
+      drawing.draw({ x: 120, y: 0, pressure: 0.75 })
+      vi.advanceTimersByTime(500)
+      expect(drawing.isStrokeLineLocked()).toBe(true)
+
+      drawing.endDraw()
+      const hit = drawing.findActionAt({ x: 60, y: 0 })
+      expect(hit).toBeTruthy()
+      expect(hit!.action.points).toHaveLength(2)
+      expect(hit!.action.points[0].pressure).toBe(0.75)
+      expect(hit!.action.points[1].pressure).toBe(0.75)
       vi.useRealTimers()
     })
 

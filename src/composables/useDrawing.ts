@@ -1089,9 +1089,10 @@ export function useDrawing(
     }
 
     if (pts.length === 1) {
-      const [only] = cache.nodes(pts, 0, 0)
+      // A tap stays on the raw radius the committed path uses (`drawActionDirect`),
+      // otherwise the dot would grow by the pressure gain on pointer up.
       const path = new Path2D()
-      path.arc(only.x, only.y, Math.max(0.5, only.r), 0, Math.PI * 2)
+      path.arc(pts[0].x, pts[0].y, Math.max(0.5, action.lineWidth / 2), 0, Math.PI * 2)
       inkTailPath = path
       inkPreviewDirty = false
       return

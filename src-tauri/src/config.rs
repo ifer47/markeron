@@ -147,17 +147,6 @@ pub enum CrosshairCursorStyle {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
-pub enum StrokeSmoothing {
-    #[serde(rename = "off")]
-    Off,
-    #[serde(rename = "standard")]
-    #[default]
-    Standard,
-    #[serde(rename = "strong")]
-    Strong,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum DefaultEntryMode {
     #[serde(rename = "screen")]
     #[default]
@@ -214,8 +203,6 @@ pub struct GeneralConfig {
     pub pen_cursor_style: PenCursorStyle,
     #[serde(default, rename = "crosshairCursorStyle")]
     pub crosshair_cursor_style: CrosshairCursorStyle,
-    #[serde(default, rename = "strokeSmoothing")]
-    pub stroke_smoothing: StrokeSmoothing,
     /// After finishing one arrow/rect/ellipse/line stroke, switch back to pen.
     #[serde(default = "default_auto_revert_to_pen", rename = "autoRevertToPen")]
     pub auto_revert_to_pen: bool,
@@ -244,7 +231,6 @@ impl Default for GeneralConfig {
             laser_mode: LaserMode::Trail,
             pen_cursor_style: PenCursorStyle::Pen,
             crosshair_cursor_style: CrosshairCursorStyle::Crosshair,
-            stroke_smoothing: StrokeSmoothing::Standard,
             auto_revert_to_pen: default_auto_revert_to_pen(),
             line_widths: LineWidthsConfig::default(),
             auto_start: default_auto_start(),
@@ -309,12 +295,6 @@ impl GeneralConfig {
             CrosshairCursorStyle::Crosshair | CrosshairCursorStyle::Dot
         ) {
             self.crosshair_cursor_style = CrosshairCursorStyle::Crosshair;
-        }
-        if !matches!(
-            self.stroke_smoothing,
-            StrokeSmoothing::Off | StrokeSmoothing::Standard | StrokeSmoothing::Strong
-        ) {
-            self.stroke_smoothing = StrokeSmoothing::Standard;
         }
         self.line_widths = self.line_widths.normalized();
         self
@@ -764,27 +744,6 @@ mod tests {
     fn supports_autostart_false_in_debug_tests() {
         // Unit tests run with debug_assertions; dev builds must not register autostart.
         assert!(!super::supports_autostart());
-    }
-
-    #[test]
-    fn general_config_defaults_stroke_smoothing() {
-        let general = GeneralConfig::default();
-        assert_eq!(general.stroke_smoothing, StrokeSmoothing::Standard);
-    }
-
-    #[test]
-    fn config_deserializes_stroke_smoothing() {
-        let json = r#"{
-            "shortcuts": {
-                "toggleDrawing": "Ctrl+Shift+D",
-                "clearDrawing": "Ctrl+Shift+C"
-            },
-            "general": {
-                "strokeSmoothing": "strong"
-            }
-        }"#;
-        let config: AppConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(config.general.stroke_smoothing, StrokeSmoothing::Strong);
     }
 
     #[test]

@@ -158,12 +158,6 @@ export default {
     laserModeWriting: '书写',
     laserModeDescTrail: '笔迹画出后像彗星拖尾一样很快淡出，适合指示和圈画重点。',
     laserModeDescWriting: '连续书写时笔迹一直保留，笔画之间短暂停顿也不会消失；停笔约 1 秒后全部一起淡出，无需橡皮擦。',
-    strokeSmoothing: '笔迹平滑',
-    strokeSmoothingOff: '关闭',
-    strokeSmoothingStandard: '标准',
-    strokeSmoothingStrong: '强',
-    strokeSmoothingDesc:
-      '平滑钢笔与荧光笔笔迹。标准兼顾跟手与墨迹质量；强更柔和；关闭则保留原始采样点。笔/触控仍按压感变宽；鼠标为等宽。',
     autoRevertToPen: '画完图形后回到画笔',
     autoRevertToPenDesc:
       '用直线、箭头、矩形或椭圆画完一次后，自动切回画笔。用修饰键临时切换工具时，仍会恢复到切换前的工具。',

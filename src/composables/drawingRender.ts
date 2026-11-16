@@ -11,8 +11,7 @@ import {
 } from '../constants/stamp'
 import { LaserPointer } from '@excalidraw/laser-pointer'
 import { laserSizeFromMapping, smoothLaserPositions } from '../constants/laser'
-import { getInkOutline, outlineToPath2D } from '../constants/penStroke'
-import { getStrokeSmoothing } from './strokeSmoothingState'
+import { buildSweptPath, nodesFromSmoothedPoints, pruneNodes, SWEPT_STYLE } from '../constants/sweptStylus'
 
 /** Constant-width freehand (eraser / legacy fallback). */
 export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
@@ -34,8 +33,9 @@ export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
 }
 
 /** Ink outline for pen / highlighter (pressure width for pen/touch; uniform for mouse). */
-export function buildInkPath(points: Point[], size: number, last: boolean, pointerType?: string | null): Path2D {
-  return outlineToPath2D(getInkOutline(points, size, getStrokeSmoothing(), last, pointerType))
+export function buildInkPath(points: Point[], size: number, _last: boolean, pointerType?: string | null): Path2D {
+  const nodes = nodesFromSmoothedPoints(points, size, SWEPT_STYLE, pointerType)
+  return buildSweptPath(nodes, pruneNodes(nodes, SWEPT_STYLE))
 }
 
 export function drawInkStroke(

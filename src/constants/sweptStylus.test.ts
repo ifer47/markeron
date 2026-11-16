@@ -1,0 +1,447 @@
+import { describe, expect, it } from 'vitest'
+import type { Point } from '../composables/drawingTypes'
+import {
+  buildSweptPath,
+  computeMinDistSq,
+  connectingQuadPoints,
+  ellipsePoints,
+  INK_MIN_DIST_SQ,
+  nodeFromPoint,
+  nodesFromPoints,
+  normalizePressure,
+  planSweptFreeze,
+  pruneNodes,
+  nodesFromSmoothedPoints,
+  SWEPT_FREEZE_MIN_NODES,
+  SWEPT_TAIL_NODES,
+  smoothPenPoint,
+  SWEPT_STYLE,
+  SweptSampleCache,
+  usesPressureInk,
+  type StylusNode,
+} from './sweptStylus'
+
+function nodes(points: Array<[number, number]>, r = 3): StylusNode[] {
+  return points.map(([x, y]) => ({ x, y, r }))
+}
+
+function straight(count: number, step = 1): StylusNode[] {
+  return nodes(Array.from({ length: count }, (_, i) => [i * step, 0] as [number, number]))
+}
+
+describe('normalizePressure', () => {
+  it('defaults missing or zero to 0.5', () => {
+    expect(normalizePressure(undefined)).toBe(0.5)
+    expect(normalizePressure(null)).toBe(0.5)
+    expect(normalizePressure(0)).toBe(0.5)
+  })
+
+  it('clamps into a usable range', () => {
+    expect(normalizePressure(-1)).toBe(0.5)
+    expect(normalizePressure(0.001)).toBe(0.05)
+    expect(normalizePressure(5)).toBe(1)
+  })
+})
+
+describe('usesPressureInk', () => {
+  it('is true for pen and touch only', () => {
+    expect(usesPressureInk('pen')).toBe(true)
+    expect(usesPressureInk('touch')).toBe(true)
+    expect(usesPressureInk('mouse')).toBe(false)
+    expect(usesPressureInk(undefined)).toBe(false)
+  })
+})
+
+describe('computeMinDistSq', () => {
+  it('uses device-pixel base at reference viewport and dpr 1', () => {
+    expect(computeMinDistSq(1440, 900, 1)).toBe(4)
+  })
+
+  it('shrinks CSS threshold on higher dpr', () => {
+    expect(computeMinDistSq(1440, 900, 2)).toBe(1)
+  })
+
+  it('caps area scale so large viewports do not thin too hard', () => {
+    expect(computeMinDistSq(2880, 1800, 1)).toBe(8)
+  })
+
+  it('keeps ink sampling far below one CSS pixel', () => {
+    expect(INK_MIN_DIST_SQ).toBeLessThan(1)
+  })
+})
+
+describe('node radii', () => {
+  it('scales with pressure for pen and stays uniform for mouse', () => {
+    const style = SWEPT_STYLE
+    const half = nodeFromPoint({ x: 0, y: 0, pressure: 0.5 }, 6, style, true)
+    const full = nodeFromPoint({ x: 0, y: 0, pressure: 1 }, 6, style, true)
+    const mouse = nodeFromPoint({ x: 0, y: 0, pressure: 0.1 }, 6, style, false)
+
+    expect(half.r).toBeCloseTo(3, 5) // 与旧实现的中等压感笔宽一致
+    expect(full.r).toBeCloseTo(6, 5)
+    expect(mouse.r).toBeCloseTo(3, 5)
+  })
+
+  it('clamps degenerate widths', () => {
+    const style = SWEPT_STYLE
+    expect(nodeFromPoint({ x: 0, y: 0 }, 0, style, false).r).toBe(0.5)
+    // 压感下限 0.05，半径 = 3 × 2 × 0.05
+    expect(nodeFromPoint({ x: 0, y: 0, pressure: 0.05 }, 6, style, true).r).toBeCloseTo(0.3, 5)
+  })
+})
+
+describe('pruneNodes', () => {
+  it('keeps every node when pruning is off', () => {
+    const input = straight(100)
+    expect(pruneNodes(input, { ...SWEPT_STYLE, pruneAngleDeg: 0 })).toHaveLength(input.length)
+  })
+
+  it('collapses a straight run to its endpoints', () => {
+    const pruned = pruneNodes(straight(100), SWEPT_STYLE)
+    // 保留前两个与最后两个，其余共线节点被剪掉
+    expect(pruned).toHaveLength(4)
+    expect(pruned[0]).toEqual({ x: 0, y: 0, r: 3 })
+    expect(pruned[3].x).toBeCloseTo(99, 5)
+  })
+
+  it('keeps the corner when the direction changes sharply', () => {
+    const input = nodes([
+      ...Array.from({ length: 40 }, (_, i) => [i, 0] as [number, number]),
+      ...Array.from({ length: 40 }, (_, i) => [40, i] as [number, number]),
+    ])
+    const pruned = pruneNodes(input, SWEPT_STYLE)
+    expect(pruned.some((n) => n.x === 40 && n.y === 0)).toBe(true)
+  })
+
+  it('keeps nodes where the tip area jumps when area pruning is on', () => {
+    const input = straight(60).map((n, i) => ({ ...n, r: i < 30 ? 1 : 6 }))
+    const style = { ...SWEPT_STYLE, pruneAreaRatio: 0.7 }
+    expect(pruneNodes(input, style).length).toBeGreaterThan(4)
+  })
+
+  it('ships with area pruning off so pressure ramps never step', () => {
+    expect(SWEPT_STYLE.pruneAreaRatio).toBe(0)
+  })
+
+  it('only prunes near-straight runs, never real curvature', () => {
+    expect(SWEPT_STYLE.pruneAngleDeg).toBeGreaterThan(0)
+    expect(SWEPT_STYLE.pruneAngleDeg).toBeLessThanOrEqual(5)
+  })
+
+  it('never reorders or duplicates the endpoints', () => {
+    const pruned = pruneNodes(straight(200), SWEPT_STYLE)
+    expect(pruned[0].x).toBe(0)
+    expect(pruned[pruned.length - 1].x).toBeCloseTo(199, 5)
+    for (let i = 1; i < pruned.length; i++) expect(pruned[i].x).toBeGreaterThanOrEqual(pruned[i - 1].x)
+  })
+})
+
+describe('smoothPenPoint', () => {
+  it('returns raw samples when both filters are off', () => {
+    const style = { ...SWEPT_STYLE, positionStreamline: 0, pressureAlpha: 0 }
+    const raw = { x: 10, y: 20, pressure: 0.8 }
+    expect(smoothPenPoint({ x: 0, y: 0, pressure: 0.2 }, raw, style)).toEqual(raw)
+  })
+
+  it('pulls position and pressure towards the previous sample', () => {
+    const style = SWEPT_STYLE
+    const out = smoothPenPoint({ x: 0, y: 0, pressure: 0.2 }, { x: 10, y: 10, pressure: 0.8 }, style)
+    expect(out.x).toBeCloseTo(10 * (1 - style.positionStreamline), 5)
+    expect(out.y).toBeCloseTo(10 * (1 - style.positionStreamline), 5)
+    // 压感也被滤波：介于两者之间且偏向旧值
+    expect(out.pressure).toBeGreaterThan(0.2)
+    expect(out.pressure).toBeLessThan(0.8)
+  })
+
+  it('ships with both filters enabled', () => {
+    expect(SWEPT_STYLE.positionStreamline).toBeGreaterThan(0)
+    expect(SWEPT_STYLE.pressureAlpha).toBeGreaterThan(0)
+  })
+})
+
+describe('buildSweptPath', () => {
+  const points = (list: Array<[number, number, number]>): Point[] =>
+    list.map(([x, y, pressure]) => ({ x, y, pressure }))
+
+  it('returns an empty path for no nodes', () => {
+    expect(buildSweptPath([])).toBeInstanceOf(Path2D)
+  })
+
+  it('builds a single disc', () => {
+    expect(buildSweptPath(nodes([[5, 5]], 2))).toBeInstanceOf(Path2D)
+  })
+
+  it('builds a stroke path for two nodes', () => {
+    expect(
+      buildSweptPath(
+        nodes(
+          [
+            [0, 0],
+            [10, 0],
+          ],
+          2,
+        ),
+      ),
+    ).toBeInstanceOf(Path2D)
+  })
+
+  it('keeps the swept ribbon inside the tip bounds', () => {
+    const style = SWEPT_STYLE
+    const pruned = pruneNodes(
+      nodesFromPoints(
+        points([
+          [0, 0, 0.5],
+          [10, 0, 0.5],
+          [20, 0, 0.5],
+        ]),
+        6,
+        style,
+        'pen',
+      ),
+      style,
+    )
+    const bounds = sweptBounds(pruned)
+    // 半径 3 的胶囊：y 方向 ±3，x 方向 -3~23
+    expect(bounds.minY).toBeCloseTo(-3, 5)
+    expect(bounds.maxY).toBeCloseTo(3, 5)
+    expect(bounds.minX).toBeCloseTo(-3, 5)
+    expect(bounds.maxX).toBeCloseTo(23, 5)
+  })
+
+  it('varies radius with pressure for pen, not for mouse', () => {
+    const style = SWEPT_STYLE
+    const penBounds = sweptBounds(
+      nodesFromPoints(
+        points([
+          [0, 0, 1],
+          [20, 0, 1],
+        ]),
+        6,
+        style,
+        'pen',
+      ),
+    )
+    const mouseBounds = sweptBounds(
+      nodesFromPoints(
+        points([
+          [0, 0, 0.2],
+          [20, 0, 0.2],
+        ]),
+        6,
+        style,
+        'mouse',
+      ),
+    )
+    expect(penBounds.maxY).toBeCloseTo(6, 5)
+    expect(mouseBounds.maxY).toBeCloseTo(3, 5)
+  })
+
+  it('joins two tips with tangent points at each radius', () => {
+    const a = { x: 0, y: 0, r: 4 }
+    const b = { x: 10, y: 0, r: 2 }
+    const quad = connectingQuadPoints(a, b)!
+    expect(quad).toHaveLength(4)
+    expect(Math.hypot(quad[0].x - a.x, quad[0].y - a.y)).toBeCloseTo(a.r, 5)
+    expect(Math.hypot(quad[1].x - b.x, quad[1].y - b.y)).toBeCloseTo(b.r, 5)
+    // 切线：圆心到切点的半径垂直于切线本身
+    const along = { x: quad[1].x - quad[0].x, y: quad[1].y - quad[0].y }
+    const radius = { x: quad[0].x - a.x, y: quad[0].y - a.y }
+    expect(along.x * radius.x + along.y * radius.y).toBeCloseTo(0, 5)
+  })
+
+  it('skips the hull when one tip contains the other', () => {
+    expect(connectingQuadPoints({ x: 0, y: 0, r: 10 }, { x: 1, y: 0, r: 1 })).toBeNull()
+  })
+
+  it('winds every hull the same way as the tip discs, whichever way the stroke runs', () => {
+    // 非零填充：圆盘与四边形必须同向，否则重叠区会被挖空（白洞）
+    const disc = polygonArea(ellipsePoints({ x: 0, y: 0, r: 3 }, 64))
+    const cases: Array<[StylusNode, StylusNode]> = [
+      [
+        { x: 0, y: 0, r: 3 },
+        { x: 10, y: 0, r: 3 },
+      ], // 右
+      [
+        { x: 0, y: 0, r: 3 },
+        { x: -10, y: 0, r: 3 },
+      ], // 左
+      [
+        { x: 0, y: 0, r: 3 },
+        { x: 0, y: 10, r: 3 },
+      ], // 下
+      [
+        { x: 0, y: 0, r: 3 },
+        { x: 0, y: -10, r: 3 },
+      ], // 上
+      [
+        { x: 0, y: 0, r: 4 },
+        { x: 9, y: -7, r: 1.5 },
+      ], // 斜向 + 变宽
+      [
+        { x: 0, y: 0, r: 1.5 },
+        { x: -9, y: 7, r: 6 },
+      ], // 斜向 + 变细
+    ]
+    for (const [a, b] of cases) {
+      const quad = connectingQuadPoints(a, b)
+      expect(quad).not.toBeNull()
+      const area = polygonArea(quad!)
+      expect(Math.sign(area)).toBe(Math.sign(disc))
+    }
+  })
+
+  it('keeps two tangent points on each tip however the quad is ordered', () => {
+    const cases: Array<[StylusNode, StylusNode]> = [
+      [
+        { x: 0, y: 0, r: 3 },
+        { x: 10, y: 0, r: 3 },
+      ],
+      [
+        { x: 0, y: 0, r: 3 },
+        { x: -10, y: 0, r: 3 },
+      ],
+      [
+        { x: 0, y: 0, r: 4 },
+        { x: 9, y: -7, r: 1.5 },
+      ],
+    ]
+    for (const [a, b] of cases) {
+      const quad = connectingQuadPoints(a, b)!
+      expect(new Set(quad.map((p) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`)).size).toBe(4)
+      const onA = quad.filter((p) => Math.abs(Math.hypot(p.x - a.x, p.y - a.y) - a.r) < 1e-6)
+      const onB = quad.filter((p) => Math.abs(Math.hypot(p.x - b.x, p.y - b.y) - b.r) < 1e-6)
+      expect(onA).toHaveLength(2)
+      expect(onB).toHaveLength(2)
+    }
+  })
+
+  it('never builds a self-intersecting (bow-tie) hull', () => {
+    // 自相交会让非零填充把中间挖空：相邻边必须首尾相接且同向
+    const quad = connectingQuadPoints({ x: 0, y: 0, r: 3 }, { x: 10, y: 4, r: 2 })!
+    const cross = (o: { x: number; y: number }, p: { x: number; y: number }, q: { x: number; y: number }) =>
+      (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x)
+    const signs = [0, 1, 2, 3].map((i) => Math.sign(cross(quad[i], quad[(i + 1) % 4], quad[(i + 2) % 4])))
+    expect(new Set(signs).size).toBe(1)
+  })
+
+  it('places every ellipse sample at the tip radius', () => {
+    for (const p of ellipsePoints({ x: 3, y: -2, r: 5 }, 16)) {
+      expect(Math.hypot(p.x - 3, p.y + 2)).toBeCloseTo(5, 5)
+    }
+  })
+})
+
+describe('planSweptFreeze', () => {
+  it('waits until enough nodes sit behind the live tail', () => {
+    expect(planSweptFreeze(SWEPT_FREEZE_MIN_NODES + SWEPT_TAIL_NODES, 0)).toBeNull()
+  })
+
+  it('freezes a chunk and restarts the tail behind the seam', () => {
+    const count = SWEPT_FREEZE_MIN_NODES + SWEPT_TAIL_NODES + 10
+    const plan = planSweptFreeze(count, 0)
+    expect(plan).not.toBeNull()
+    expect(plan!.end).toBe(count - 1 - SWEPT_TAIL_NODES)
+    expect(plan!.nextStart).toBeGreaterThan(0)
+    expect(plan!.nextStart).toBeLessThan(plan!.end)
+  })
+
+  it('stops once the remaining tail cannot fill another chunk', () => {
+    const count = SWEPT_FREEZE_MIN_NODES + SWEPT_TAIL_NODES + 10
+    const first = planSweptFreeze(count, 0)!
+    expect(planSweptFreeze(count, first.nextStart)).toBeNull()
+  })
+})
+
+/** Shoelace area: positive = clockwise in screen space (y down). */
+function polygonArea(points: { x: number; y: number }[]): number {
+  let sum = 0
+  for (let i = 0; i < points.length; i++) {
+    const a = points[i]
+    const b = points[(i + 1) % points.length]
+    sum += a.x * b.y - b.x * a.y
+  }
+  return sum / 2
+}
+
+/** Bounds of the union, sampled from the same primitives the path is built from. */
+function sweptBounds(input: StylusNode[]): { minX: number; minY: number; maxX: number; maxY: number } {
+  const all: { x: number; y: number }[] = []
+  for (let i = 0; i < input.length; i++) {
+    all.push(...ellipsePoints(input[i], 64))
+    if (i > 0) {
+      const quad = connectingQuadPoints(input[i - 1], input[i])
+      if (quad) all.push(...quad)
+    }
+  }
+  return {
+    minX: Math.min(...all.map((p) => p.x)),
+    minY: Math.min(...all.map((p) => p.y)),
+    maxX: Math.max(...all.map((p) => p.x)),
+    maxY: Math.max(...all.map((p) => p.y)),
+  }
+}
+
+describe('SweptSampleCache', () => {
+  /** Hand-drawn-ish input with pressure noise. */
+  function scribble(count: number): Point[] {
+    return Array.from({ length: count }, (_, i) => ({
+      x: 200 + Math.sin(i * 0.21) * 90 + Math.sin(i * 0.77) * 6,
+      y: i * 2.5,
+      pressure: 0.5 + Math.sin(i * 0.37) * 0.3,
+    }))
+  }
+
+  it('reproduces nodesFromSmoothedPoints exactly, sample for sample', () => {
+    const points = scribble(400)
+    const cache = new SweptSampleCache(6, SWEPT_STYLE, 'pen')
+    cache.sync(points)
+    const expected = nodesFromSmoothedPoints(points, 6, SWEPT_STYLE, 'pen')
+    expect(cache.nodes(points, 0)).toEqual(expected)
+  })
+
+  it('keeps every slice on the same phase as the whole-stroke render', () => {
+    // This is the invariant that makes the live preview and the committed stroke agree:
+    // chunked slices must be byte-identical to the matching range of the final outline.
+    const points = scribble(400)
+    const cache = new SweptSampleCache(6, SWEPT_STYLE, 'pen')
+    cache.sync(points)
+    const expected = nodesFromSmoothedPoints(points, 6, SWEPT_STYLE, 'pen')
+
+    for (let start = 0; start < points.length; start += 64) {
+      const end = Math.min(start + 63, points.length - 1)
+      expect(cache.nodes(points, start, end)).toEqual(expected.slice(start, end + 1))
+    }
+  })
+
+  it('catches up incrementally without changing earlier samples', () => {
+    const points = scribble(150)
+    const cache = new SweptSampleCache(4, SWEPT_STYLE, 'mouse')
+    let previous: StylusNode[] = []
+
+    for (let len = 1; len <= points.length; len++) {
+      const prefix = points.slice(0, len)
+      cache.sync(prefix)
+      const current = cache.nodes(prefix, 0)
+      // Each new frame must reproduce the prefix outline exactly…
+      expect(current).toEqual(nodesFromSmoothedPoints(prefix, 4, SWEPT_STYLE, 'mouse'))
+      // …and only the (previously raw) tip plus the new sample may move.
+      const settled = current.length - 2
+      if (settled > 0) expect(current.slice(0, settled)).toEqual(previous.slice(0, settled))
+      previous = current
+    }
+  })
+
+  it('leaves the tip unsmoothed so the stroke reaches the pointer', () => {
+    const points: Point[] = [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 10, y: 0, pressure: 0.5 },
+      { x: 30, y: 0, pressure: 0.5 },
+    ]
+    const cache = new SweptSampleCache(6, SWEPT_STYLE, 'pen')
+    cache.sync(points)
+    const out = cache.nodes(points, 0)
+    expect(out[out.length - 1].x).toBe(30)
+    // The middle sample is lagged by the EMA, the tip is not.
+    expect(out[1].x).toBeLessThan(10)
+  })
+})

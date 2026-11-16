@@ -35,17 +35,15 @@ import { normalizeTextOutline } from '../constants/textOutline'
 import { stampFontSizeFromWidth } from '../constants/stamp'
 import { LASER_WRITING_HOLD_MS, isLaserTrailGone, laserWritingOpacity, pruneAgedLaserPoints } from '../constants/laser'
 import {
+  buildSweptPath,
   computeMinDistSq,
-  getInkOutlineFromStrokePoints,
-  inkFreehandOptions,
-  InkStrokePointStream,
+  INK_MIN_DIST_SQ,
   normalizePressure,
-  outlineToPath2D,
-  penStrokeStyle,
-  planInkFreeze,
-  smoothPenPoint,
-} from '../constants/penStroke'
-import { getStrokeSmoothing } from './strokeSmoothingState'
+  planSweptFreeze,
+  pruneNodes,
+  SWEPT_STYLE,
+  SweptSampleCache,
+} from '../constants/sweptStylus'
 import { collapseStrokeToLine, STROKE_LINE_LOCK_HOLD_MS, strokeLineLockStillDistSq } from '../utils/strokeLineLock'
 
 export type { Tool, Point, DrawAction } from './drawingTypes'
@@ -527,9 +525,10 @@ export function useDrawing(
   let inkComposeCtx: CanvasRenderingContext2D | null = null
   let inkLiveAction: DrawAction | null = null
   let inkLiveKey = ''
-  let inkStream: InkStrokePointStream | null = null
-  let inkFedPoints = 0
+  /** Index of the first sample still re-outlined behind the live tip. */
   let inkChunkStart = 0
+  /** EMA cache so frozen chunks and the live tail share one phase with the final render. */
+  let inkSamples: SweptSampleCache | null = null
   let inkHasFrozen = false
   let inkTailPath: Path2D | null = null
 
@@ -798,9 +797,8 @@ export function useDrawing(
     }
     inkLiveAction = null
     inkLiveKey = ''
-    inkStream = null
-    inkFedPoints = 0
     inkChunkStart = 0
+    inkSamples = null
     inkHasFrozen = false
     inkTailPath = null
     inkPreviewDirty = true
@@ -1062,9 +1060,10 @@ export function useDrawing(
   }
 
   /**
-   * Bring the live ink preview up to date (last:false for a live tip): freeze newly
-   * settled chunks into strokeCanvas and rebuild the tail path. Width / smoothing /
-   * DPR changes restart from the first point.
+   * Bring the live ink preview up to date: freeze settled chunks into strokeCanvas
+   * and rebuild the tail path. Raw samples are stored, so smoothing happens here
+   * (per chunk) and the tip stays on the pointer. Width / DPR changes restart from
+   * the first sample.
    */
   function bakeIncrementalStroke(action: DrawAction) {
     if (!strokeCtx || !strokeCanvas) return
@@ -1073,30 +1072,32 @@ export function useDrawing(
     if (pts.length === 0) return
 
     const dpr = getEffectiveDpr()
-    const level = getStrokeSmoothing()
-    const key = `${action.lineWidth}|${level}|${action.pointerType ?? ''}|${dpr}|${strokeCanvas.width}x${strokeCanvas.height}`
-    if (action !== inkLiveAction || key !== inkLiveKey || pts.length < inkFedPoints || !inkStream) {
+    const key = `${action.lineWidth}|${action.pointerType ?? ''}|${dpr}|${strokeCanvas.width}x${strokeCanvas.height}`
+    if (action !== inkLiveAction || key !== inkLiveKey || inkChunkStart > pts.length) {
       clearStrokeCanvas()
       inkLiveAction = action
       inkLiveKey = key
-      inkStream = new InkStrokePointStream(inkFreehandOptions(action.lineWidth, level, false, action.pointerType))
     }
-    const stream = inkStream
-    for (; inkFedPoints < pts.length; inkFedPoints++) {
-      const p = pts[inkFedPoints]
-      stream.append([p.x, p.y, normalizePressure(p.pressure)])
+
+    // Every slice must sit on the same EMA phase as the final `buildInkPath`, else the
+    // frozen chunks stick out and the stroke visibly re-renders on pointer up.
+    const cache = (inkSamples ??= new SweptSampleCache(action.lineWidth, SWEPT_STYLE, action.pointerType))
+    cache.sync(pts)
+    const pathFor = (from: number, to: number): Path2D => {
+      const nodes = cache.nodes(pts, from, to)
+      return buildSweptPath(nodes, pruneNodes(nodes, SWEPT_STYLE))
     }
 
     if (pts.length === 1) {
+      const [only] = cache.nodes(pts, 0, 0)
       const path = new Path2D()
-      path.arc(pts[0].x, pts[0].y, Math.max(0.5, action.lineWidth / 2), 0, Math.PI * 2)
+      path.arc(only.x, only.y, Math.max(0.5, only.r), 0, Math.PI * 2)
       inkTailPath = path
       inkPreviewDirty = false
       return
     }
 
-    const options = inkFreehandOptions(action.lineWidth, level, false, action.pointerType)
-    let plan = planInkFreeze(stream, inkChunkStart, action.lineWidth)
+    let plan = planSweptFreeze(pts.length, inkChunkStart)
     if (plan) {
       strokeCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
       strokeCtx.globalCompositeOperation = 'source-over'
@@ -1104,14 +1105,13 @@ export function useDrawing(
       strokeCtx.fillStyle = action.color
     }
     while (plan) {
-      const chunk = stream.slice(inkChunkStart, plan.end + 1)
-      strokeCtx.fill(outlineToPath2D(getInkOutlineFromStrokePoints(chunk, options)))
+      strokeCtx.fill(pathFor(inkChunkStart, plan.end))
       inkHasFrozen = true
       inkChunkStart = plan.nextStart
-      plan = planInkFreeze(stream, inkChunkStart, action.lineWidth)
+      plan = planSweptFreeze(pts.length, inkChunkStart)
     }
 
-    inkTailPath = outlineToPath2D(getInkOutlineFromStrokePoints(stream.slice(inkChunkStart), options))
+    inkTailPath = pathFor(inkChunkStart, pts.length - 1)
     inkPreviewDirty = false
   }
 
@@ -1449,8 +1449,10 @@ export function useDrawing(
     if (isFreehand) {
       let last = pts[pts.length - 1]
       let appended = false
-      const minDist = getMinDistSq()
-      const inkStreamline = isInkTool(action.tool) ? penStrokeStyle(getStrokeSmoothing()).inputStreamline : 0
+      // Ink keeps (almost) every sample: the sweep needs dense nodes for a smooth
+      // tangent hull, and raw points let the renderer smooth without shortening
+      // the stroke. Other freehand tools keep the adaptive thinning.
+      const minDist = isInkTool(action.tool) ? INK_MIN_DIST_SQ : getMinDistSq()
 
       for (let i = 0; i < points.length; i++) {
         const point = points[i]
@@ -1466,8 +1468,7 @@ export function useDrawing(
         if (action.tool === 'laser') {
           nextPoint = { x, y, t: performance.now() }
         } else if (isInkTool(action.tool)) {
-          const raw: Point = { x, y, pressure: normalizePressure(point.pressure) }
-          nextPoint = smoothPenPoint(last, raw, inkStreamline)
+          nextPoint = { x, y, pressure: normalizePressure(point.pressure) }
         } else {
           nextPoint = { x, y }
         }
@@ -2349,7 +2350,6 @@ export function useDrawing(
     inkComposeCanvas = null
     inkComposeCtx = null
     inkLiveAction = null
-    inkStream = null
     inkTailPath = null
     dragCanvas = null
     dragCtx = null
@@ -2384,7 +2384,6 @@ export function useDrawing(
     getActiveStrokePointCount: () => currentAction.value?.points.length ?? 0,
     getStrokeSamplingStats: () => ({
       minDistSq: getMinDistSq(),
-      smoothing: getStrokeSmoothing(),
       viewport: { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 },
     }),
     startDraw,

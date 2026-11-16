@@ -305,8 +305,9 @@ describe('useDrawing', () => {
       const hit = drawing.findActionAt({ x: 60, y: 0 })
       expect(hit).toBeTruthy()
       expect(hit!.action.points).toHaveLength(2)
-      expect(hit!.action.points[0].pressure).toBe(0.75)
-      expect(hit!.action.points[1].pressure).toBe(0.75)
+      // 压感经过 EMA 滤波，不再等于原始采样值，但两端必须一致。
+      expect(hit!.action.points[0].pressure).toBe(hit!.action.points[1].pressure)
+      expect(hit!.action.points[0].pressure).toBeGreaterThan(0.5)
       vi.useRealTimers()
     })
 
@@ -796,18 +797,19 @@ describe('useDrawing', () => {
       const found = drawing.findActionAt({ x: 40, y: 10 })
       expect(found).not.toBeNull()
       const pressuresBefore = found!.action.points.map((p) => p.pressure)
-      expect(pressuresBefore).toEqual([0.2, 0.9, 0.3])
+      expect(pressuresBefore).toHaveLength(3)
+      expect(pressuresBefore.every((p) => (p ?? 0) > 0 && (p ?? 0) <= 1)).toBe(true)
 
       drawing.beginDrag(found!.action)
       drawing.updateDragOffset(15, 20)
       drawing.endDrag()
 
-      expect(found!.action.points[0]).toMatchObject({ x: 25, y: 30, pressure: 0.2 })
-      expect(found!.action.points.map((p) => p.pressure)).toEqual([0.2, 0.9, 0.3])
+      expect(found!.action.points[0]).toMatchObject({ x: 25, y: 30 })
+      expect(found!.action.points.map((p) => p.pressure)).toEqual(pressuresBefore)
 
       drawing.undo()
-      expect(found!.action.points[0]).toMatchObject({ x: 10, y: 10, pressure: 0.2 })
-      expect(found!.action.points.map((p) => p.pressure)).toEqual([0.2, 0.9, 0.3])
+      expect(found!.action.points[0]).toMatchObject({ x: 10, y: 10 })
+      expect(found!.action.points.map((p) => p.pressure)).toEqual(pressuresBefore)
     })
   })
 
@@ -1225,9 +1227,9 @@ describe('useDrawing', () => {
       for (let i = 1; i < 1600; i++) drawFrame(wave(i))
       expect(drawing.getActiveStrokePointCount()).toBe(1600)
 
-      const curves = vi.spyOn(Path2D.prototype, 'quadraticCurveTo')
+      const curves = vi.spyOn(Path2D.prototype, 'lineTo')
       drawFrame(wave(1600))
-      // A full re-outline of 1600 points emits thousands of curve segments.
+      // A full re-outline of 1600 points emits thousands of hull segments.
       expect(curves.mock.calls.length).toBeGreaterThan(0)
       expect(curves.mock.calls.length).toBeLessThan(800)
 
@@ -1262,11 +1264,16 @@ describe('useDrawing', () => {
       drawing.lineWidth.value = 3
       drawing.startDraw({ ...wave(0), pointerType: 'mouse' })
       for (let i = 1; i < 600; i++) drawFrame(wave(i))
-      drawing.lineWidth.value = 8
-      const curves = vi.spyOn(Path2D.prototype, 'quadraticCurveTo')
+      const curves = vi.spyOn(Path2D.prototype, 'lineTo')
       drawFrame(wave(600))
+      const tailOnly = curves.mock.calls.length
+      expect(tailOnly).toBeGreaterThan(0)
+
+      curves.mockClear()
+      drawing.lineWidth.value = 8
+      drawFrame(wave(601))
       // Restart re-freezes the whole prefix once at the new width.
-      expect(curves.mock.calls.length).toBeGreaterThan(800)
+      expect(curves.mock.calls.length).toBeGreaterThan(tailOnly * 2)
       drawing.endDraw()
       expect(drawing.canUndo.value).toBe(true)
     })

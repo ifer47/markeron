@@ -9,7 +9,6 @@ import { resolveDefaultEntryMode, type DefaultEntryMode } from '../utils/entryMo
 import { resolveWhiteboardBackground, type WhiteboardBackground } from '../utils/whiteboardBackground'
 import { resolveEraserMode, type EraserMode } from '../utils/eraserMode'
 import { resolveLaserMode, type LaserMode } from '../utils/laserMode'
-import { resolveStrokeSmoothing, type StrokeSmoothing } from '../utils/strokeSmoothing'
 import { resolveAutoRevertToPen } from '../utils/autoRevertToPen'
 import { isEnabled } from '@tauri-apps/plugin-autostart'
 import { reconcileAutoStartState, resolveAutoStart } from '../utils/autoStart'
@@ -224,7 +223,6 @@ const defaultEntryMode = ref<DefaultEntryMode>('screen')
 const whiteboardBackground = ref<WhiteboardBackground>('white')
 const eraserMode = ref<EraserMode>('stroke')
 const laserMode = ref<LaserMode>('trail')
-const strokeSmoothing = ref<StrokeSmoothing>('standard')
 const autoRevertToPen = ref(false)
 const preserveDrawings = ref(false)
 const whiteboardPreserveDrawings = ref(true)
@@ -262,7 +260,6 @@ onMounted(async () => {
   whiteboardBackground.value = resolveWhiteboardBackground(cfg.general)
   eraserMode.value = resolveEraserMode(cfg.general)
   laserMode.value = resolveLaserMode(cfg.general)
-  strokeSmoothing.value = resolveStrokeSmoothing(cfg.general)
   autoRevertToPen.value = resolveAutoRevertToPen(cfg.general)
   preserveDrawings.value = cfg.general?.preserveDrawings ?? false
   whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
@@ -286,7 +283,6 @@ onMounted(async () => {
     whiteboardBackground.value = resolveWhiteboardBackground(general)
     eraserMode.value = resolveEraserMode(general)
     laserMode.value = resolveLaserMode(general)
-    strokeSmoothing.value = resolveStrokeSmoothing(general)
     autoRevertToPen.value = resolveAutoRevertToPen(general)
     preserveDrawings.value = general?.preserveDrawings ?? false
     whiteboardPreserveDrawings.value = general?.whiteboardPreserveDrawings ?? true
@@ -534,7 +530,6 @@ onUnmounted(() => {
         :whiteboard-background="whiteboardBackground"
         :eraser-mode="eraserMode"
         :laser-mode="laserMode"
-        :stroke-smoothing="strokeSmoothing"
         :auto-revert-to-pen="autoRevertToPen"
         :preserve-drawings="preserveDrawings"
         :whiteboard-preserve-drawings="whiteboardPreserveDrawings"
@@ -546,7 +541,6 @@ onUnmounted(() => {
         @update:whiteboard-background="whiteboardBackground = $event"
         @update:eraser-mode="eraserMode = $event"
         @update:laser-mode="laserMode = $event"
-        @update:stroke-smoothing="strokeSmoothing = $event"
         @update:auto-revert-to-pen="autoRevertToPen = $event"
         @update:preserve-drawings="preserveDrawings = $event"
         @update:whiteboard-preserve-drawings="whiteboardPreserveDrawings = $event"

@@ -163,12 +163,6 @@ export default {
     laserModeDescTrail: 'The laser trail fades like a comet tail right after you draw it — good for pointing.',
     laserModeDescWriting:
       'Laser strokes stay while you keep writing, even across short pauses between strokes. About 1 second after you stop, they fade out together — no eraser needed.',
-    strokeSmoothing: 'Stroke smoothing',
-    strokeSmoothingOff: 'Off',
-    strokeSmoothingStandard: 'Standard',
-    strokeSmoothingStrong: 'Strong',
-    strokeSmoothingDesc:
-      'Smooths freehand pen and highlighter strokes. Standard balances follow and ink quality; Strong softens more; Off keeps raw pointer samples. Pen/touch keep pressure-sensitive width; mouse strokes stay uniform.',
     autoRevertToPen: 'Return to pen after shape',
     autoRevertToPenDesc:
       'After drawing one line, arrow, rectangle, or ellipse, automatically switch back to the pen. Modifier-key temporary tools still restore the previous tool as before.',

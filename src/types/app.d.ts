@@ -23,7 +23,6 @@ export interface AppConfig {
     laserMode?: LaserMode
     penCursorStyle?: PenCursorStyle
     crosshairCursorStyle?: CrosshairCursorStyle
-    strokeSmoothing?: StrokeSmoothing
     /** After one arrow/rect/ellipse/line stroke, switch back to pen. Default off. */
     autoRevertToPen?: boolean
     lineWidths?: {
@@ -44,7 +43,6 @@ export type EraserMode = 'stroke' | 'object'
 export type LaserMode = 'trail' | 'writing'
 export type PenCursorStyle = 'pen' | 'dot'
 export type CrosshairCursorStyle = 'crosshair' | 'dot'
-export type StrokeSmoothing = 'off' | 'standard' | 'strong'
 
 export interface SaveResult {
   ok: boolean

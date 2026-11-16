@@ -88,12 +88,10 @@ import {
   type CrosshairCursorStyle,
 } from '../utils/crosshairCursor'
 import { resolveToolbarSelectTool } from '../utils/toolbarSelectTool'
-import { resolveStrokeSmoothing } from '../utils/strokeSmoothing'
 import { resolveAutoRevertToPen, toolAfterShapeStroke } from '../utils/autoRevertToPen'
 import { resolveModifierTempTool } from '../utils/modifierTempTool'
-import { setStrokeSmoothing } from '../composables/strokeSmoothingState'
 import { noteStableViewportSample } from '../utils/overlayViewport'
-import { normalizePressure } from '../constants/penStroke'
+import { normalizePressure } from '../constants/sweptStylus'
 import { useI18n } from '../i18n'
 
 const { t } = useI18n()
@@ -515,10 +513,6 @@ function applyPenCursorStyleFromConfig(general?: AppConfig['general']) {
 
 function applyCrosshairCursorStyleFromConfig(general?: AppConfig['general']) {
   crosshairCursorStyle.value = resolveCrosshairCursorStyle(general)
-}
-
-function applyStrokeSmoothingFromConfig(general?: AppConfig['general']) {
-  setStrokeSmoothing(resolveStrokeSmoothing(general))
 }
 
 const autoRevertToPen = ref(false)
@@ -1603,7 +1597,6 @@ function onPointerUp(e: PointerEvent) {
       pressure: e.pressure,
       pointerId: e.pointerId,
       pointCount,
-      strokeSmoothing: sampling.smoothing,
       minDistSq: sampling.minDistSq,
       rawDpr,
       effectiveDpr,
@@ -2219,7 +2212,6 @@ onMounted(async () => {
     applyLaserModeFromConfig(cfg.general)
     applyPenCursorStyleFromConfig(cfg.general)
     applyCrosshairCursorStyleFromConfig(cfg.general)
-    applyStrokeSmoothingFromConfig(cfg.general)
     applyAutoRevertToPenFromConfig(cfg.general)
     applyLineWidthsFromConfig(cfg.general)
     preserveDrawings.value = cfg.general?.preserveDrawings ?? false
@@ -2243,7 +2235,6 @@ onMounted(async () => {
       applyLaserModeFromConfig(event.payload.general)
       applyPenCursorStyleFromConfig(event.payload.general)
       applyCrosshairCursorStyleFromConfig(event.payload.general)
-      applyStrokeSmoothingFromConfig(event.payload.general)
       applyAutoRevertToPenFromConfig(event.payload.general)
       // lineWidths: overlay is the sole writer; skip echo from our own save_general
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false

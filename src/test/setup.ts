@@ -3,6 +3,7 @@ class Path2DStub {
   moveTo(_x?: number, _y?: number) {}
   lineTo(_x?: number, _y?: number) {}
   quadraticCurveTo(_cpx?: number, _cpy?: number, _x?: number, _y?: number) {}
+  bezierCurveTo(_cp1x?: number, _cp1y?: number, _cp2x?: number, _cp2y?: number, _x?: number, _y?: number) {}
   closePath() {}
   arc(
     _x?: number,

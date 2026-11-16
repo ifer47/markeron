@@ -33,27 +33,9 @@ export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
 }
 
 /** Ink outline for pen / highlighter (pressure width for pen/touch; uniform for mouse). */
-export function buildInkPath(points: Point[], size: number, _last: boolean, pointerType?: string | null): Path2D {
+export function buildInkPath(points: Point[], size: number, pointerType?: string | null): Path2D {
   const nodes = nodesFromSmoothedPoints(points, size, SWEPT_STYLE, pointerType)
   return buildSweptPath(nodes, pruneNodes(nodes, SWEPT_STYLE))
-}
-
-export function drawInkStroke(
-  ctx: CanvasRenderingContext2D,
-  points: Point[],
-  size: number,
-  last: boolean,
-  pointerType?: string | null,
-) {
-  if (points.length === 0) return
-  if (points.length === 1) {
-    const r = Math.max(0.5, size / 2)
-    ctx.beginPath()
-    ctx.arc(points[0].x, points[0].y, r, 0, Math.PI * 2)
-    ctx.fill()
-    return
-  }
-  ctx.fill(buildInkPath(points, size, last, pointerType))
 }
 
 export function drawLine(ctx: CanvasRenderingContext2D, start: Point, end: Point) {
@@ -313,7 +295,7 @@ export function drawActionDirect(
       }
       let path = pathCache?.get(action)
       if (!path) {
-        path = buildInkPath(pts, action.lineWidth, true, action.pointerType)
+        path = buildInkPath(pts, action.lineWidth, action.pointerType)
         if (action.bbox) pathCache?.set(action, path)
       }
       ctx.fill(path)

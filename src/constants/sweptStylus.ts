@@ -11,9 +11,11 @@ import type { Point } from '../composables/drawingTypes'
  *   area changes a lot; pruned spans are covered by the tangent hull
  * - everything filled with the **non-zero** rule so overlaps merge into one shape
  *
- * Unlike perfect-freehand there is no thinning gain, no position EMA and no
- * min-distance decimation: the outline follows the raw samples, and smoothness
- * comes from the tangent hull plus pruning.
+ * Unlike perfect-freehand there is no thinning gain and no min-distance
+ * decimation. Smoothness comes from three places: the tangent hull, a position /
+ * pressure EMA, and **corner rounding** — a sharp turn is cut with a quadratic
+ * Bézier so its radius comes from `cornerCutMaxPx` instead of being inherited
+ * from the pen width (otherwise a fast hand on a tight loop reads as a polygon).
  */
 
 /** Base min distance in device pixels (squared) before adaptive area scaling. */
@@ -76,6 +78,15 @@ export interface SweptStyle {
   pruneAngleDeg: number
   /** Keep a node when the neighbour area ratio drops to this; <= 0 disables. */
   pruneAreaRatio: number
+  /**
+   * Direction change (degrees) at which a corner is rounded off; also the max
+   * turn between two consecutive interpolated tips. 0 disables rounding.
+   */
+  cornerAngleDeg: number
+  /** How much of each neighbouring segment the corner may consume (0–0.5). */
+  cornerCutRatio: number
+  /** Cap on the corner cut in CSS px, i.e. the max rounding radius it can buy. */
+  cornerCutMaxPx: number
 }
 
 /**
@@ -103,6 +114,9 @@ export const SWEPT_STYLE: SweptStyle = {
   pressureAlpha: 0.15,
   pruneAngleDeg: SAFE_PRUNE_ANGLE_DEG,
   pruneAreaRatio: 0,
+  cornerAngleDeg: 8,
+  cornerCutRatio: 0.5,
+  cornerCutMaxPx: 8,
 }
 
 /**
@@ -142,10 +156,75 @@ export function nodesFromPoints(
 }
 
 /**
- * Nodes for a run of raw samples with the position / pressure EMA applied at draw
- * time, except to the **tip**: the last sample stays raw so the stroke never
- * falls short of the pointer (a capture-time EMA shortens every stroke).
+ * Replace one interior sample with the rounded corner it introduces.
+ *
+ * The swept silhouette is the exact offset of the sample polyline, so a corner
+ * can only be rounded as tightly as the tip radius — a fast hand moving 10–15 px
+ * per packet on a tight loop turns 30–45° per sample and the outline reads as a
+ * polygon. Cutting the corner with a quadratic Bézier from the midpoint of the
+ * incoming segment, through the sample, to the midpoint of the outgoing segment
+ * turns that angle into an arc whose radius is chosen here instead of inherited
+ * from the pen width. Straight runs return the sample untouched, so slow strokes
+ * and long strokes cost nothing.
  */
+export function roundCornerTips(prev: Point, node: Point, next: Point, style: SweptStyle): Point[] {
+  const threshold = style.cornerAngleDeg
+  if (threshold <= 0) return [node]
+
+  const inX = node.x - prev.x
+  const inY = node.y - prev.y
+  const outX = next.x - node.x
+  const outY = next.y - node.y
+  const inLen = Math.hypot(inX, inY)
+  const outLen = Math.hypot(outX, outY)
+  if (inLen < 1e-6 || outLen < 1e-6) return [node]
+
+  const cos = Math.min(1, Math.max(-1, (inX * outX + inY * outY) / (inLen * outLen)))
+  const turnDeg = (Math.acos(cos) * 180) / Math.PI
+  if (turnDeg < threshold) return [node]
+
+  const cut = Math.min(Math.min(inLen, outLen) * style.cornerCutRatio, style.cornerCutMaxPx)
+  if (!(cut > 1e-6)) return [node]
+
+  const start: Point = { x: node.x - (inX / inLen) * cut, y: node.y - (inY / inLen) * cut, pressure: node.pressure }
+  const end: Point = { x: node.x + (outX / outLen) * cut, y: node.y + (outY / outLen) * cut, pressure: node.pressure }
+
+  // Keep the turn between neighbouring tips below the threshold so the ribbon
+  // never shows the chord it just replaced.
+  const steps = Math.max(2, Math.ceil(turnDeg / threshold))
+  const out: Point[] = [start]
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps
+    const u = 1 - t
+    out.push({
+      x: u * u * start.x + 2 * u * t * node.x + t * t * end.x,
+      y: u * u * start.y + 2 * u * t * node.y + t * t * end.y,
+      pressure: node.pressure,
+    })
+  }
+  out.push(end)
+  return out
+}
+
+/**
+ * EMA + corner rounding for a **complete** run of samples.
+ *
+ * Position / pressure are low-passed except for the **tip**: the last sample
+ * stays raw so the stroke never falls short of the pointer (a capture-time EMA
+ * shortens every stroke). Interior samples are then replaced by their rounded
+ * corner, which is what keeps fast, tight turns from looking like a polygon.
+ */
+export function smoothSamples(points: Point[], style: SweptStyle): Point[] {
+  const out: Point[] = []
+  let prev: Point | null = null
+  for (const raw of points) {
+    const current: Point = prev ? smoothPenPoint(prev, raw, style) : raw
+    out.push(current)
+    prev = current
+  }
+  return out
+}
+
 export function nodesFromSmoothedPoints(
   points: Point[],
   lineWidth: number,
@@ -153,14 +232,20 @@ export function nodesFromSmoothedPoints(
   pointerType?: string | null,
 ): StylusNode[] {
   const pressureInk = usesPressureInk(pointerType)
+  const smoothed = smoothSamples(points, style)
+
   const out: StylusNode[] = []
-  let prev: Point | null = null
-  for (let i = 0; i < points.length; i++) {
-    const raw = points[i]
-    const smoothed: Point = prev && i < points.length - 1 ? smoothPenPoint(prev, raw, style) : raw
-    out.push(nodeFromPoint(smoothed, lineWidth, style, pressureInk))
-    prev = smoothed
+  const count = smoothed.length
+  if (count === 0) return out
+
+  out.push(nodeFromPoint(smoothed[0], lineWidth, style, pressureInk))
+  for (let i = 1; i < count - 1; i++) {
+    for (const tip of roundCornerTips(smoothed[i - 1], smoothed[i], smoothed[i + 1], style)) {
+      out.push(nodeFromPoint(tip, lineWidth, style, pressureInk))
+    }
   }
+  // The tip stays on the raw sample so the stroke never falls short of the pointer.
+  if (count > 1) out.push(nodeFromPoint(points[count - 1], lineWidth, style, pressureInk))
   return out
 }
 
@@ -173,9 +258,15 @@ export function nodesFromSmoothedPoints(
  * out past the final silhouette (the stroke visibly "thins out" when the pointer is
  * released). Caching the smoothed samples keeps every slice on the same EMA phase,
  * so the union of the chunks is **exactly** `nodesFromSmoothedPoints(points)`.
+ *
+ * Corner rounding is cached the same way: the tips for sample `i` are final as
+ * soon as sample `i + 1` exists, so an interior sample only ever has to be
+ * materialised once.
  */
 export class SweptSampleCache {
   private readonly smoothed: Point[] = []
+  /** Tips introduced by each **interior** sample (corner arc, or the sample itself). */
+  private readonly perSample: StylusNode[][] = []
   private readonly lineWidth: number
   private readonly style: SweptStyle
   private readonly pressureInk: boolean
@@ -186,14 +277,22 @@ export class SweptSampleCache {
     this.pressureInk = usesPressureInk(pointerType)
   }
 
-  /** Extend the cache to cover all but the tip sample (the tip is never smoothed). */
+  /** Extend the cache to cover every sample and round whatever is settled. */
   sync(points: Point[]): void {
-    const last = points.length - 1
-    while (this.smoothed.length < last) {
+    while (this.smoothed.length < points.length) {
       const i = this.smoothed.length
       const prev = i > 0 ? this.smoothed[i - 1] : null
-      const raw = points[i]
-      this.smoothed.push(prev ? smoothPenPoint(prev, raw, this.style) : raw)
+      this.smoothed.push(prev ? smoothPenPoint(prev, points[i], this.style) : points[i])
+    }
+
+    // Samples 0…n-2 are settled: their rounded corner depends only on neighbours that exist.
+    while (this.perSample.length < this.smoothed.length - 1) {
+      const i = this.perSample.length
+      const tips =
+        i === 0
+          ? [this.smoothed[0]]
+          : roundCornerTips(this.smoothed[i - 1], this.smoothed[i], this.smoothed[i + 1], this.style)
+      this.perSample.push(tips.map((tip) => nodeFromPoint(tip, this.lineWidth, this.style, this.pressureInk)))
     }
   }
 
@@ -203,10 +302,16 @@ export class SweptSampleCache {
     return nodeFromPoint(sample, this.lineWidth, this.style, this.pressureInk)
   }
 
-  /** Nodes for `[from, to]` inclusive — same values `nodesFromSmoothedPoints` yields. */
+  /** Nodes for samples `[from, to]` inclusive — same values `nodesFromSmoothedPoints` yields. */
   nodes(points: Point[], from: number, to: number = points.length - 1): StylusNode[] {
     const out: StylusNode[] = []
-    for (let i = from; i <= to; i++) out.push(this.nodeAt(points, i))
+    for (let i = from; i <= to; i++) {
+      if (i === points.length - 1) {
+        out.push(nodeFromPoint(points[i], this.lineWidth, this.style, this.pressureInk))
+      } else {
+        out.push(...this.perSample[i])
+      }
+    }
     return out
   }
 }

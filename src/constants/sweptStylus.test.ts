@@ -12,6 +12,7 @@ import {
   planSweptFreeze,
   pruneNodes,
   nodesFromSmoothedPoints,
+  roundCornerTips,
   SWEPT_FREEZE_MIN_NODES,
   SWEPT_TAIL_NODES,
   smoothPenPoint,
@@ -401,16 +402,18 @@ describe('SweptSampleCache', () => {
 
   it('keeps every slice on the same phase as the whole-stroke render', () => {
     // This is the invariant that makes the live preview and the committed stroke agree:
-    // chunked slices must be byte-identical to the matching range of the final outline.
+    // the chunked slices, concatenated, must equal the final outline sample for sample.
     const points = scribble(400)
     const cache = new SweptSampleCache(6, SWEPT_STYLE, 'pen')
     cache.sync(points)
     const expected = nodesFromSmoothedPoints(points, 6, SWEPT_STYLE, 'pen')
 
+    const sliced: StylusNode[] = []
     for (let start = 0; start < points.length; start += 64) {
       const end = Math.min(start + 63, points.length - 1)
-      expect(cache.nodes(points, start, end)).toEqual(expected.slice(start, end + 1))
+      sliced.push(...cache.nodes(points, start, end))
     }
+    expect(sliced).toEqual(expected)
   })
 
   it('catches up incrementally without changing earlier samples', () => {
@@ -424,10 +427,15 @@ describe('SweptSampleCache', () => {
       const current = cache.nodes(prefix, 0)
       // Each new frame must reproduce the prefix outline exactly…
       expect(current).toEqual(nodesFromSmoothedPoints(prefix, 4, SWEPT_STYLE, 'mouse'))
-      // …and only the (previously raw) tip plus the new sample may move.
-      const settled = current.length - 2
-      if (settled > 0) expect(current.slice(0, settled)).toEqual(previous.slice(0, settled))
+      // …and only the two samples nearest the tip may move as it grows.
+      const settled = cache.nodes(prefix, 0, Math.max(0, prefix.length - 3)).length
+      if (settled > 0 && settled <= previous.length) {
+        expect(current.slice(0, settled)).toEqual(previous.slice(0, settled))
+      }
       previous = current
+      // Re-syncing the same samples must be a no-op.
+      cache.sync(prefix)
+      expect(cache.nodes(prefix, 0)).toEqual(current)
     }
   })
 
@@ -443,5 +451,96 @@ describe('SweptSampleCache', () => {
     expect(out[out.length - 1].x).toBe(30)
     // The middle sample is lagged by the EMA, the tip is not.
     expect(out[1].x).toBeLessThan(10)
+  })
+})
+
+describe('roundCornerTips', () => {
+  const p = (x: number, y: number): Point => ({ x, y, pressure: 0.5 })
+
+  it('leaves a straight run untouched', () => {
+    const out = roundCornerTips(p(0, 0), p(10, 0), p(20, 0), SWEPT_STYLE)
+    expect(out).toHaveLength(1)
+    expect(out[0]).toMatchObject({ x: 10, y: 0 })
+  })
+
+  it('leaves a turn below the threshold untouched', () => {
+    // ~3.4° turn, under the 8° default.
+    const out = roundCornerTips(p(0, 0), p(20, 0), p(40, 1.2), SWEPT_STYLE)
+    expect(out).toHaveLength(1)
+  })
+
+  it('cuts a sharp turn into an arc whose ends sit on both segments', () => {
+    const out = roundCornerTips(p(0, 0), p(20, 0), p(20, 20), SWEPT_STYLE)
+    // 90° turn / 8° per step → at least 12 sub-segments.
+    expect(out.length).toBeGreaterThanOrEqual(13)
+
+    const cut = Math.min(20 * SWEPT_STYLE.cornerCutRatio, SWEPT_STYLE.cornerCutMaxPx)
+    expect(out[0].x).toBeCloseTo(20 - cut, 6)
+    expect(out[0].y).toBeCloseTo(0, 6)
+    expect(out[out.length - 1].x).toBeCloseTo(20, 6)
+    expect(out[out.length - 1].y).toBeCloseTo(cut, 6)
+
+    // Every interpolated tip stays inside the corner, never beyond the sample.
+    for (const tip of out) {
+      expect(tip.x).toBeLessThanOrEqual(20 + 1e-9)
+      expect(tip.y).toBeGreaterThanOrEqual(-1e-9)
+    }
+  })
+
+  it('caps the cut so long segments cannot swallow the stroke', () => {
+    const out = roundCornerTips(p(0, 0), p(200, 0), p(200, 200), SWEPT_STYLE)
+    const first = out[0]
+    expect(200 - first.x).toBeCloseTo(SWEPT_STYLE.cornerCutMaxPx, 6)
+  })
+
+  it('never consumes more than half of a short segment', () => {
+    const out = roundCornerTips(p(0, 0), p(4, 0), p(4, 4), SWEPT_STYLE)
+    expect(out[0].x).toBeCloseTo(2, 6)
+  })
+
+  it('can be switched off', () => {
+    const out = roundCornerTips(p(0, 0), p(20, 0), p(20, 20), { ...SWEPT_STYLE, cornerAngleDeg: 0 })
+    expect(out).toHaveLength(1)
+  })
+
+  it('bounds the turn between neighbouring tips', () => {
+    // A quadratic Bézier sweeps its tangent non-uniformly (tightest at the control
+    // point), so the worst segment turns about twice the per-step average — 0.08 px
+    // of chord deviation at the 8 px cap, i.e. below the antialiasing floor.
+    const out = roundCornerTips(p(0, 0), p(20, 0), p(0, 20), SWEPT_STYLE)
+    let worst = 0
+    for (let i = 2; i < out.length; i++) {
+      const a = Math.atan2(out[i - 1].y - out[i - 2].y, out[i - 1].x - out[i - 2].x)
+      const b = Math.atan2(out[i].y - out[i - 1].y, out[i].x - out[i - 1].x)
+      let d = (Math.abs(b - a) * 180) / Math.PI
+      if (d > 180) d = 360 - d
+      worst = Math.max(worst, d)
+    }
+    expect(worst).toBeLessThanOrEqual(2 * SWEPT_STYLE.cornerAngleDeg)
+  })
+})
+
+describe('nodesFromSmoothedPoints corner rounding', () => {
+  it('adds tips only where the stroke turns', () => {
+    const straightLine: Point[] = Array.from({ length: 40 }, (_, i) => ({ x: i * 4, y: 0, pressure: 0.5 }))
+    expect(nodesFromSmoothedPoints(straightLine, 6, SWEPT_STYLE, 'pen')).toHaveLength(straightLine.length)
+
+    const zigzag: Point[] = Array.from({ length: 40 }, (_, i) => ({
+      x: i * 4,
+      y: i % 2 === 0 ? 0 : 30,
+      pressure: 0.5,
+    }))
+    expect(nodesFromSmoothedPoints(zigzag, 6, SWEPT_STYLE, 'pen').length).toBeGreaterThan(zigzag.length * 3)
+  })
+
+  it('keeps the tip on the pointer sample', () => {
+    const points: Point[] = [
+      { x: 0, y: 0, pressure: 0.5 },
+      { x: 20, y: 0, pressure: 0.5 },
+      { x: 20, y: 20, pressure: 0.5 },
+      { x: 40, y: 20, pressure: 0.5 },
+    ]
+    const out = nodesFromSmoothedPoints(points, 6, SWEPT_STYLE, 'pen')
+    expect(out[out.length - 1]).toMatchObject({ x: 40, y: 20 })
   })
 })

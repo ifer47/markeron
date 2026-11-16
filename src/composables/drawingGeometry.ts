@@ -212,6 +212,18 @@ export function snapPointToAngle(start: Point, raw: Point, stepDegrees = 15): Po
   }
 }
 
+/**
+ * Diagonal corners of an axis-aligned circle grown from `center` toward `pointer`.
+ * Radius is the Euclidean distance so the rim tracks the cursor.
+ */
+export function perfectCircleCornersFromCenter(center: Point, pointer: Point): { start: Point; end: Point } {
+  const r = Math.hypot(pointer.x - center.x, pointer.y - center.y)
+  return {
+    start: { x: center.x - r, y: center.y - r },
+    end: { x: center.x + r, y: center.y + r },
+  }
+}
+
 export function hitTestAction(action: DrawAction, p: Point, extraMargin = 0): boolean {
   const pts = action.points
   if (pts.length === 0) return false

@@ -206,7 +206,7 @@ export default {
     strokeLineLockHint: '画笔 / 荧光笔长按变直线',
     strokeLineLockGesture: '按住停顿约 0.5 秒',
     square: '正方形',
-    circle: '正圆',
+    circle: '正圆（从圆心）',
     colorSwitch: '颜色',
     thOperation: '操作',
     thFunction: '功能',

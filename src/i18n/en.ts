@@ -212,7 +212,7 @@ export default {
     strokeLineLockHint: 'Pen / highlighter hold to straighten',
     strokeLineLockGesture: 'Hold still ~0.5s',
     square: 'Square',
-    circle: 'Circle',
+    circle: 'Circle (from center)',
     colorSwitch: 'Colors',
     thOperation: 'Action',
     thFunction: 'Effect',

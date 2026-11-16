@@ -215,6 +215,42 @@ describe('useDrawing', () => {
       expect(drawing.findActionAt({ x: 10, y: 10 })!.action.dashStyle).toBe('dotted')
     })
 
+    it('draws a perfect circle from the press point as center', () => {
+      drawing.currentTool.value = 'ellipse'
+      drawing.startDraw({ x: 100, y: 80 })
+      drawing.draw({ x: 130, y: 80 }, true)
+      drawing.endDraw()
+
+      const action = drawing.findActionAt({ x: 130, y: 80 })!.action
+      expect(action.points[0]).toMatchObject({ x: 70, y: 50 })
+      expect(action.points[1]).toMatchObject({ x: 130, y: 110 })
+      expect(action.ellipseHit).toMatchObject({ cx: 100, cy: 80, rx: 30, ry: 30 })
+    })
+
+    it('restores corner-drag ellipse when leaving perfect mode mid-gesture', () => {
+      drawing.currentTool.value = 'ellipse'
+      drawing.startDraw({ x: 100, y: 100 })
+      drawing.draw({ x: 140, y: 100 }, true)
+      drawing.draw({ x: 160, y: 140 }, false)
+      drawing.endDraw()
+
+      // Rightmost point of the free ellipse from (100,100)–(160,140).
+      const action = drawing.findActionAt({ x: 160, y: 120 })!.action
+      expect(action.points[0]).toMatchObject({ x: 100, y: 100 })
+      expect(action.points[1]).toMatchObject({ x: 160, y: 140 })
+    })
+
+    it('keeps perfect squares corner-anchored', () => {
+      drawing.currentTool.value = 'rect'
+      drawing.startDraw({ x: 10, y: 10 })
+      drawing.draw({ x: 50, y: 30 }, true)
+      drawing.endDraw()
+
+      const action = drawing.findActionAt({ x: 10, y: 10 })!.action
+      expect(action.points[0]).toMatchObject({ x: 10, y: 10 })
+      expect(action.points[1]).toMatchObject({ x: 50, y: 50 })
+    })
+
     it('cancelDraw discards in-progress stroke without adding to history', () => {
       drawing.startDraw({ x: 10, y: 10 })
       drawing.draw({ x: 20, y: 20 })

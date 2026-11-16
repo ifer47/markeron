@@ -12,6 +12,7 @@ import {
   rotatePointAround,
   updateShapeHitCache,
   hitTestAction,
+  perfectCircleCornersFromCenter,
   snapPointToAngle,
 } from './drawingGeometry'
 import {
@@ -554,6 +555,8 @@ export function useDrawing(
   let reshapeOriginAspect = 1
   let reshapeOriginRotation = 0
   let reshapeRotateStartAngle = 0
+  /** Pointer-down point for the active shape stroke (center for perfect circles). */
+  let drawGestureOrigin: Point | null = null
   let tempCanvas: HTMLCanvasElement | null = null
   let tempCtx: CanvasRenderingContext2D | null = null
   const pathCache = new WeakMap<DrawAction, Path2D>()
@@ -1364,6 +1367,7 @@ export function useDrawing(
     if (currentTool.value === 'text' || currentTool.value === 'stamp' || currentTool.value === 'select') return
     isDrawing.value = true
     resetLineLockState()
+    drawGestureOrigin = { x: point.x, y: point.y }
     if (redoStack.length > 0) {
       redoStack.length = 0
       markHistoryStacksChanged()
@@ -1503,13 +1507,26 @@ export function useDrawing(
         if (inkLockedToLine || action.tool === 'line' || action.tool === 'arrow') {
           const snapped = isPerfect ? snapPointToAngle(start, { x, y }, angleSnapStep.value) : { x, y }
           finalPoint = inkLockedToLine ? { ...finalPoint, x: snapped.x, y: snapped.y } : snapped
-        } else if (isPerfect && (action.tool === 'rect' || action.tool === 'ellipse')) {
-          const dx = x - start.x
-          const dy = y - start.y
-          const maxDist = Math.max(Math.abs(dx), Math.abs(dy))
-          finalPoint = {
-            x: start.x + (dx < 0 ? -maxDist : maxDist),
-            y: start.y + (dy < 0 ? -maxDist : maxDist),
+        } else if (action.tool === 'rect' || action.tool === 'ellipse') {
+          // Keep the press point as gesture origin so Alt can toggle mid-drag.
+          const origin = drawGestureOrigin ?? start
+          if (isPerfect && action.tool === 'ellipse') {
+            const corners = perfectCircleCornersFromCenter(origin, { x, y })
+            pts[0] = { ...pts[0], x: corners.start.x, y: corners.start.y }
+            finalPoint = corners.end
+          } else {
+            pts[0] = { ...pts[0], x: origin.x, y: origin.y }
+            if (isPerfect) {
+              const dx = x - origin.x
+              const dy = y - origin.y
+              const maxDist = Math.max(Math.abs(dx), Math.abs(dy))
+              finalPoint = {
+                x: origin.x + (dx < 0 ? -maxDist : maxDist),
+                y: origin.y + (dy < 0 ? -maxDist : maxDist),
+              }
+            } else {
+              finalPoint = { x, y }
+            }
           }
         }
       }
@@ -1536,6 +1553,7 @@ export function useDrawing(
     if (!action) return
     isDrawing.value = false
     resetLineLockState()
+    drawGestureOrigin = null
 
     if (action.tool !== 'laser') {
       const pad = Math.max(20, action.lineWidth / 2 + 10)
@@ -1622,6 +1640,7 @@ export function useDrawing(
     if (currentAction.value?.tool === 'laser') laserReleasedAt = performance.now()
     isDrawing.value = false
     resetLineLockState()
+    drawGestureOrigin = null
     currentAction.value = null
     clearStrokeCanvas()
     objectEraserBatch = []

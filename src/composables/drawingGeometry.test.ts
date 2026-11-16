@@ -10,6 +10,7 @@ import {
   distToSeg,
   distancePointToSegment,
   snapPointToAngle,
+  perfectCircleCornersFromCenter,
   hitTestAction,
 } from './drawingGeometry'
 
@@ -355,6 +356,31 @@ describe('snapPointToAngle', () => {
     const snapped = snapPointToAngle({ x: 10, y: 10 }, raw)
     expect(snapped).toEqual(raw)
     expect(snapped).not.toBe(raw)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// perfectCircleCornersFromCenter
+// ---------------------------------------------------------------------------
+describe('perfectCircleCornersFromCenter', () => {
+  it('expands equally in all directions from the center', () => {
+    const { start, end } = perfectCircleCornersFromCenter({ x: 100, y: 80 }, { x: 130, y: 80 })
+    expect(start).toEqual({ x: 70, y: 50 })
+    expect(end).toEqual({ x: 130, y: 110 })
+  })
+
+  it('uses Euclidean distance so diagonal drags grow the full radius', () => {
+    const { start, end } = perfectCircleCornersFromCenter({ x: 0, y: 0 }, { x: 30, y: 40 })
+    expect(start.x).toBeCloseTo(-50)
+    expect(start.y).toBeCloseTo(-50)
+    expect(end.x).toBeCloseTo(50)
+    expect(end.y).toBeCloseTo(50)
+  })
+
+  it('collapses to a point when the pointer is on the center', () => {
+    const { start, end } = perfectCircleCornersFromCenter({ x: 12, y: 34 }, { x: 12, y: 34 })
+    expect(start).toEqual({ x: 12, y: 34 })
+    expect(end).toEqual({ x: 12, y: 34 })
   })
 })
 

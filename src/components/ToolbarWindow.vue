@@ -117,6 +117,11 @@ function isEditableKeyTarget(target: EventTarget | null): boolean {
 function onToolbarKeyDown(e: KeyboardEvent) {
   if (isEditableKeyTarget(e.target)) return
 
+  // macOS WKWebView beeps for keys it consumes but whose default action is not
+  // prevented (issue #98). The toolbar has no editable surface outside the guard
+  // above, so swallow the default for every key it sees.
+  e.preventDefault()
+
   // Overlay key handlers do not run while this window has OS focus.
   if (isCopyShortcut(e)) {
     e.preventDefault()

@@ -144,12 +144,15 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
         e.preventDefault()
         actions.copyScreen()
       } else if (e.key === 'Escape') {
+        e.preventDefault()
         logActionEvent('quick colors closed', { reason: 'keyboard' })
         ctx.showQuickColors.value = false
       } else if (e.key === 'q' || e.key === 'Q') {
+        e.preventDefault()
         logActionEvent('color cycled', { reason: 'keyboard', direction: -1, context: 'quick-colors' })
         actions.cycleColor(-1)
       } else if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault()
         logActionEvent('color cycled', { reason: 'keyboard', direction: 1, context: 'quick-colors' })
         actions.cycleColor(1)
       } else if (e.key === ' ') {
@@ -165,6 +168,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     // Text box mode
     if (ctx.textBoxPos.value) {
       if (e.key === 'Escape') {
+        e.preventDefault()
         logActionEvent('text box cancelled', { reason: 'keyboard' })
         actions.commitCurrentTextBox(true)
       }
@@ -183,11 +187,13 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
 
     // Color cycling
     if (e.key === 'q' || e.key === 'Q') {
+      e.preventDefault()
       logActionEvent('color cycled', { reason: 'keyboard', direction: -1 })
       actions.cycleColor(-1)
       return
     }
     if (e.key === 'e' || e.key === 'E') {
+      e.preventDefault()
       logActionEvent('color cycled', { reason: 'keyboard', direction: 1 })
       actions.cycleColor(1)
       return
@@ -197,12 +203,14 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     // Ignore Ctrl/Meta so we don't steal OS chords (e.g. ⌘D / Ctrl+D).
     // Non-dashable tools no-op inside cycleShapeDash (no tip).
     if ((e.key === 'd' || e.key === 'D') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault()
       actions.cycleShapeDash?.(e.shiftKey ? -1 : 1)
       return
     }
 
     // Select tool
     if ((e.key === 'v' || e.key === 'V') && !modDown(e)) {
+      e.preventDefault()
       if (ctx.isDrawing.value) return
       logActionEvent('tool selected', { reason: 'keyboard', tool: 'select' })
       ctx.currentTool.value = 'select'
@@ -212,6 +220,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
 
     // Text tool
     if (e.key === 't' || e.key === 'T') {
+      e.preventDefault()
       if (ctx.isDrawing.value) return
       logActionEvent('tool selected', { reason: 'keyboard', tool: 'text' })
       ctx.currentTool.value = 'text'
@@ -222,6 +231,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     // Stamp tool — N selects; N again cycles number ↔ letter; Shift+N resets active counter.
     // Ignore Ctrl/Meta so we don't steal OS chords (⌘N / ⌘⇧N on macOS, Ctrl+N elsewhere).
     if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault()
       if (ctx.isDrawing.value) return
       if (e.shiftKey) {
         e.preventDefault()
@@ -244,6 +254,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     // Tool switching (1-8). Pen/eraser/crosshair tools: re-press cycles style or mode.
     // Ignore all tool changes while a stroke is active — action.tool is fixed at pointer-down.
     if (e.key >= '1' && e.key <= '8') {
+      e.preventDefault()
       if (ctx.isDrawing.value) return
       const tool = TOOL_KEYS[parseInt(e.key) - 1]
       if (tool === 'pen' && ctx.currentTool.value === 'pen') {
@@ -274,6 +285,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
 
     // Whiteboard mode toggle
     if (e.key === 'w' || e.key === 'W') {
+      e.preventDefault()
       if (ctx.whiteboardMode.value) {
         logActionEvent('whiteboard exit requested', { reason: 'keyboard' })
         actions.exitWhiteboardMode()
@@ -286,6 +298,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
 
     // Click-through (penetration) mode toggle — X (pairs with Ctrl+Shift+X); not in whiteboard
     if ((e.key === 'x' || e.key === 'X') && !modDown(e)) {
+      e.preventDefault()
       if (ctx.whiteboardMode.value) return
       logActionEvent('toggle penetration requested', { reason: 'keyboard' })
       actions.togglePenetrationMode()
@@ -304,6 +317,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
 
     // Delete / Backspace removes the current selection (select tool or leftover selection).
     if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault()
       if (actions.hasSelection?.()) {
         e.preventDefault()
         logActionEvent('selection deleted', { reason: 'keyboard', key: e.key })
@@ -330,6 +344,7 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
       logActionEvent('redo', { reason: 'keyboard', shortcut: 'mod+y' })
       actions.redo()
     } else if (e.key === 'Escape') {
+      e.preventDefault()
       if (actions.hasSelection?.()) {
         logActionEvent('selection cleared', { reason: 'keyboard', shortcut: 'escape' })
         actions.clearSelection?.()

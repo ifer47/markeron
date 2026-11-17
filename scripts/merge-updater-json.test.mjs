@@ -27,7 +27,7 @@ test('merge-updater-json merges platform maps', () => {
     }),
   )
 
-  const result = spawnSync('node', ['scripts/merge-updater-json.mjs', dir, out], {
+  const result = spawnSync(process.execPath, ['scripts/merge-updater-json.mjs', dir, out], {
     encoding: 'utf8',
   })
   assert.equal(result.status, 0, result.stderr)

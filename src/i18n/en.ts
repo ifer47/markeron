@@ -70,6 +70,8 @@ export default {
   overlay: {
     copiedToClipboard: 'Copied to clipboard',
     copyFailed: 'Copy failed',
+    copiedSelection: 'Copied {count} object(s)',
+    pastedSelection: 'Pasted {count} object(s)',
     whiteboardMode: 'Whiteboard mode enabled',
     whiteboardExit: 'Exited whiteboard mode',
     whiteboardReady: 'Whiteboard is ready',
@@ -219,6 +221,7 @@ export default {
     whiteboardMode: 'Whiteboard',
     toggleWhiteboard: 'Enter / exit',
     copyWhiteboard: 'Copy board',
+    copyPasteSelection: 'Copy / paste selection',
     exitWhiteboard: 'Exit board',
     whiteboardPreserveHint: '',
     whiteboardContentHint: '',

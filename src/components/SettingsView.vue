@@ -629,6 +629,13 @@ onUnmounted(() => {
                 </div>
               </div>
               <div class="help-row">
+                <HelpTruncateLabel :text="t('help.copyPasteSelection')" />
+                <div class="help-keys">
+                  <kbd class="help-kbd">{{ helpMod }}+C</kbd> /
+                  <kbd class="help-kbd">{{ helpMod }}+V</kbd>
+                </div>
+              </div>
+              <div class="help-row">
                 <HelpTruncateLabel :text="t('help.eraserModeHint')" />
                 <div class="help-keys"><kbd class="help-kbd">7</kbd></div>
               </div>

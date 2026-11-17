@@ -25,7 +25,7 @@ import {
   clampToolbarWindowToOverlay,
 } from '../utils/toolbarWindow'
 import { isMacOS } from '../utils/platform'
-import { isCopyShortcut } from '../composables/useOverlayKeyboard'
+import { isCopyShortcut, isPasteShortcut } from '../composables/useOverlayKeyboard'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { AppConfig } from '../types/app'
 import { applyTheme, watchSystemTheme, type ThemePreference } from '../composables/useAppTheme'
@@ -125,7 +125,13 @@ function onToolbarKeyDown(e: KeyboardEvent) {
   // Overlay key handlers do not run while this window has OS focus.
   if (isCopyShortcut(e)) {
     e.preventDefault()
-    emitToolbarAction({ type: 'copy' })
+    emitToolbarAction({ type: 'copyShortcut' })
+    return
+  }
+
+  if (isPasteShortcut(e)) {
+    e.preventDefault()
+    emitToolbarAction({ type: 'paste' })
     return
   }
 

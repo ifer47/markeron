@@ -123,6 +123,8 @@ export function cloneActionWithOffset(action: DrawAction, dx: number, dy: number
       ...(pt.t != null ? { t: pt.t } : {}),
     })),
     ...(action.rotation != null ? { rotation: action.rotation } : {}),
+    // Style object is mutated in place by the outline controls — clones must own it.
+    ...(action.textOutline ? { textOutline: { ...action.textOutline } } : {}),
     bbox: action.bbox
       ? {
           x1: action.bbox.x1 + dx,

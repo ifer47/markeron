@@ -197,6 +197,21 @@ describe('cloneActionWithOffset', () => {
     expect(cloned.attachedErasers![0].bbox).toEqual({ x1: 100, y1: 200, x2: 110, y2: 210 })
   })
 
+  it('gives the clone its own textOutline style object', () => {
+    const action = makeAction({
+      tool: 'text',
+      points: [{ x: 10, y: 20 }],
+      text: 'A',
+      textOutline: { enabled: true, colorMode: 'fixed', color: '#000000', width: 2 },
+    })
+    const cloned = cloneActionWithOffset(action, 10, 10)
+
+    expect(cloned.textOutline).toEqual(action.textOutline)
+    expect(cloned.textOutline).not.toBe(action.textOutline)
+    cloned.textOutline!.width = 99
+    expect(action.textOutline!.width).toBe(2)
+  })
+
   it('does not mutate the original action', () => {
     const action = makeAction({
       points: [{ x: 10, y: 20 }],

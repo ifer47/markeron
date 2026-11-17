@@ -40,6 +40,8 @@ export type ToolbarAction =
   | { type: 'clearAll' }
   | { type: 'toggleWhiteboard' }
   | { type: 'copy' }
+  | { type: 'copyShortcut' }
+  | { type: 'paste' }
   | { type: 'togglePenetration' }
   | { type: 'togglePin' }
   | { type: 'exitDrawing' }

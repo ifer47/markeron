@@ -6,14 +6,15 @@ import { logActionEvent } from '../utils/diagnosticEvents'
 
 const TOOL_KEYS: Tool[] = ['pen', 'highlighter', 'arrow', 'rect', 'ellipse', 'line', 'eraser', 'laser']
 
-/** True while pointer is down for draw/drag — modifier keys serve drawing, not copy. */
+/** True while pointer is down for draw/drag — modifier keys serve drawing, not copy/paste. */
 let pointerGestureActive = false
 
 /**
  * True only after a physical Meta/Control keydown while the pointer is idle.
  * Spurious macOS Mod+C after pen-up sends C with metaKey but no prior Meta keydown (issue #22).
+ * The same guard gates Mod+V so a stray paste cannot follow pen-up either.
  */
-let copyModifierPhysicallyDown = false
+let modifierPhysicallyDown = false
 
 export interface KeyboardContext {
   active: Ref<boolean>
@@ -61,6 +62,10 @@ export interface KeyboardActions {
   exitWhiteboardMode: () => void
   copyScreen: () => void
   copyWhiteboard: () => void
+  /** Copy the current selection into the vector clipboard; returns how many actions were copied. */
+  copySelection?: () => number
+  /** Paste the vector clipboard (already offset + selected by the drawing layer). */
+  paste?: () => void
   toggleToolbarPopupVisible: () => void
   commitCurrentTextBox: (cancel?: boolean) => void
 }
@@ -75,26 +80,32 @@ export function isCopyShortcut(e: KeyboardEvent): boolean {
   return e.key === 'c' || e.key === 'C'
 }
 
+/** Mod+V without Shift/Alt — Alt is left to OS-level "paste special" chords. */
+export function isPasteShortcut(e: KeyboardEvent): boolean {
+  if (!modDown(e) || e.shiftKey || e.altKey) return false
+  return e.key === 'v' || e.key === 'V'
+}
+
 export function trackCopyModifierKeyDown(e: KeyboardEvent): void {
   if ((e.key === 'Control' || e.key === 'Meta') && !pointerGestureActive) {
-    copyModifierPhysicallyDown = true
+    modifierPhysicallyDown = true
   }
 }
 
 export function trackCopyModifierKeyUp(e: KeyboardEvent): void {
   if (e.key === 'Control' || e.key === 'Meta') {
-    copyModifierPhysicallyDown = false
+    modifierPhysicallyDown = false
   }
 }
 
 export function resetCopyModifierState(): void {
-  copyModifierPhysicallyDown = false
+  modifierPhysicallyDown = false
   pointerGestureActive = false
 }
 
 /** Pointer down: modifier keys are reserved for draw/drag until pointer up. */
 export function invalidateCopyModifierForPointerInteraction(): void {
-  copyModifierPhysicallyDown = false
+  modifierPhysicallyDown = false
   pointerGestureActive = true
 }
 
@@ -105,7 +116,7 @@ export function markPointerInteractionEnded(): void {
 
 /** For tests: read whether copy modifier is considered physically held. */
 export function isCopyModifierPhysicallyDown(): boolean {
-  return copyModifierPhysicallyDown
+  return modifierPhysicallyDown
 }
 
 /** For tests: read pointer gesture state. */
@@ -116,15 +127,24 @@ export function isPointerGestureActive(): boolean {
 function shouldTriggerKeyboardCopy(e: KeyboardEvent, ctx: KeyboardContext): boolean {
   if (ctx.isDrawing.value || pointerGestureActive) return false
   if (!isCopyShortcut(e)) return false
-  return copyModifierPhysicallyDown
+  return modifierPhysicallyDown
 }
 
 function triggerKeyboardCopy(ctx: KeyboardContext, actions: KeyboardActions): void {
+  // A selection wins over the canvas: Mod+C on selected objects copies vectors
+  // (so they can be pasted 1:1), not a bitmap of the whole screen.
+  if ((actions.copySelection?.() ?? 0) > 0) return
   if (ctx.whiteboardMode.value) {
     actions.copyWhiteboard()
   } else {
     actions.copyScreen()
   }
+}
+
+function shouldTriggerKeyboardPaste(e: KeyboardEvent, ctx: KeyboardContext): boolean {
+  if (ctx.isDrawing.value || pointerGestureActive) return false
+  if (!isPasteShortcut(e)) return false
+  return modifierPhysicallyDown
 }
 
 export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActions) {
@@ -309,6 +329,14 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     if (shouldTriggerKeyboardCopy(e, ctx)) {
       e.preventDefault()
       triggerKeyboardCopy(ctx, actions)
+      return
+    }
+
+    // Paste: same physical-modifier guard (issue #22), never mid-gesture.
+    if (shouldTriggerKeyboardPaste(e, ctx)) {
+      e.preventDefault()
+      logActionEvent('paste requested', { reason: 'keyboard' })
+      actions.paste?.()
       return
     }
 

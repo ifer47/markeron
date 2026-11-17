@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ref, type Ref } from 'vue'
 import {
   createKeyDownHandler,
+  isPasteShortcut,
   resetCopyModifierState,
   invalidateCopyModifierForPointerInteraction,
   markPointerInteractionEnded,
@@ -63,6 +64,8 @@ function createActions(): KeyboardActions & { calls: Record<string, unknown[][]>
     exitWhiteboardMode: make('exitWhiteboardMode') as KeyboardActions['exitWhiteboardMode'],
     copyScreen: make('copyScreen') as KeyboardActions['copyScreen'],
     copyWhiteboard: make('copyWhiteboard') as KeyboardActions['copyWhiteboard'],
+    copySelection: vi.fn(() => 0),
+    paste: make('paste') as KeyboardActions['paste'],
     toggleToolbarPopupVisible: make('toggleToolbarPopupVisible') as KeyboardActions['toggleToolbarPopupVisible'],
     commitCurrentTextBox: make('commitCurrentTextBox') as KeyboardActions['commitCurrentTextBox'],
   }
@@ -94,6 +97,19 @@ describe('isCopyShortcut', () => {
   it('rejects Shift+Ctrl+C and plain C', () => {
     expect(isCopyShortcut(key('c', { ctrlKey: true, shiftKey: true }))).toBe(false)
     expect(isCopyShortcut(key('c'))).toBe(false)
+  })
+})
+
+describe('isPasteShortcut', () => {
+  it('matches Ctrl+V and Cmd+V without Shift or Alt', () => {
+    expect(isPasteShortcut(key('v', { ctrlKey: true }))).toBe(true)
+    expect(isPasteShortcut(key('V', { ctrlKey: true }))).toBe(true)
+  })
+
+  it('rejects Shift/Alt chords and plain V', () => {
+    expect(isPasteShortcut(key('v', { ctrlKey: true, shiftKey: true }))).toBe(false)
+    expect(isPasteShortcut(key('v', { ctrlKey: true, altKey: true }))).toBe(false)
+    expect(isPasteShortcut(key('v'))).toBe(false)
   })
 })
 
@@ -467,6 +483,68 @@ describe('useOverlayKeyboard', () => {
       copyChord(handler)
       expect(actions.calls.copyWhiteboard).toHaveLength(1)
       expect(actions.calls.copyScreen).toHaveLength(0)
+    })
+  })
+
+  describe('copy selection', () => {
+    it('Ctrl+C copies the selection instead of the screen when something is selected', () => {
+      actions.copySelection = vi.fn(() => 2)
+      copyChord(handler)
+
+      expect(actions.copySelection).toHaveBeenCalledTimes(1)
+      expect(actions.calls.copyScreen).toHaveLength(0)
+      expect(actions.calls.copyWhiteboard).toHaveLength(0)
+    })
+
+    it('Ctrl+C falls back to the whiteboard bitmap when nothing is selected', () => {
+      ctx.whiteboardMode.value = true
+      copyChord(handler)
+
+      expect(actions.copySelection).toHaveBeenCalledTimes(1)
+      expect(actions.calls.copyWhiteboard).toHaveLength(1)
+    })
+
+    it('Ctrl+C falls back to the screen bitmap when nothing is selected', () => {
+      copyChord(handler)
+
+      expect(actions.copySelection).toHaveBeenCalledTimes(1)
+      expect(actions.calls.copyScreen).toHaveLength(1)
+    })
+  })
+
+  describe('paste', () => {
+    it('Ctrl+V pastes and prevents the browser default', () => {
+      const chord = key('v', { ctrlKey: true })
+      handler(key('Control'))
+      handler(chord)
+
+      expect(actions.calls.paste).toHaveLength(1)
+      expect(chord.preventDefault).toHaveBeenCalled()
+    })
+
+    it('Shift+Ctrl+V and Alt+Ctrl+V are not paste chords', () => {
+      handler(key('Control'))
+      handler(key('V', { ctrlKey: true, shiftKey: true }))
+      handler(key('v', { ctrlKey: true, altKey: true }))
+      expect(actions.calls.paste).toHaveLength(0)
+    })
+
+    it('V without a modifier still switches to the select tool', () => {
+      handler(key('v'))
+      expect(ctx.currentTool.value).toBe('select')
+      expect(actions.calls.paste).toHaveLength(0)
+    })
+
+    it('does not paste while a stroke is active', () => {
+      ctx.isDrawing.value = true
+      handler(key('Control'))
+      handler(key('v', { ctrlKey: true }))
+      expect(actions.calls.paste).toHaveLength(0)
+    })
+
+    it('does not paste without a physical modifier keydown (issue #22)', () => {
+      handler(key('v', { ctrlKey: true }))
+      expect(actions.calls.paste).toHaveLength(0)
     })
   })
 

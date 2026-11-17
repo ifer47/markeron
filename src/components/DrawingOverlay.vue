@@ -354,6 +354,9 @@ const {
   findActionsInRect,
   removeAction,
   removeSelected,
+  copySelection,
+  pasteClipboard,
+  hasCopiedActions,
   selectedActions,
   clearSelection,
   setSelection,
@@ -1830,6 +1833,10 @@ const onKeyDown = createKeyDownHandler(
     copyWhiteboard: () => {
       void copyWhiteboard('keyboard')
     },
+    copySelection: () => copySelectionOrScreen('keyboard'),
+    paste: () => {
+      pasteFromClipboard('keyboard')
+    },
     toggleToolbarPopupVisible,
     commitCurrentTextBox,
     exitDrawing: () => {
@@ -2023,6 +2030,12 @@ function logToolbarAction(action: ToolbarAction) {
     case 'copy':
       logActionEvent('copy requested', { reason, mode: whiteboardMode.value ? 'whiteboard' : 'screen' })
       break
+    case 'copyShortcut':
+      logActionEvent('copy requested', { reason, mode: 'selection-or-screen' })
+      break
+    case 'paste':
+      logActionEvent('paste requested', { reason, mode: 'keyboard' })
+      break
     case 'togglePenetration':
       logActionEvent('toggle penetration requested', { reason })
       break
@@ -2105,6 +2118,12 @@ async function handleToolbarAction(action: ToolbarAction) {
       break
     case 'copy':
       copyFromToolbar()
+      break
+    case 'copyShortcut':
+      copySelectionOrScreen('toolbar')
+      break
+    case 'paste':
+      pasteFromClipboard('toolbar')
       break
     case 'togglePenetration':
       await togglePenetrationMode()
@@ -2437,6 +2456,39 @@ function copyFromToolbar() {
   } else {
     void copyScreen('toolbar')
   }
+}
+
+/**
+ * Mod+C: a selection copies its vectors (so they can be pasted back 1:1); with
+ * nothing selected we keep the original "copy screen / whiteboard" behaviour.
+ */
+function copySelectionOrScreen(reason: 'keyboard' | 'toolbar'): number {
+  const count = copySelection()
+  if (count > 0) {
+    logActionEvent('selection copied', { reason, count })
+    showTip(t('overlay.copiedSelection', { count: String(count) }))
+    return count
+  }
+  if (whiteboardMode.value) {
+    void copyWhiteboard(reason)
+  } else {
+    void copyScreen(reason)
+  }
+  return 0
+}
+
+/**
+ * Mod+V: paste the vector clipboard and switch to the select tool so the new
+ * copies can be dragged into place straight away.
+ */
+function pasteFromClipboard(reason: 'keyboard' | 'toolbar') {
+  if (!hasCopiedActions()) return
+  const count = pasteClipboard()
+  if (count === 0) return
+  // Only switch once the paste landed, so an empty clipboard cannot yank the tool.
+  if (currentTool.value !== 'select') currentTool.value = 'select'
+  logActionEvent('selection pasted', { reason, count })
+  showTip(t('overlay.pastedSelection', { count: String(count) }))
 }
 
 function onPointerLeave(e: PointerEvent) {

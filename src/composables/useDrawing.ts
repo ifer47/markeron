@@ -49,6 +49,9 @@ import { collapseStrokeToLine, STROKE_LINE_LOCK_HOLD_MS, strokeLineLockStillDist
 export type { Tool, Point, DrawAction } from './drawingTypes'
 export type { InputPointLike } from './drawingTypes'
 
+/** CSS px a pasted copy is offset by, per consecutive paste. */
+const PASTE_CASCADE_OFFSET_PX = 12
+
 export type SelectionRect = { x1: number; y1: number; x2: number; y2: number }
 
 function normalizeSelectionRect(r: SelectionRect): SelectionRect {
@@ -282,6 +285,7 @@ export function useDrawing(
         targets: { action: DrawAction; before: DrawAction['attachedErasers']; after: DrawAction['attachedErasers'] }[]
       }
     | { type: 'removeBatch'; removed: { action: DrawAction; index: number }[] }
+    | { type: 'paste'; items: { action: DrawAction; index: number }[] }
     | { type: 'clear'; actions: DrawAction[]; prevUndoStack: UndoEntry[] }
 
   function clonePoint(p: Point): Point {
@@ -320,6 +324,10 @@ export function useDrawing(
   const undoStack: UndoEntry[] = []
   const redoStack: UndoEntry[] = []
   const historyRevision = ref(0)
+  /** Internal vector clipboard for Ctrl+C on a selection (never the OS bitmap clipboard). */
+  let copiedActions: DrawAction[] = []
+  /** Consecutive pastes step further from the original so copies never stack exactly. */
+  let pasteCascade = 0
 
   interface LaserStroke {
     action: DrawAction
@@ -1053,6 +1061,58 @@ export function useDrawing(
     previewDirty = true
     markHistoryStacksChanged()
     flushRender()
+  }
+
+  /**
+   * Copy the current selection into the internal vector clipboard (Mod+C).
+   * Returns how many actions were copied — 0 means nothing was selected, so the
+   * caller can fall back to copying the rendered screen / whiteboard bitmap.
+   */
+  function copySelection(): number {
+    const selected = selectedActions.value.filter((action) => history.indexOf(action) !== -1)
+    if (selected.length === 0) return 0
+    // Keep z-order so the pasted group stacks exactly like the original.
+    const ordered = [...selected].sort((a, b) => history.indexOf(a) - history.indexOf(b))
+    copiedActions = ordered.map((action) => cloneActionWithOffset(action, 0, 0))
+    pasteCascade = 0
+    return copiedActions.length
+  }
+
+  function hasCopiedActions(): boolean {
+    return copiedActions.length > 0
+  }
+
+  /**
+   * Paste the copied actions as 1:1 clones cascaded below-right of the originals,
+   * then select them so they can be dragged straight away. The whole paste is a
+   * single undo step.
+   */
+  function pasteClipboard(): number {
+    if (copiedActions.length === 0 || isDrawing.value) return 0
+
+    pasteCascade += 1
+    const offset = PASTE_CASCADE_OFFSET_PX * pasteCascade
+    const pasted: DrawAction[] = []
+    const items: { action: DrawAction; index: number }[] = []
+
+    for (const source of copiedActions) {
+      const action = cloneActionWithOffset(source, offset, offset)
+      refreshActionGeometry(action)
+      history.push(action)
+      appendActionToHitGrid(action)
+      pasted.push(action)
+      items.push({ action, index: history.length - 1 })
+    }
+
+    historyIndexDirty = true
+    undoStack.push({ type: 'paste', items })
+    redoStack.length = 0
+    setSelection(pasted)
+    markHistoryStacksChanged()
+    invalidateCache()
+    previewDirty = true
+    flushRender()
+    return pasted.length
   }
 
   function isInkTool(tool: Tool): boolean {
@@ -2101,6 +2161,17 @@ export function useDrawing(
         appendActionToHitGrid(item.action)
       }
       historyIndexDirty = true
+    } else if (entry.type === 'paste') {
+      const sorted = [...entry.items].sort((a, b) => b.index - a.index)
+      for (const item of sorted) {
+        const idx = history.indexOf(item.action)
+        if (idx !== -1) {
+          history.splice(idx, 1)
+          deleteActionFromHitGrid(item.action)
+        }
+      }
+      historyIndexDirty = true
+      pruneSelection(sorted.map((item) => item.action))
     } else if (entry.type === 'clear') {
       history.push(...entry.actions)
       undoStack.push(...entry.prevUndoStack)
@@ -2171,6 +2242,15 @@ export function useDrawing(
       }
       historyIndexDirty = true
       pruneSelection(sorted.map((item) => item.action))
+    } else if (entry.type === 'paste') {
+      const sorted = [...entry.items].sort((a, b) => a.index - b.index)
+      for (const item of sorted) {
+        const target = Math.min(item.index, history.length)
+        history.splice(target, 0, item.action)
+        appendActionToHitGrid(item.action)
+      }
+      historyIndexDirty = true
+      setSelection(sorted.map((item) => item.action))
     } else if (entry.type === 'clear') {
       entry.actions = [...history]
       entry.prevUndoStack = [...undoStack]
@@ -2397,6 +2477,9 @@ export function useDrawing(
     findActionsInRect,
     removeAction,
     removeSelected,
+    copySelection,
+    pasteClipboard,
+    hasCopiedActions,
     selectedActions,
     marqueeRect,
     clearSelection,

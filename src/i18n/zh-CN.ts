@@ -70,6 +70,8 @@ export default {
   overlay: {
     copiedToClipboard: '已复制到剪贴板',
     copyFailed: '复制失败',
+    copiedSelection: '已复制 {count} 个对象',
+    pastedSelection: '已粘贴 {count} 个对象',
     whiteboardMode: '已进入白板模式',
     whiteboardExit: '已退出白板模式',
     whiteboardReady: '白板已就绪',
@@ -214,6 +216,7 @@ export default {
     whiteboardMode: '白板',
     toggleWhiteboard: '进入 / 退出',
     copyWhiteboard: '复制白板',
+    copyPasteSelection: '复制 / 粘贴选中内容',
     exitWhiteboard: '退出白板',
     whiteboardPreserveHint: '',
     whiteboardContentHint: '',

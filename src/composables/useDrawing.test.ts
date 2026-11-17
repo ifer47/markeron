@@ -1132,6 +1132,120 @@ describe('useDrawing', () => {
     })
   })
 
+  describe('copy / paste', () => {
+    function addRect(x0: number, y0: number, x1: number, y1: number) {
+      drawing.currentTool.value = 'rect'
+      drawing.startDraw({ x: x0, y: y0 })
+      drawing.draw({ x: x1, y: y1 })
+      drawing.endDraw()
+    }
+
+    it('copying without a selection reports nothing copied', () => {
+      addRect(10, 10, 50, 50)
+      expect(drawing.copySelection()).toBe(0)
+      expect(drawing.hasCopiedActions()).toBe(false)
+    })
+
+    it('pasting an empty clipboard is a no-op', () => {
+      addRect(10, 10, 50, 50)
+      expect(drawing.pasteClipboard()).toBe(0)
+      expect(drawing.findActionAt({ x: 10, y: 10 })?.action.points[1]).toMatchObject({ x: 50, y: 50 })
+    })
+
+    it('pastes a 1:1 copy cascaded below-right and selects it', () => {
+      addRect(10, 10, 50, 50)
+      const original = drawing.findActionAt({ x: 10, y: 10 })!.action
+
+      drawing.setSelection([original])
+      expect(drawing.copySelection()).toBe(1)
+      expect(drawing.pasteClipboard()).toBe(1)
+
+      expect(drawing.selectedActions.value).toHaveLength(1)
+      const pasted = drawing.selectedActions.value[0]
+      expect(pasted).not.toBe(original)
+      expect(pasted.points[0]).toMatchObject({ x: 22, y: 22 })
+      expect(pasted.points[1]).toMatchObject({ x: 62, y: 62 })
+      // Same size — only translated.
+      expect(pasted.points[1].x - pasted.points[0].x).toBe(original.points[1].x - original.points[0].x)
+      expect(pasted.color).toBe(original.color)
+      expect(pasted.lineWidth).toBe(original.lineWidth)
+    })
+
+    it('consecutive pastes cascade further instead of stacking', () => {
+      addRect(0, 0, 40, 40)
+      const original = drawing.findActionAt({ x: 0, y: 0 })!.action
+      drawing.setSelection([original])
+      drawing.copySelection()
+
+      drawing.pasteClipboard()
+      const first = drawing.selectedActions.value[0]
+      drawing.pasteClipboard()
+      const second = drawing.selectedActions.value[0]
+
+      expect(first.points[0]).toMatchObject({ x: 12, y: 12 })
+      expect(second.points[0]).toMatchObject({ x: 24, y: 24 })
+    })
+
+    it('a whole paste is one undo step and redo restores it', () => {
+      addRect(10, 10, 50, 50)
+      addRect(80, 80, 120, 120)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      const b = drawing.findActionAt({ x: 80, y: 80 })!.action
+      drawing.setSelection([a, b])
+      drawing.copySelection()
+      drawing.pasteClipboard()
+
+      const pasted = [...drawing.selectedActions.value]
+      expect(pasted).toHaveLength(2)
+      expect(drawing.findActionAt({ x: 22, y: 22 })).toBeTruthy()
+
+      drawing.undo()
+      expect(drawing.findActionAt({ x: 22, y: 22 })).toBeNull()
+      expect(drawing.findActionAt({ x: 92, y: 92 })).toBeNull()
+      expect(drawing.selectedActions.value).toEqual([])
+
+      drawing.redo()
+      expect(drawing.findActionAt({ x: 22, y: 22 })?.action).toBe(pasted[0])
+      expect(drawing.selectedActions.value).toEqual(pasted)
+    })
+
+    it('pasted text owns its outline style instead of sharing it', () => {
+      drawing.addTextAction('A', 10, 10, 0, 24, '#FFFFFF', {
+        enabled: true,
+        colorMode: 'fixed',
+        color: '#000000',
+        width: 2,
+      })
+      const original = drawing.findActionAt({ x: 12, y: 8 })!.action
+      expect(original.textOutline).toBeDefined()
+
+      drawing.setSelection([original])
+      drawing.copySelection()
+      drawing.pasteClipboard()
+      const pasted = drawing.selectedActions.value[0]
+
+      expect(pasted.textOutline).not.toBe(original.textOutline)
+      pasted.textOutline!.width = 99
+      expect(original.textOutline!.width).toBe(2)
+    })
+
+    it('copying keeps z-order so pasted groups stack like the original', () => {
+      addRect(0, 0, 40, 40)
+      addRect(10, 10, 50, 50)
+      const lower = drawing.findActionAt({ x: 0, y: 0 })!.action
+      const upper = drawing.findActionAt({ x: 40, y: 40 })!.action
+
+      drawing.setSelection([upper, lower])
+      drawing.copySelection()
+      drawing.pasteClipboard()
+
+      const pasted = drawing.selectedActions.value
+      expect(pasted).toHaveLength(2)
+      expect(pasted[0].points[0]).toMatchObject({ x: lower.points[0].x + 12, y: lower.points[0].y + 12 })
+      expect(pasted[1].points[0]).toMatchObject({ x: upper.points[0].x + 12, y: upper.points[0].y + 12 })
+    })
+  })
+
   describe('destroy', () => {
     it('cleans up without throwing', () => {
       drawing.startDraw({ x: 0, y: 0 })

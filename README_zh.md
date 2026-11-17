@@ -34,6 +34,8 @@
 
 **[下载最新版本](https://github.com/ifer47/markeron/releases/latest)** — 在 Assets 列表中选择对应平台的安装包下载。Windows 另提供 **绿色免安装版**（`*_x64_portable.zip`）：解压即用，配置写在程序目录下的 `data\`，不写系统 AppData。
 
+更新版本时会自动保留已有的快捷键、外观、画笔粗细和工具栏位置等全部设置；在安装版、微软商店版与绿色版之间切换也会自动迁移原配置。
+
 Windows 用户也可以通过 WinGet 安装微软商店版本：
 
 ```powershell

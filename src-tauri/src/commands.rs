@@ -5,6 +5,7 @@ use tracing::{info, warn};
 
 use crate::config::{
     lock_or_recover, AppConfig, AppState, GeneralConfig, LineWidthsConfig, SaveResult, Shortcuts,
+    ToolbarPositionConfig,
 };
 use crate::error::{AppError, AppResult};
 use crate::shortcuts::{parse_shortcut, register_shortcuts};
@@ -201,6 +202,29 @@ pub fn save_line_widths(
         warn!("Failed to emit config-changed: {}", e);
     }
     info!("Line widths saved");
+    Ok(())
+}
+
+#[tauri::command]
+pub fn save_toolbar_position(
+    app: AppHandle,
+    state: tauri::State<'_, AppState>,
+    position: Option<ToolbarPositionConfig>,
+    standalone: bool,
+) -> AppResult<()> {
+    let normalized = position.map(ToolbarPositionConfig::normalized);
+    let snapshot = {
+        let mut cfg = lock_or_recover(&state.config);
+        if standalone {
+            cfg.ui.toolbar_window_position = normalized;
+        } else {
+            cfg.ui.toolbar_position = normalized;
+        }
+        cfg.clone()
+    };
+    // Intentionally no `config-changed` emit: this is high-frequency drag state
+    // owned by the overlay, and re-broadcasting it would fight the live drag.
+    crate::config::save_config(&app, &snapshot);
     Ok(())
 }
 

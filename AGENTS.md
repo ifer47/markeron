@@ -59,5 +59,6 @@ Validate pinned Node against lockfile deps: `npm run check:engines`
 - **Do not** manually bump versions or create release tags — use `npm run release`.
 - **Do not** use Tailwind opacity classes in Vue for borders/text/backgrounds — use semantic classes in `src/style.css`.
 - **Do not** add UI strings in only one locale — sync `en.ts` and `zh-CN.ts`.
+- **Do not** reset user settings when a config field changes — add serde defaults and a step in `AppConfig::migrated` (`src-tauri/src/config.rs`). Config reads recover from `config.json.bak` and migrate across NSIS/MSIX/portable roots.
 - **Do not** skip commit hooks (`--no-verify`) unless the user explicitly requests it.
 - Only create git commits when the user asks.

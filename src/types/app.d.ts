@@ -1,6 +1,13 @@
 export type DragMode = 'off' | 'hover' | 'modifier'
 
+export interface ToolbarPositionConfig {
+  left: number
+  top: number
+  coordSpace?: 'logical' | 'physical'
+}
+
 export interface AppConfig {
+  configVersion?: number
   shortcuts: {
     toggleDrawing: string
     clearDrawing: string
@@ -33,6 +40,11 @@ export interface AppConfig {
     }
     autoStart?: boolean
     theme?: 'dark' | 'light' | 'system'
+  }
+  /** Window/panel state that is not exposed as a settings toggle. */
+  ui?: {
+    toolbarPosition?: ToolbarPositionConfig
+    toolbarWindowPosition?: ToolbarPositionConfig
   }
 }
 

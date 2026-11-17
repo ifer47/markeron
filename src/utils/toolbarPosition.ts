@@ -1,3 +1,6 @@
+import { invoke } from '@tauri-apps/api/core'
+import type { AppConfig } from '../types/app'
+
 const STORAGE_KEY = 'markeron-toolbar-position'
 /** Legacy standalone window position (physical pixels). */
 const WINDOW_STORAGE_KEY_V1 = 'markeron-toolbar-window-position'
@@ -111,10 +114,6 @@ export function adjustToolbarTopForHeightChange(
   return Math.min(Math.max(nextTop, minTop), maxTop)
 }
 
-function storageKey(forStandaloneWindow: boolean): string {
-  return forStandaloneWindow ? WINDOW_STORAGE_KEY_V2 : STORAGE_KEY
-}
-
 function parseStoredPosition(raw: string): ToolbarPosition | null {
   try {
     const parsed = JSON.parse(raw) as ToolbarPosition
@@ -161,15 +160,99 @@ export function loadToolbarPosition(forStandaloneWindow = false): ToolbarPositio
 }
 
 export function saveToolbarPosition(left: number, top: number, forStandaloneWindow = false): void {
+  const payload: ToolbarPosition = forStandaloneWindow ? { left, top, coordSpace: 'logical' } : { left, top }
   try {
     if (forStandaloneWindow) {
-      const payload: ToolbarPosition = { left, top, coordSpace: 'logical' }
       localStorage.setItem(WINDOW_STORAGE_KEY_V2, JSON.stringify(payload))
       localStorage.removeItem(WINDOW_STORAGE_KEY_V1)
-      return
+    } else {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
     }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ left, top }))
   } catch {
     // ignore quota / private mode
+  }
+  persistToolbarPosition(payload, forStandaloneWindow)
+}
+
+let lastPersistedPopup: string | null = null
+let lastPersistedWindow: string | null = null
+
+/** @internal Test-only reset for the persistence dedupe cache. */
+export function __resetToolbarPositionPersistCache(): void {
+  lastPersistedPopup = null
+  lastPersistedWindow = null
+}
+
+/**
+ * Mirror the position into `config.json`.
+ *
+ * WebView2's localStorage lives inside the install flavour's data directory, so
+ * switching between NSIS / MSIX / portable would lose the toolbar position even
+ * when `config.json` survives. Persisting the same value in the config lets the
+ * startup migration restore it. Deduplicated to avoid a disk write per pointer move.
+ */
+function persistToolbarPosition(position: ToolbarPosition, forStandaloneWindow: boolean): void {
+  const serialized = JSON.stringify(position)
+  const previous = forStandaloneWindow ? lastPersistedWindow : lastPersistedPopup
+  if (serialized === previous) return
+  if (forStandaloneWindow) {
+    lastPersistedWindow = serialized
+  } else {
+    lastPersistedPopup = serialized
+  }
+  void invoke('save_toolbar_position', {
+    position,
+    standalone: forStandaloneWindow,
+  }).catch(() => {
+    // Retry on the next save if the backend is temporarily unavailable.
+    if (forStandaloneWindow) {
+      lastPersistedWindow = null
+    } else {
+      lastPersistedPopup = null
+    }
+  })
+}
+
+function isValidPosition(value: ToolbarPosition | undefined): value is ToolbarPosition {
+  return (
+    !!value &&
+    typeof value.left === 'number' &&
+    typeof value.top === 'number' &&
+    Number.isFinite(value.left) &&
+    Number.isFinite(value.top)
+  )
+}
+
+/**
+ * Seed localStorage from `config.json` before the toolbar mounts.
+ *
+ * Covers users updating between install flavours (or a fresh WebView data dir):
+ * the Rust-side config migration kept their settings, and this keeps the panel
+ * exactly where they left it instead of snapping back to the default corner.
+ */
+export async function migrateToolbarPositionsToLocalStorage(): Promise<void> {
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    const ui = cfg.ui
+    if (!ui) return
+
+    if (!localStorage.getItem(STORAGE_KEY) && isValidPosition(ui.toolbarPosition)) {
+      const pos = ui.toolbarPosition
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: pos.left, top: pos.top }))
+    }
+
+    if (
+      !localStorage.getItem(WINDOW_STORAGE_KEY_V2) &&
+      !localStorage.getItem(WINDOW_STORAGE_KEY_V1) &&
+      isValidPosition(ui.toolbarWindowPosition)
+    ) {
+      const pos = ui.toolbarWindowPosition
+      localStorage.setItem(
+        WINDOW_STORAGE_KEY_V2,
+        JSON.stringify({ left: pos.left, top: pos.top, coordSpace: pos.coordSpace ?? 'logical' }),
+      )
+    }
+  } catch {
+    // Config unavailable (browser dev / tests) — localStorage remains the source.
   }
 }

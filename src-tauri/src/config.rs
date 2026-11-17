@@ -41,6 +41,10 @@ fn default_line_width() -> u32 {
     3
 }
 
+/// Bumped whenever the on-disk shape changes in a way that needs migration.
+/// Older files without the field deserialize as `0` and are upgraded on load.
+pub const CONFIG_VERSION: u32 = 1;
+
 const LINE_WIDTH_PRESETS: [u32; 5] = [1, 2, 3, 5, 8];
 
 fn is_valid_line_width(value: u32) -> bool {
@@ -173,9 +177,144 @@ pub enum ThemePreference {
     System,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ToolbarPositionConfig {
+    #[serde(default)]
+    pub left: f64,
+    #[serde(default)]
+    pub top: f64,
+    #[serde(
+        default,
+        rename = "coordSpace",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub coord_space: Option<String>,
+}
+
+impl ToolbarPositionConfig {
+    pub fn normalized(mut self) -> Self {
+        if !self.left.is_finite() || !self.top.is_finite() {
+            return Self::default();
+        }
+        if !matches!(
+            self.coord_space.as_deref(),
+            Some("logical") | Some("physical")
+        ) {
+            self.coord_space = None;
+        }
+        self
+    }
+}
+
+impl Default for ToolbarPositionConfig {
+    fn default() -> Self {
+        Self {
+            left: 0.0,
+            top: 0.0,
+            coord_space: None,
+        }
+    }
+}
+
+/// Window/panel UI state that is not exposed as a settings toggle.
+/// Kept separate from [`GeneralConfig`] so a full settings save cannot reset it.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct UiConfig {
+    #[serde(
+        default,
+        rename = "toolbarPosition",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub toolbar_position: Option<ToolbarPositionConfig>,
+    #[serde(
+        default,
+        rename = "toolbarWindowPosition",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub toolbar_window_position: Option<ToolbarPositionConfig>,
+}
+
+impl UiConfig {
+    pub fn normalized(mut self) -> Self {
+        self.toolbar_position = self.toolbar_position.map(ToolbarPositionConfig::normalized);
+        self.toolbar_window_position = self
+            .toolbar_window_position
+            .map(ToolbarPositionConfig::normalized);
+        self
+    }
+}
+
+/// Unknown enum values fall back to the type default instead of failing the
+/// whole `AppConfig` deserialization. This keeps settings from older (or newer)
+/// builds usable after an update instead of silently resetting every preference.
+macro_rules! lenient_enum_deserializer {
+    ($fn_name:ident, $ty:ty, { $($name:literal => $variant:path),+ $(,)? }) => {
+        fn $fn_name<'de, D>(deserializer: D) -> Result<$ty, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+        {
+            let value = serde_json::Value::deserialize(deserializer)?;
+            Ok(match value.as_str() {
+                $(Some($name) => $variant,)+
+                _ => <$ty>::default(),
+            })
+        }
+    };
+}
+
+lenient_enum_deserializer!(de_toolbar_visibility, ToolbarVisibility, {
+    "space" => ToolbarVisibility::Space,
+    "always" => ToolbarVisibility::Always,
+});
+lenient_enum_deserializer!(de_default_entry_mode, DefaultEntryMode, {
+    "screen" => DefaultEntryMode::Screen,
+    "whiteboard" => DefaultEntryMode::Whiteboard,
+});
+lenient_enum_deserializer!(de_whiteboard_background, WhiteboardBackground, {
+    "white" => WhiteboardBackground::White,
+    "black" => WhiteboardBackground::Black,
+});
+lenient_enum_deserializer!(de_eraser_mode, EraserMode, {
+    "stroke" => EraserMode::Stroke,
+    "object" => EraserMode::Object,
+});
+lenient_enum_deserializer!(de_laser_mode, LaserMode, {
+    "trail" => LaserMode::Trail,
+    "writing" => LaserMode::Writing,
+});
+lenient_enum_deserializer!(de_pen_cursor_style, PenCursorStyle, {
+    "pen" => PenCursorStyle::Pen,
+    "dot" => PenCursorStyle::Dot,
+});
+lenient_enum_deserializer!(de_crosshair_cursor_style, CrosshairCursorStyle, {
+    "crosshair" => CrosshairCursorStyle::Crosshair,
+    "dot" => CrosshairCursorStyle::Dot,
+});
+lenient_enum_deserializer!(de_theme_preference, ThemePreference, {
+    "dark" => ThemePreference::Dark,
+    "light" => ThemePreference::Light,
+    "system" => ThemePreference::System,
+});
+
+fn de_drag_mode<'de, D>(deserializer: D) -> Result<Option<DragMode>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    if value.is_null() {
+        return Ok(None);
+    }
+    Ok(match value.as_str() {
+        Some("off") => Some(DragMode::Off),
+        Some("hover") => Some(DragMode::Hover),
+        Some("modifier") => Some(DragMode::Modifier),
+        _ => None,
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralConfig {
-    #[serde(default, rename = "dragMode")]
+    #[serde(default, rename = "dragMode", deserialize_with = "de_drag_mode")]
     pub drag_mode: Option<DragMode>,
     #[serde(default, rename = "enableDragging", skip_serializing)]
     pub enable_dragging: bool,
@@ -189,19 +328,39 @@ pub struct GeneralConfig {
     pub whiteboard_preserve_drawings: bool,
     #[serde(default = "default_angle_snap_step", rename = "angleSnapStep")]
     pub angle_snap_step: f64,
-    #[serde(default, rename = "toolbarVisibility")]
+    #[serde(
+        default,
+        rename = "toolbarVisibility",
+        deserialize_with = "de_toolbar_visibility"
+    )]
     pub toolbar_visibility: ToolbarVisibility,
-    #[serde(default, rename = "defaultEntryMode")]
+    #[serde(
+        default,
+        rename = "defaultEntryMode",
+        deserialize_with = "de_default_entry_mode"
+    )]
     pub default_entry_mode: DefaultEntryMode,
-    #[serde(default, rename = "whiteboardBackground")]
+    #[serde(
+        default,
+        rename = "whiteboardBackground",
+        deserialize_with = "de_whiteboard_background"
+    )]
     pub whiteboard_background: WhiteboardBackground,
-    #[serde(default, rename = "eraserMode")]
+    #[serde(default, rename = "eraserMode", deserialize_with = "de_eraser_mode")]
     pub eraser_mode: EraserMode,
-    #[serde(default, rename = "laserMode")]
+    #[serde(default, rename = "laserMode", deserialize_with = "de_laser_mode")]
     pub laser_mode: LaserMode,
-    #[serde(default, rename = "penCursorStyle")]
+    #[serde(
+        default,
+        rename = "penCursorStyle",
+        deserialize_with = "de_pen_cursor_style"
+    )]
     pub pen_cursor_style: PenCursorStyle,
-    #[serde(default, rename = "crosshairCursorStyle")]
+    #[serde(
+        default,
+        rename = "crosshairCursorStyle",
+        deserialize_with = "de_crosshair_cursor_style"
+    )]
     pub crosshair_cursor_style: CrosshairCursorStyle,
     /// After finishing one arrow/rect/ellipse/line stroke, switch back to pen.
     #[serde(default = "default_auto_revert_to_pen", rename = "autoRevertToPen")]
@@ -210,7 +369,7 @@ pub struct GeneralConfig {
     pub line_widths: LineWidthsConfig,
     #[serde(default = "default_auto_start", rename = "autoStart")]
     pub auto_start: bool,
-    #[serde(default, rename = "theme")]
+    #[serde(default, rename = "theme", deserialize_with = "de_theme_preference")]
     pub theme: ThemePreference,
 }
 
@@ -303,9 +462,36 @@ impl GeneralConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
+    /// `0` for files written before versioning was introduced.
+    #[serde(default, rename = "configVersion")]
+    pub config_version: u32,
+    #[serde(default = "default_shortcuts")]
     pub shortcuts: Shortcuts,
     #[serde(default)]
     pub general: GeneralConfig,
+    #[serde(default)]
+    pub ui: UiConfig,
+}
+
+impl AppConfig {
+    /// Apply forward migrations after deserialization. New fields already fall
+    /// back to their serde defaults, so this mainly stamps the current version
+    /// and gives future releases a single place to rewrite obsolete values.
+    pub fn migrated(mut self) -> Self {
+        if self.config_version < CONFIG_VERSION {
+            // v0 → v1: add versioning + toolbar positions. Nothing else to rewrite;
+            // serde defaults preserve every existing preference.
+            info!(
+                "Migrating config from version {} to {}",
+                self.config_version, CONFIG_VERSION
+            );
+            self.config_version = CONFIG_VERSION;
+        }
+        self.shortcuts = self.shortcuts.normalized();
+        self.general = self.general.normalized();
+        self.ui = self.ui.normalized();
+        self
+    }
 }
 
 pub fn default_shortcuts() -> Shortcuts {
@@ -349,8 +535,10 @@ impl Shortcuts {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
+            config_version: CONFIG_VERSION,
             shortcuts: default_shortcuts(),
             general: GeneralConfig::default().normalized(),
+            ui: UiConfig::default(),
         }
     }
 }
@@ -396,30 +584,193 @@ pub fn config_path(app: &AppHandle) -> std::path::PathBuf {
     dir.join("config.json")
 }
 
-pub fn load_config(app: &AppHandle) -> AppConfig {
-    let path = config_path(app);
-    match fs::read_to_string(&path) {
-        Ok(raw) => match serde_json::from_str::<AppConfig>(&raw) {
-            Ok(mut cfg) => {
-                cfg.shortcuts = cfg.shortcuts.normalized();
-                cfg.general = cfg.general.normalized();
-                info!("Loaded config from {}", path.display());
-                cfg
-            }
-            Err(e) => {
-                warn!(
-                    "Config file corrupted ({}), using defaults: {}",
-                    path.display(),
-                    e
-                );
-                AppConfig::default()
-            }
-        },
-        Err(_) => {
-            info!("No config file found, using defaults");
-            AppConfig::default()
+fn backup_path(path: &std::path::Path) -> std::path::PathBuf {
+    path.with_extension("json.bak")
+}
+
+fn corrupt_path(path: &std::path::Path) -> std::path::PathBuf {
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    path.with_extension(format!("corrupt-{}.json", stamp))
+}
+
+/// Every location a previous MarkerOn install may have written `config.json` to.
+///
+/// Windows ships three flavours (NSIS installer, MSIX/Store package, portable
+/// zip) and each uses a different config root. Users also switch between them,
+/// so a fresh install must look in the others before falling back to defaults.
+fn candidate_config_paths(_app: &AppHandle) -> Vec<std::path::PathBuf> {
+    let mut paths: Vec<std::path::PathBuf> = Vec::new();
+    let mut push = |path: std::path::PathBuf| {
+        if !paths.contains(&path) {
+            paths.push(path);
+        }
+    };
+
+    // Portable zip: config lives next to the executable.
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            push(dir.join("data").join("config.json"));
         }
     }
+
+    // Installed builds: Tauri stores `%APPDATA%\<identifier>\config.json`.
+    // `com.markon.app` was the identifier before the v0.0.6 rename.
+    for var in ["APPDATA", "LOCALAPPDATA"] {
+        if let Some(base) = std::env::var_os(var) {
+            let base = std::path::PathBuf::from(base);
+            for id in ["com.markeron.app", "com.markon.app"] {
+                push(base.join(id).join("config.json"));
+            }
+        }
+    }
+
+    // MSIX / Microsoft Store: package data is virtualized under
+    // `%LOCALAPPDATA%\Packages\<PackageFamilyName>\LocalCache\...`.
+    if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+        let packages = std::path::PathBuf::from(local).join("Packages");
+        if let Ok(entries) = fs::read_dir(&packages) {
+            for entry in entries.flatten() {
+                let name = entry.file_name();
+                let name = name.to_string_lossy();
+                if !(name.starts_with("ifer.MarkerOn_") || name.starts_with("MarkerOn_")) {
+                    continue;
+                }
+                for scope in ["Roaming", "Local"] {
+                    for id in ["com.markeron.app", "com.markon.app"] {
+                        push(
+                            entry
+                                .path()
+                                .join("LocalCache")
+                                .join(scope)
+                                .join(id)
+                                .join("config.json"),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Newest first so a machine with both an MSIX and an NSIS install keeps
+    // whichever copy the user touched most recently.
+    paths.sort_by_cached_key(|path| {
+        std::cmp::Reverse(path.metadata().and_then(|m| m.modified()).ok())
+    });
+    paths
+}
+
+fn read_config(path: &std::path::Path) -> Option<AppConfig> {
+    let raw = match fs::read_to_string(path) {
+        Ok(raw) => raw,
+        Err(_) => return None,
+    };
+    match serde_json::from_str::<AppConfig>(&raw) {
+        Ok(cfg) => Some(cfg.migrated()),
+        Err(e) => {
+            warn!(
+                "Config file {} is invalid ({}), trying backup",
+                path.display(),
+                e
+            );
+            None
+        }
+    }
+}
+
+fn write_config_atomic(path: &std::path::Path, json: &str) -> std::io::Result<()> {
+    // Keep the previous valid file as `config.json.bak` before replacing it.
+    // Only back up files that parse cleanly so a corrupted write can never
+    // overwrite the last good backup.
+    if path.is_file() {
+        if let Ok(raw) = fs::read_to_string(path) {
+            if serde_json::from_str::<AppConfig>(&raw).is_ok() {
+                fs::write(backup_path(path), raw).ok();
+            }
+        }
+    }
+
+    let tmp = path.with_extension("json.tmp");
+    // A previous crash may have left a partial temp file behind.
+    let _ = fs::remove_file(&tmp);
+    {
+        use std::io::Write;
+        let mut file = fs::File::create(&tmp)?;
+        file.write_all(json.as_bytes())?;
+        // Flush before the rename so a power loss cannot leave an empty file
+        // under the real name (rename is atomic, but data may still be cached).
+        file.sync_all()?;
+    }
+    // `rename` replaces atomically on Windows and Unix, so a crash mid-write
+    // leaves either the old or the new complete file — never a truncated one.
+    fs::rename(&tmp, path)
+}
+
+fn save_config_to_path(path: &std::path::Path, config: &AppConfig) {
+    let json = match serde_json::to_string_pretty(config) {
+        Ok(json) => json,
+        Err(e) => {
+            warn!("Failed to serialize config: {}", e);
+            return;
+        }
+    };
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).ok();
+    }
+    if let Err(e) = write_config_atomic(path, &json) {
+        warn!("Failed to write config to {}: {}", path.display(), e);
+    }
+}
+
+fn load_config_from_paths(
+    primary: &std::path::Path,
+    candidates: &[std::path::PathBuf],
+) -> AppConfig {
+    // 1. Current config file.
+    if let Some(cfg) = read_config(primary) {
+        info!("Loaded config from {}", primary.display());
+        return cfg;
+    }
+
+    // 2. Preserve the broken file instead of silently overwriting it later.
+    if primary.is_file() {
+        let corrupt = corrupt_path(primary);
+        if fs::rename(primary, &corrupt).is_ok() {
+            warn!("Preserved corrupted config as {}", corrupt.display());
+        }
+    }
+
+    // 3. Last good write of the same file.
+    let backup = backup_path(primary);
+    if let Some(cfg) = read_config(&backup) {
+        warn!("Recovered config from backup {}", backup.display());
+        save_config_to_path(primary, &cfg);
+        return cfg;
+    }
+
+    // 4. Any other install flavour on this machine (newest wins).
+    for candidate in candidates {
+        if candidate == primary || candidate == &backup {
+            continue;
+        }
+        if let Some(cfg) = read_config(candidate) {
+            info!("Migrated config from {}", candidate.display());
+            save_config_to_path(primary, &cfg);
+            return cfg;
+        }
+    }
+
+    // 5. First run.
+    info!("No config file found, using defaults");
+    AppConfig::default()
+}
+
+pub fn load_config(app: &AppHandle) -> AppConfig {
+    let path = config_path(app);
+    let candidates = candidate_config_paths(app);
+    load_config_from_paths(&path, &candidates)
 }
 
 /// Whether this executable may register OS autostart (installed release only).
@@ -491,17 +842,7 @@ pub fn apply_autostart_preference(app: &AppHandle, state: &AppState, enabled: bo
 }
 
 pub fn save_config(app: &AppHandle, config: &AppConfig) {
-    let path = config_path(app);
-    match serde_json::to_string_pretty(config) {
-        Ok(json) => {
-            if let Err(e) = fs::write(&path, json) {
-                warn!("Failed to write config to {}: {}", path.display(), e);
-            }
-        }
-        Err(e) => {
-            warn!("Failed to serialize config: {}", e);
-        }
-    }
+    save_config_to_path(&config_path(app), config);
 }
 
 #[cfg(test)]
@@ -1149,5 +1490,243 @@ mod tests {
             ..GeneralConfig::default()
         };
         assert_eq!(g.normalized().theme, ThemePreference::System);
+    }
+
+    fn temp_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "markeron-config-test-{}-{}",
+            name,
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn config_version_defaults_to_current_and_upgrades_legacy_files() {
+        assert_eq!(AppConfig::default().config_version, CONFIG_VERSION);
+
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C",
+                "togglePenetration": "Ctrl+Shift+X"
+            },
+            "general": {}
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.config_version, 0);
+        assert_eq!(config.migrated().config_version, CONFIG_VERSION);
+    }
+
+    #[test]
+    fn unknown_enum_values_fall_back_instead_of_resetting_everything() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C",
+                "togglePenetration": "Ctrl+Shift+X"
+            },
+            "general": {
+                "dragMode": "bogus",
+                "toolbarVisibility": "bogus",
+                "defaultEntryMode": "bogus",
+                "whiteboardBackground": "bogus",
+                "eraserMode": "bogus",
+                "laserMode": "bogus",
+                "penCursorStyle": "bogus",
+                "crosshairCursorStyle": "bogus",
+                "theme": "bogus",
+                "preserveDrawings": true
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        let general = config.general.normalized();
+        assert_eq!(general.drag_mode(), DragMode::Off);
+        assert_eq!(general.toolbar_visibility, ToolbarVisibility::Space);
+        assert_eq!(general.default_entry_mode, DefaultEntryMode::Screen);
+        assert_eq!(general.whiteboard_background, WhiteboardBackground::White);
+        assert_eq!(general.eraser_mode, EraserMode::Stroke);
+        assert_eq!(general.laser_mode, LaserMode::Trail);
+        assert_eq!(general.pen_cursor_style, PenCursorStyle::Pen);
+        assert_eq!(
+            general.crosshair_cursor_style,
+            CrosshairCursorStyle::Crosshair
+        );
+        assert_eq!(general.theme, ThemePreference::Dark);
+        // Unrelated settings in the same file must survive.
+        assert!(general.preserve_drawings);
+    }
+
+    #[test]
+    fn non_string_enum_values_also_fall_back() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C",
+                "togglePenetration": "Ctrl+Shift+X"
+            },
+            "general": { "theme": 123, "dragMode": true }
+        }"#;
+        let config: AppConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.general.theme, ThemePreference::Dark);
+        assert_eq!(config.general.drag_mode(), DragMode::Off);
+    }
+
+    #[test]
+    fn ui_positions_roundtrip_through_json() {
+        let mut config = AppConfig::default();
+        config.ui.toolbar_position = Some(ToolbarPositionConfig {
+            left: 12.5,
+            top: -8.0,
+            coord_space: None,
+        });
+        config.ui.toolbar_window_position = Some(ToolbarPositionConfig {
+            left: 100.0,
+            top: 200.0,
+            coord_space: Some("logical".into()),
+        });
+
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("\"toolbarPosition\""));
+        assert!(json.contains("\"toolbarWindowPosition\""));
+
+        let parsed: AppConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.ui.toolbar_position, config.ui.toolbar_position);
+        assert_eq!(
+            parsed.ui.toolbar_window_position,
+            config.ui.toolbar_window_position
+        );
+    }
+
+    #[test]
+    fn ui_positions_are_omitted_when_unset() {
+        let json = serde_json::to_string(&AppConfig::default()).unwrap();
+        assert!(!json.contains("toolbarPosition"));
+        assert!(!json.contains("toolbarWindowPosition"));
+    }
+
+    #[test]
+    fn invalid_ui_positions_are_discarded() {
+        let json = r#"{
+            "shortcuts": {
+                "toggleDrawing": "Ctrl+Shift+D",
+                "clearDrawing": "Ctrl+Shift+C",
+                "togglePenetration": "Ctrl+Shift+X"
+            },
+            "general": {},
+            "ui": {
+                "toolbarPosition": { "left": 100, "top": 200, "coordSpace": "bogus" },
+                "toolbarWindowPosition": { "left": 100, "top": 200 }
+            }
+        }"#;
+        let config: AppConfig = serde_json::from_str::<AppConfig>(json).unwrap().migrated();
+        assert_eq!(
+            config.ui.toolbar_position.unwrap().coord_space,
+            None,
+            "unknown coord space is cleared instead of rejecting the file"
+        );
+        assert_eq!(config.ui.toolbar_window_position.unwrap().coord_space, None);
+    }
+
+    #[test]
+    fn save_config_keeps_previous_valid_file_as_backup() {
+        let dir = temp_dir("backup");
+        let path = dir.join("config.json");
+
+        let mut first = AppConfig::default();
+        first.general.theme = ThemePreference::Dark;
+        save_config_to_path(&path, &first);
+
+        let mut second = AppConfig::default();
+        second.general.theme = ThemePreference::Light;
+        save_config_to_path(&path, &second);
+
+        let backup = backup_path(&path);
+        assert!(backup.is_file(), ".bak must exist after the second save");
+        let recovered = read_config(&backup).unwrap();
+        assert_eq!(recovered.general.theme, ThemePreference::Dark);
+        assert_eq!(
+            read_config(&path).unwrap().general.theme,
+            ThemePreference::Light
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_config_recovers_from_backup_and_preserves_corrupt_file() {
+        let dir = temp_dir("recover-backup");
+        let path = dir.join("config.json");
+        let backup = backup_path(&path);
+
+        fs::write(&path, "{ this is not json").unwrap();
+        let mut good = AppConfig::default();
+        good.general.theme = ThemePreference::Light;
+        fs::write(&backup, serde_json::to_string_pretty(&good).unwrap()).unwrap();
+
+        let loaded = load_config_from_paths(&path, &[]);
+        assert_eq!(loaded.general.theme, ThemePreference::Light);
+        // The primary file is rewritten with the recovered settings.
+        assert_eq!(
+            read_config(&path).unwrap().general.theme,
+            ThemePreference::Light
+        );
+        // The broken file is kept for diagnosis instead of being deleted.
+        let corrupt = fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .find(|entry| entry.file_name().to_string_lossy().contains("corrupt"))
+            .expect("corrupt config should be preserved");
+        assert!(corrupt.path().is_file());
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_config_migrates_from_another_install_flavour() {
+        let dir = temp_dir("migrate");
+        let primary = dir.join("current").join("config.json");
+        let legacy = dir.join("legacy").join("config.json");
+        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+
+        let mut old = AppConfig::default();
+        old.general.theme = ThemePreference::Light;
+        old.general.locale = Some("en".into());
+        fs::write(&legacy, serde_json::to_string_pretty(&old).unwrap()).unwrap();
+
+        let loaded = load_config_from_paths(&primary, &[legacy]);
+        assert_eq!(loaded.general.theme, ThemePreference::Light);
+        assert_eq!(loaded.general.locale.as_deref(), Some("en"));
+        assert!(primary.is_file(), "migrated config must be written back");
+        assert_eq!(
+            read_config(&primary).unwrap().general.theme,
+            ThemePreference::Light
+        );
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_config_prefers_primary_over_candidates() {
+        let dir = temp_dir("prefer-primary");
+        let primary = dir.join("primary").join("config.json");
+        let legacy = dir.join("legacy").join("config.json");
+        fs::create_dir_all(primary.parent().unwrap()).unwrap();
+        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+
+        let mut current = AppConfig::default();
+        current.general.theme = ThemePreference::Dark;
+        save_config_to_path(&primary, &current);
+
+        let mut old = AppConfig::default();
+        old.general.theme = ThemePreference::Light;
+        fs::write(&legacy, serde_json::to_string_pretty(&old).unwrap()).unwrap();
+
+        let loaded = load_config_from_paths(&primary, &[legacy]);
+        assert_eq!(loaded.general.theme, ThemePreference::Dark);
+
+        let _ = fs::remove_dir_all(&dir);
     }
 }

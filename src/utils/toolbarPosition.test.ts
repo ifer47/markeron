@@ -1,11 +1,26 @@
-import { describe, expect, it } from 'vitest'
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const invokeMock = vi.hoisted(() => vi.fn())
+vi.mock('@tauri-apps/api/core', () => ({ invoke: invokeMock }))
+
 import {
+  __resetToolbarPositionPersistCache,
   clampToolbarWindowPosition,
   adjustToolbarTopForHeightChange,
   migratePhysicalToLogical,
+  migrateToolbarPositionsToLocalStorage,
   overlayClientToScreenLogical,
+  saveToolbarPosition,
   toolbarPopupScreenPosition,
 } from './toolbarPosition'
+
+beforeEach(() => {
+  localStorage.clear()
+  invokeMock.mockReset()
+  invokeMock.mockResolvedValue(undefined)
+  __resetToolbarPositionPersistCache()
+})
 
 describe('overlayClientToScreenLogical', () => {
   it('adds monitor origin to overlay client coords (multi-monitor above primary)', () => {
@@ -122,5 +137,125 @@ describe('migratePhysicalToLogical', () => {
       top: 100,
       coordSpace: 'logical',
     })
+  })
+})
+
+describe('migrateToolbarPositionsToLocalStorage', () => {
+  it('seeds localStorage from config.json after an update', async () => {
+    invokeMock.mockResolvedValue({
+      shortcuts: { toggleDrawing: '', clearDrawing: '', togglePenetration: '' },
+      general: {},
+      ui: {
+        toolbarPosition: { left: 12, top: 34 },
+        toolbarWindowPosition: { left: 56, top: 78, coordSpace: 'logical' },
+      },
+    })
+
+    await migrateToolbarPositionsToLocalStorage()
+
+    expect(JSON.parse(localStorage.getItem('markeron-toolbar-position')!)).toEqual({
+      left: 12,
+      top: 34,
+    })
+    expect(JSON.parse(localStorage.getItem('markeron-toolbar-window-position-v2')!)).toEqual({
+      left: 56,
+      top: 78,
+      coordSpace: 'logical',
+    })
+  })
+
+  it('never overwrites an existing localStorage position', async () => {
+    localStorage.setItem('markeron-toolbar-position', JSON.stringify({ left: 1, top: 2 }))
+    localStorage.setItem(
+      'markeron-toolbar-window-position-v2',
+      JSON.stringify({ left: 3, top: 4, coordSpace: 'logical' }),
+    )
+    invokeMock.mockResolvedValue({
+      ui: {
+        toolbarPosition: { left: 99, top: 99 },
+        toolbarWindowPosition: { left: 99, top: 99, coordSpace: 'logical' },
+      },
+    })
+
+    await migrateToolbarPositionsToLocalStorage()
+
+    expect(JSON.parse(localStorage.getItem('markeron-toolbar-position')!)).toEqual({
+      left: 1,
+      top: 2,
+    })
+    expect(JSON.parse(localStorage.getItem('markeron-toolbar-window-position-v2')!)).toEqual({
+      left: 3,
+      top: 4,
+      coordSpace: 'logical',
+    })
+  })
+
+  it('keeps the legacy standalone key when it is the only saved value', async () => {
+    localStorage.setItem(
+      'markeron-toolbar-window-position',
+      JSON.stringify({ left: 5, top: 6, coordSpace: 'physical' }),
+    )
+    invokeMock.mockResolvedValue({
+      ui: { toolbarWindowPosition: { left: 7, top: 8, coordSpace: 'logical' } },
+    })
+
+    await migrateToolbarPositionsToLocalStorage()
+
+    expect(localStorage.getItem('markeron-toolbar-window-position-v2')).toBeNull()
+    expect(JSON.parse(localStorage.getItem('markeron-toolbar-window-position')!)).toEqual({
+      left: 5,
+      top: 6,
+      coordSpace: 'physical',
+    })
+  })
+
+  it('ignores invalid config positions', async () => {
+    invokeMock.mockResolvedValue({ ui: { toolbarPosition: { left: 'x', top: 2 } } })
+
+    await migrateToolbarPositionsToLocalStorage()
+
+    expect(localStorage.getItem('markeron-toolbar-position')).toBeNull()
+  })
+
+  it('swallows backend errors (browser dev / tests)', async () => {
+    invokeMock.mockRejectedValue(new Error('not running in Tauri'))
+
+    await expect(migrateToolbarPositionsToLocalStorage()).resolves.toBeUndefined()
+  })
+})
+
+describe('saveToolbarPosition', () => {
+  it('writes localStorage and mirrors the popup position to config.json', () => {
+    saveToolbarPosition(10, 20)
+
+    expect(JSON.parse(localStorage.getItem('markeron-toolbar-position')!)).toEqual({
+      left: 10,
+      top: 20,
+    })
+    expect(invokeMock).toHaveBeenCalledWith('save_toolbar_position', {
+      position: { left: 10, top: 20 },
+      standalone: false,
+    })
+  })
+
+  it('persists standalone window space as logical', () => {
+    saveToolbarPosition(30, 40, true)
+
+    expect(JSON.parse(localStorage.getItem('markeron-toolbar-window-position-v2')!)).toEqual({
+      left: 30,
+      top: 40,
+      coordSpace: 'logical',
+    })
+    expect(invokeMock).toHaveBeenCalledWith('save_toolbar_position', {
+      position: { left: 30, top: 40, coordSpace: 'logical' },
+      standalone: true,
+    })
+  })
+
+  it('deduplicates unchanged positions', () => {
+    saveToolbarPosition(1, 2)
+    saveToolbarPosition(1, 2)
+
+    expect(invokeMock).toHaveBeenCalledTimes(1)
   })
 })

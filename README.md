@@ -34,6 +34,8 @@
 
 **[Download Latest Release](https://github.com/ifer47/markeron/releases/latest)** — pick the installer for your platform from the assets list. Windows also ships a **portable zip** (`*_x64_portable.zip`): extract and run — config stays under `data\` next to the exe (no AppData).
 
+Updates keep your existing shortcuts, appearance, brush widths, and toolbar position. Switching between the installer, Microsoft Store, and portable builds also migrates the previous config automatically.
+
 Windows users can also install the Microsoft Store version with WinGet:
 
 ```powershell

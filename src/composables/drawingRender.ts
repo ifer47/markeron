@@ -399,9 +399,18 @@ export function drawLaserTrail(
   ctx.lineWidth = Math.min(0.85, Math.max(0.4, size * 0.3))
   ctx.beginPath()
   ctx.moveTo(outline[0][0], outline[0][1])
-  for (let i = 1; i < outline.length; i++) {
-    ctx.lineTo(outline[i][0], outline[i][1])
+  // `LaserPointer` emits the offset outline as a polyline, and its own corner
+  // detection bails out on tight turns (>75°, or >37.5° when moving fast), so
+  // those vertices read as corners. Curve through each point to the midpoint of
+  // the next segment: the silhouette stays put, but every vertex becomes a
+  // quadratic arc — including the sharp turns the library leaves alone.
+  for (let i = 1; i < outline.length - 1; i++) {
+    const midX = (outline[i][0] + outline[i + 1][0]) / 2
+    const midY = (outline[i][1] + outline[i + 1][1]) / 2
+    ctx.quadraticCurveTo(outline[i][0], outline[i][1], midX, midY)
   }
+  const last = outline[outline.length - 1]
+  ctx.lineTo(last[0], last[1])
   ctx.closePath()
   ctx.fill()
   ctx.stroke()

@@ -1450,10 +1450,11 @@ export function useDrawing(
     if (isFreehand) {
       let last = pts[pts.length - 1]
       let appended = false
-      // Ink keeps (almost) every sample: the sweep needs dense nodes for a smooth
-      // tangent hull, and raw points let the renderer smooth without shortening
-      // the stroke. Other freehand tools keep the adaptive thinning.
-      const minDist = isInkTool(action.tool) ? INK_MIN_DIST_SQ : getMinDistSq()
+      // Ink and laser keep (almost) every sample: both outline generators need
+      // dense nodes for a smooth tangent hull, and raw points let the renderer
+      // smooth without shortening the stroke. Other freehand tools keep the
+      // adaptive thinning.
+      const minDist = isInkTool(action.tool) || action.tool === 'laser' ? INK_MIN_DIST_SQ : getMinDistSq()
 
       for (let i = 0; i < points.length; i++) {
         const point = points[i]

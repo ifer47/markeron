@@ -111,6 +111,7 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 | Cycle eraser mode (stroke / object) | <kbd>7</kbd> again while eraser selected | <kbd>7</kbd> again while eraser selected |
 | Toolbar always-on / layout | Settings → General | Settings → General |
 | Copy screen / whiteboard | <kbd>Ctrl</kbd> + <kbd>C</kbd> | <kbd>Command</kbd> + <kbd>C</kbd> |
+| Copy / paste selection | <kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>V</kbd> | <kbd>Command</kbd> + <kbd>C</kbd> / <kbd>V</kbd> (with a selection, <kbd>C</kbd> copies it instead of the screen) |
 | Whiteboard toggle | <kbd>W</kbd> | <kbd>W</kbd> |
 | Undo / Redo | <kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> | <kbd>Command</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> |
 | Stroke width | <kbd>Ctrl</kbd> + Scroll | <kbd>Command</kbd> + Scroll (pen, laser & shapes share; highlighter/eraser/text separate) |

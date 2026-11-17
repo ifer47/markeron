@@ -111,6 +111,7 @@ winget install --id 9N6623X973JV --source msstore
 | 切换橡皮擦模式（轨迹 / 对象） | 选中橡皮擦后再按 <kbd>7</kbd> | 选中橡皮擦后再按 <kbd>7</kbd> |
 | 工具栏常驻 / 布局 | 设置 → 常规 | 设置 → 常规 |
 | 复制屏幕 / 白板 | <kbd>Ctrl</kbd> + <kbd>C</kbd> | <kbd>Command</kbd> + <kbd>C</kbd> |
+| 复制 / 粘贴选中内容 | <kbd>Ctrl</kbd> + <kbd>C</kbd> / <kbd>V</kbd> | <kbd>Command</kbd> + <kbd>C</kbd> / <kbd>V</kbd>（有选中时 <kbd>C</kbd> 复制选区，否则复制整屏） |
 | 白板模式切换 | <kbd>W</kbd> | <kbd>W</kbd> |
 | 撤销 / 重做 | <kbd>Ctrl</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> | <kbd>Command</kbd> + <kbd>Z</kbd> / <kbd>Y</kbd> |
 | 调整线宽 | <kbd>Ctrl</kbd> + 滚轮 | <kbd>Command</kbd> + 滚轮（画笔、激光笔与形状共用；荧光笔/橡皮擦/文字各自独立） |

@@ -2334,6 +2334,9 @@ export function useDrawing(
 
   function hardReset() {
     historyIndexDirty = true
+    // Keep the vector clipboard (like an OS clipboard) but restart the cascade so
+    // the first paste on a fresh canvas lands right next to the pointer origin.
+    pasteCascade = 0
     history.length = 0
     undoStack.length = 0
     redoStack.length = 0

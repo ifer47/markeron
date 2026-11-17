@@ -1229,6 +1229,88 @@ describe('useDrawing', () => {
       expect(original.textOutline!.width).toBe(2)
     })
 
+    it('copying with an empty selection keeps the previous clipboard', () => {
+      addRect(0, 0, 40, 40)
+      const action = drawing.findActionAt({ x: 0, y: 0 })!.action
+      drawing.setSelection([action])
+      drawing.copySelection()
+
+      drawing.clearSelection()
+      expect(drawing.copySelection()).toBe(0)
+
+      // The buffer from the first copy is still usable.
+      expect(drawing.pasteClipboard()).toBe(1)
+      expect(drawing.selectedActions.value[0].points[0]).toMatchObject({ x: 12, y: 12 })
+    })
+
+    it('only the copies are selected, the originals stay untouched', () => {
+      addRect(0, 0, 40, 40)
+      const original = drawing.findActionAt({ x: 0, y: 0 })!.action
+      drawing.setSelection([original])
+      drawing.copySelection()
+      drawing.pasteClipboard()
+
+      expect(drawing.selectedActions.value).toHaveLength(1)
+      expect(drawing.selectedActions.value[0]).not.toBe(original)
+      expect(drawing.isActionSelected(original)).toBe(false)
+      expect(original.points[0]).toMatchObject({ x: 0, y: 0 })
+    })
+
+    it('paste then delete then undo twice keeps the history consistent', () => {
+      addRect(0, 0, 40, 40)
+      const original = drawing.findActionAt({ x: 0, y: 0 })!.action
+      drawing.setSelection([original])
+      drawing.copySelection()
+      drawing.pasteClipboard()
+      const pasted = drawing.selectedActions.value[0]
+
+      drawing.removeSelected()
+      expect(drawing.findActionAt({ x: 12, y: 12 })).toBeNull()
+
+      drawing.undo()
+      expect(drawing.findActionAt({ x: 12, y: 12 })?.action).toBe(pasted)
+
+      drawing.undo()
+      expect(drawing.findActionAt({ x: 12, y: 12 })).toBeNull()
+      expect(drawing.findActionAt({ x: 0, y: 0 })?.action).toBe(original)
+
+      drawing.redo()
+      drawing.redo()
+      expect(drawing.findActionAt({ x: 12, y: 12 })).toBeNull()
+      expect(drawing.findActionAt({ x: 0, y: 0 })?.action).toBe(original)
+    })
+
+    it('pasted ink keeps copy semantics for both stroke and attached erasers', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 60, y: 0 })
+      drawing.draw({ x: 60, y: 60 })
+      drawing.endDraw()
+      const pen = drawing.findActionAt({ x: 30, y: 0 })!.action
+
+      const eraser: typeof pen = {
+        tool: 'eraser',
+        color: '#000',
+        lineWidth: 4,
+        opacity: 1,
+        points: [
+          { x: 20, y: 20 },
+          { x: 30, y: 30 },
+        ],
+      }
+      pen.attachedErasers = [eraser]
+
+      drawing.setSelection([pen])
+      drawing.copySelection()
+      drawing.pasteClipboard()
+
+      const pasted = drawing.selectedActions.value[0]
+      expect(pasted.attachedErasers).toHaveLength(1)
+      expect(pasted.attachedErasers![0].points[0]).toMatchObject({ x: 32, y: 32 })
+      // The source eraser must not move with the copy.
+      expect(eraser.points[0]).toMatchObject({ x: 20, y: 20 })
+    })
+
     it('copying keeps z-order so pasted groups stack like the original', () => {
       addRect(0, 0, 40, 40)
       addRect(10, 10, 50, 50)

@@ -266,22 +266,19 @@ fn copy_screen_inner() -> Result<(), String> {
             .ok_or_else(|| "No monitor found".to_string())?,
     };
 
-    let x = monitor.x().map_err(|e| format!("{}", e))?;
-    let y = monitor.y().map_err(|e| format!("{}", e))?;
-    let w = monitor.width().map_err(|e| format!("{}", e))?;
-    let h = monitor.height().map_err(|e| format!("{}", e))?;
-    let region = format!("{},{},{},{}", x, y, w, h);
-    let status = std::process::Command::new("screencapture")
-        .args(["-c", "-x", "-R", &region])
-        .status()
-        .map_err(|e| format!("screencapture failed: {}", e))?;
+    // Capture through the app's own TCC identity. `screencapture` is a separate
+    // binary, so macOS 27 Beta re-prompts for screen recording on every call even
+    // when MarkerOn itself already has permission. CGWindowListCreateImage (via
+    // xcap) runs as the app, so the permission is inherited instead of re-asked.
+    let image = monitor.capture_image().map_err(|e| format!("{}", e))?;
 
-    if !status.success() {
-        return Err(format!(
-            "screencapture exited with code {:?}",
-            status.code()
-        ));
-    }
+    let mut cb = arboard::Clipboard::new().map_err(|e| format!("{}", e))?;
+    cb.set_image(arboard::ImageData {
+        width: image.width() as usize,
+        height: image.height() as usize,
+        bytes: Cow::Owned(image.into_raw()),
+    })
+    .map_err(|e| format!("{}", e))?;
     Ok(())
 }
 

@@ -168,6 +168,7 @@ export default {
       'After drawing one line, arrow, rectangle, or ellipse, automatically switch back to the pen. Modifier-key temporary tools still restore the previous tool as before.',
   },
   toolbar: {
+    shortcutTooltip: '{label} ({shortcut})',
     undo: 'Undo',
     redo: 'Redo',
     clear: 'Clear all',

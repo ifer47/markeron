@@ -163,6 +163,7 @@ export default {
       '用直线、箭头、矩形或椭圆画完一次后，自动切回画笔。用修饰键临时切换工具时，仍会恢复到切换前的工具。',
   },
   toolbar: {
+    shortcutTooltip: '{label}（{shortcut}）',
     undo: '撤销',
     redo: '重做',
     clear: '清空',

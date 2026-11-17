@@ -39,6 +39,7 @@ const penetrationMode = ref(false)
 const canUndo = ref(false)
 const canRedo = ref(false)
 const canClear = ref(false)
+const clearShortcut = ref('')
 const toolbarVisibility = ref<ToolbarVisibility>('space')
 const toolbarPinned = computed(() => isToolbarPinned(toolbarVisibility.value))
 const toolToolbarRef = ref<InstanceType<typeof ToolToolbar> | null>(null)
@@ -135,6 +136,7 @@ onMounted(async () => {
   try {
     const cfg = await invoke<AppConfig>('get_config')
     toolbarVisibility.value = resolveToolbarVisibility(cfg.general)
+    clearShortcut.value = cfg.shortcuts.clearDrawing
     currentTheme = resolveThemePref(cfg.general)
     await applyTheme(currentTheme)
     stopThemeWatch = watchSystemTheme(() => currentTheme)
@@ -178,6 +180,7 @@ onMounted(async () => {
   unlisteners.push(
     await listen<AppConfig>('config-changed', (event) => {
       toolbarVisibility.value = resolveToolbarVisibility(event.payload.general)
+      clearShortcut.value = event.payload.shortcuts.clearDrawing
       currentTheme = resolveThemePref(event.payload.general)
       void applyTheme(currentTheme)
     }),
@@ -237,6 +240,7 @@ onUnmounted(() => {
       :can-undo="canUndo"
       :can-redo="canRedo"
       :can-clear="canClear"
+      :clear-shortcut="clearShortcut"
       :anchor-x="pointerX"
       :anchor-y="pointerY"
       :pointer-x="pointerX"

@@ -34,6 +34,12 @@ import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { TextOutlineStyle } from '../composables/drawingTypes'
 
 const { t } = useI18n()
+const modKey = computed(() => (isMacOS() ? 'Command' : 'Ctrl'))
+
+/** `Label (Shortcut)` for tooltips; brackets follow the active locale. */
+function withShortcut(label: string, shortcut?: string): string {
+  return shortcut ? t('toolbar.shortcutTooltip', { label, shortcut }) : label
+}
 
 const props = defineProps<{
   pinned: boolean
@@ -47,6 +53,8 @@ const props = defineProps<{
   canUndo: boolean
   canRedo: boolean
   canClear: boolean
+  /** Global "clear annotations" accelerator, e.g. `Ctrl+Shift+C`. */
+  clearShortcut?: string
   anchorX: number
   anchorY: number
   pointerX: number
@@ -73,7 +81,7 @@ const emit = defineEmits<{
 
 const tools = computed(() => DRAWING_TOOL_DEFS.map((d) => ({ ...d, label: t(`tools.${d.id}`) })))
 const selectToolLabel = computed(() => t(`tools.${SELECT_TOOL_DEF.id}`))
-const selectToolTitle = computed(() => `${selectToolLabel.value} (${SELECT_TOOL_DEF.key})`)
+const selectToolTitle = computed(() => withShortcut(selectToolLabel.value, SELECT_TOOL_DEF.key))
 const colors = COLOR_ROWS
 const simpleColors = computed(() => colors[0] ?? [])
 const widths = computed(() => WIDTH_PRESETS.map((v) => ({ value: v, label: t(`widths.${v}`) })))
@@ -568,8 +576,8 @@ onUnmounted(() => {
               type="button"
               class="overlay-toolbar-action"
               :class="!penetrationMode ? 'overlay-toolbar-action--active' : ''"
-              :title="t('toolbar.drawingMode')"
-              :aria-label="t('toolbar.drawingMode')"
+              :title="withShortcut(t('toolbar.drawingMode'), 'X')"
+              :aria-label="withShortcut(t('toolbar.drawingMode'), 'X')"
               :aria-pressed="!penetrationMode"
               :disabled="whiteboardMode"
               @click="onDrawingModeClick"
@@ -581,8 +589,8 @@ onUnmounted(() => {
               type="button"
               class="overlay-toolbar-action"
               :class="penetrationMode ? 'overlay-toolbar-action--active' : ''"
-              :title="t('toolbar.penetrationMode')"
-              :aria-label="t('toolbar.penetrationMode')"
+              :title="withShortcut(t('toolbar.penetrationMode'), 'X')"
+              :aria-label="withShortcut(t('toolbar.penetrationMode'), 'X')"
               :aria-pressed="!!penetrationMode"
               :disabled="whiteboardMode"
               @click="onPenetrationModeClick"
@@ -604,8 +612,8 @@ onUnmounted(() => {
               type="button"
               class="overlay-toolbar-action"
               :disabled="!canUndo"
-              :title="t('toolbar.undo')"
-              :aria-label="t('toolbar.undo')"
+              :title="withShortcut(t('toolbar.undo'), `${modKey}+Z`)"
+              :aria-label="withShortcut(t('toolbar.undo'), `${modKey}+Z`)"
               @click="emit('undo')"
             >
               <Undo2 :size="15" />
@@ -614,8 +622,8 @@ onUnmounted(() => {
               type="button"
               class="overlay-toolbar-action"
               :disabled="!canRedo"
-              :title="t('toolbar.redo')"
-              :aria-label="t('toolbar.redo')"
+              :title="withShortcut(t('toolbar.redo'), `${modKey}+Shift+Z`)"
+              :aria-label="withShortcut(t('toolbar.redo'), `${modKey}+Shift+Z`)"
               @click="emit('redo')"
             >
               <Redo2 :size="15" />
@@ -624,8 +632,8 @@ onUnmounted(() => {
               type="button"
               class="overlay-toolbar-action"
               :disabled="!canClear"
-              :title="t('toolbar.clear')"
-              :aria-label="t('toolbar.clear')"
+              :title="withShortcut(t('toolbar.clear'), clearShortcut)"
+              :aria-label="withShortcut(t('toolbar.clear'), clearShortcut)"
               @click="emit('clearAll')"
             >
               <Trash2 :size="15" />
@@ -634,8 +642,8 @@ onUnmounted(() => {
               type="button"
               class="overlay-toolbar-action"
               :class="whiteboardMode ? 'overlay-toolbar-action--active' : ''"
-              :title="whiteboardMode ? t('toolbar.exitWhiteboard') : t('toolbar.whiteboard')"
-              :aria-label="whiteboardMode ? t('toolbar.exitWhiteboard') : t('toolbar.whiteboard')"
+              :title="withShortcut(whiteboardMode ? t('toolbar.exitWhiteboard') : t('toolbar.whiteboard'), 'W')"
+              :aria-label="withShortcut(whiteboardMode ? t('toolbar.exitWhiteboard') : t('toolbar.whiteboard'), 'W')"
               @click="emit('toggleWhiteboard')"
             >
               <Layout :size="15" />
@@ -643,8 +651,8 @@ onUnmounted(() => {
             <button
               type="button"
               class="overlay-toolbar-action"
-              :title="t('toolbar.copy')"
-              :aria-label="t('toolbar.copy')"
+              :title="withShortcut(t('toolbar.copy'), `${modKey}+C`)"
+              :aria-label="withShortcut(t('toolbar.copy'), `${modKey}+C`)"
               @click="emit('copy')"
             >
               <Copy :size="15" />
@@ -665,8 +673,8 @@ onUnmounted(() => {
               v-if="standaloneWindow"
               type="button"
               class="overlay-toolbar-action"
-              :title="t('toolbar.exit')"
-              :aria-label="t('toolbar.exit')"
+              :title="withShortcut(t('toolbar.exit'), 'Esc')"
+              :aria-label="withShortcut(t('toolbar.exit'), 'Esc')"
               @click="emit('exitDrawing')"
             >
               <X :size="15" />
@@ -680,11 +688,11 @@ onUnmounted(() => {
             <button
               v-for="tool in tools"
               :key="tool.id"
-              :aria-label="`${tool.label} (${tool.key})`"
+              :aria-label="withShortcut(tool.label, tool.key)"
               :aria-pressed="currentTool === tool.id"
               class="overlay-toolbar-action"
               :class="currentTool === tool.id ? 'overlay-tool-btn--active' : 'overlay-tool-btn'"
-              :title="`${tool.label} (${tool.key})`"
+              :title="withShortcut(tool.label, tool.key)"
               @click="selectTool(tool.id)"
             >
               <component :is="tool.icon" :size="15" />
@@ -704,11 +712,11 @@ onUnmounted(() => {
             <button
               v-for="tool in tools"
               :key="tool.id"
-              :aria-label="`${tool.label} (${tool.key})`"
+              :aria-label="withShortcut(tool.label, tool.key)"
               :aria-pressed="currentTool === tool.id"
               class="flex flex-col items-center gap-0.75 pt-2 px-0.5 pb-1.5 border-none rounded-[10px] cursor-pointer relative transition-all duration-150"
               :class="currentTool === tool.id ? 'overlay-tool-btn--active' : 'overlay-tool-btn'"
-              :title="`${tool.label} (${tool.key})`"
+              :title="withShortcut(tool.label, tool.key)"
               @click="selectTool(tool.id)"
             >
               <component :is="tool.icon" :size="18" />
@@ -787,6 +795,7 @@ onUnmounted(() => {
             <span class="text-[11px] font-semibold overlay-text-section tracking-[0.5px] font-sans">{{
               t('panel.colors')
             }}</span>
+            <span class="text-[10px] overlay-text-hint font-sans">{{ t('panel.colorSwitch') }}</span>
           </div>
           <div class="flex items-center justify-between">
             <button

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   collapseStrokeToLine,
+  representativePressure,
   STROKE_LINE_LOCK_HOLD_MS,
   STROKE_LINE_LOCK_MAX_ARC_RATIO,
   STROKE_LINE_LOCK_MIN_CHORD_PX,
@@ -22,10 +23,10 @@ describe('strokeLineLock', () => {
       { x: 20, y: -1 },
       { x: 100, y: 2, pressure: 0.8 },
     ])
-    expect(out).toEqual([
-      { x: 0, y: 0, pressure: 0.8 },
-      { x: 100, y: 2, pressure: 0.8 },
-    ])
+    expect(out![0]).toMatchObject({ x: 0, y: 0 })
+    expect(out![1]).toMatchObject({ x: 100, y: 2 })
+    expect(out![0].pressure).toBeCloseTo(0.8, 5)
+    expect(out![1].pressure).toBeCloseTo(0.8, 5)
   })
 
   it('falls back to start pressure when the tip has none', () => {
@@ -41,6 +42,51 @@ describe('strokeLineLock', () => {
 
   it('returns null for an empty point list', () => {
     expect(collapseStrokeToLine([])).toBeNull()
+  })
+
+  it('weights pressure by segment length so a light hold at the tip cannot thin the line', () => {
+    // 10 个 10px 的移动采样（p=0.5）+ 6 个 0.4px 的静止抖动采样（p=0.05）
+    const points: { x: number; y: number; pressure: number }[] = []
+    for (let i = 0; i <= 10; i++) points.push({ x: i * 10, y: 0, pressure: 0.5 })
+    for (let i = 0; i < 6; i++) points.push({ x: 100 + (i % 2) * 0.4, y: 0, pressure: 0.05 })
+
+    const out = collapseStrokeToLine(points)
+    expect(out).not.toBeNull()
+    expect(out![0].pressure).toBeCloseTo(0.5, 2)
+    expect(out![1].pressure).toBe(out![0].pressure)
+  })
+
+  it('keeps a long hold from dragging the representative pressure down', () => {
+    const points: { x: number; y: number; pressure: number }[] = []
+    for (let i = 0; i <= 10; i++) points.push({ x: i * 10, y: 0, pressure: 0.5 })
+    for (let i = 0; i < 200; i++) points.push({ x: 100 + (i % 2) * 0.02, y: 0, pressure: 0.02 })
+
+    const out = collapseStrokeToLine(points)
+    expect(out![0].pressure).toBeCloseTo(0.5, 2)
+  })
+
+  it('returns undefined for pressure-less input so mouse ink keeps its base width', () => {
+    const points = Array.from({ length: 10 }, (_, i) => ({ x: i * 10, y: 0 }))
+    expect(representativePressure(points)).toBeUndefined()
+  })
+
+  it('averages a stroke that starts heavy and ends light instead of taking the tail', () => {
+    const out = collapseStrokeToLine([
+      { x: 0, y: 0, pressure: 0.9 },
+      { x: 50, y: 0, pressure: 0.9 },
+      { x: 100, y: 0, pressure: 0.05 },
+      { x: 100.4, y: 0, pressure: 0.05 },
+    ])
+    // (0.9 × 50 + 0.05 × 50) / 100
+    expect(out![0].pressure).toBeCloseTo(0.475, 6)
+  })
+
+  it('lets the moving part of a light stroke set a light width', () => {
+    const points: { x: number; y: number; pressure: number }[] = []
+    for (let i = 0; i <= 10; i++) points.push({ x: i * 10, y: 0, pressure: 0.12 })
+
+    const out = collapseStrokeToLine(points)
+    expect(out![0].pressure).toBeCloseTo(0.12, 5)
   })
 
   it('keeps a single point freehand (no zero-length line)', () => {

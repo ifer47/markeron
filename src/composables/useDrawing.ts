@@ -1559,11 +1559,10 @@ export function useDrawing(
 
       let finalPoint: Point = { x, y }
       if (inkLockedToLine) {
-        finalPoint = {
-          x,
-          y,
-          pressure: normalizePressure(point.pressure ?? pts[1]?.pressure ?? pts[0]?.pressure),
-        }
+        // Width is frozen at lock time: the tip is dragged, not re-pressed, so the
+        // live pen pressure must not repaint the whole line — a light hold at the
+        // end of a stroke used to collapse the locked line into a hairline.
+        finalPoint = { x, y, pressure: pts[0]?.pressure }
       }
       if (pts.length > 0) {
         const start = pts[0]
@@ -1598,10 +1597,6 @@ export function useDrawing(
         pts.push(finalPoint)
       } else {
         pts[1] = finalPoint
-      }
-      // Locked ink lines must keep both caps the same width while the tip moves.
-      if (inkLockedToLine && pts.length >= 2 && finalPoint.pressure != null) {
-        pts[0] = { ...pts[0], pressure: finalPoint.pressure }
       }
     }
 

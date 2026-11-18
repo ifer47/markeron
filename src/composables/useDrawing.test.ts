@@ -283,10 +283,35 @@ describe('useDrawing', () => {
       const hit = drawing.findActionAt({ x: 100, y: 25 })
       expect(hit).toBeTruthy()
       expect(hit!.action.points).toHaveLength(2)
-      // Locked ink stays uniform: tip pressure is mirrored to both caps.
-      expect(hit!.action.points[0]).toMatchObject({ x: 0, y: 0, pressure: 0.9 })
-      expect(hit!.action.points[1]).toMatchObject({ x: 200, y: 50, pressure: 0.9 })
+      // 线宽在锁定瞬间冻结：拖动笔尖不再用瞬时压感重刷整条线。
+      expect(hit!.action.points[0]).toMatchObject({ x: 0, y: 0 })
+      expect(hit!.action.points[1]).toMatchObject({ x: 200, y: 50 })
+      expect(hit!.action.points[0].pressure).toBeCloseTo(0.5, 5)
+      expect(hit!.action.points[0].pressure).toBe(hit!.action.points[1].pressure)
       expect(drawing.isStrokeLineLocked()).toBe(false)
+      vi.useRealTimers()
+    })
+
+    it('keeps the locked line width when the tip drags with a light pressure', () => {
+      vi.useFakeTimers()
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0, pressure: 0.5, pointerType: 'pen' })
+      for (let i = 1; i <= 10; i++) {
+        drawing.draw({ x: i * 10, y: 0, pressure: 0.5, pointerType: 'pen' })
+      }
+      vi.advanceTimersByTime(500)
+      expect(drawing.isStrokeLineLocked()).toBe(true)
+
+      // 抬笔/轻触的低压感不能把整条线拉成发丝线
+      for (let i = 0; i < 5; i++) {
+        drawing.draw({ x: 140 + i * 10, y: 0, pressure: 0.05, pointerType: 'pen' })
+      }
+      drawing.endDraw()
+
+      const hit = drawing.findActionAt({ x: 70, y: 0 })
+      expect(hit).toBeTruthy()
+      expect(hit!.action.points[0].pressure).toBeCloseTo(0.5, 5)
+      expect(hit!.action.points[1].pressure).toBeCloseTo(0.5, 5)
       vi.useRealTimers()
     })
 

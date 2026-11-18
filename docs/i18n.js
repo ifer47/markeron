@@ -119,13 +119,15 @@
       'helpPage.tools.highlighter': 'Highlighter',
       'helpPage.tools.highlighterDesc': 'Semi-transparent highlight',
       'helpPage.tools.arrow': 'Arrow',
-      'helpPage.tools.arrowDesc': 'Arrow pointer line; <kbd>D</kbd> cycles dash style',
+      'helpPage.tools.arrowDesc':
+        'Arrow pointer line; select it and drag the midpoint to bend; <kbd>D</kbd> cycles dash style',
       'helpPage.tools.rect': 'Rectangle',
       'helpPage.tools.rectDesc': 'Rectangle outline; <kbd>D</kbd> cycles dash style',
       'helpPage.tools.ellipse': 'Ellipse',
       'helpPage.tools.ellipseDesc': 'Ellipse outline; <kbd>D</kbd> cycles dash style',
       'helpPage.tools.line': 'Line',
-      'helpPage.tools.lineDesc': 'Straight line segment; <kbd>D</kbd> cycles dash style',
+      'helpPage.tools.lineDesc':
+        'Straight line segment; select it and drag the midpoint to bend; <kbd>D</kbd> cycles dash style',
       'helpPage.tools.eraser': 'Eraser',
       'helpPage.tools.eraserDesc':
         'Separate width; press <kbd>7</kbd> again while selected to switch stroke / object erase (also in Settings → General)',
@@ -153,7 +155,7 @@
       'helpPage.session.widthHint':
         'Pen, laser, arrow, rectangle, ellipse, and line share one width; highlighter and eraser each have their own; text and stamp share one size group.',
       'helpPage.session.dashHint':
-        'Cycle solid → dashed → dotted for pen, line, arrow, rectangle, and ellipse. Shift+D reverses.',
+        'Cycle solid → dashed → dotted for pen, line, arrow, rectangle, and ellipse; with a selection, edits the selected shapes. Shift+D reverses.',
       'helpPage.draw.eyebrow': '04',
       'helpPage.draw.title': 'Drawing modifiers, colors & whiteboard',
       'helpPage.draw.lead':
@@ -172,7 +174,7 @@
       'helpPage.draw.arrow': 'Arrow',
       'helpPage.draw.arrowKeys': '<kbd>Ctrl</kbd>+<kbd>Shift</kbd> / <kbd>⌘</kbd>+<kbd>⇧</kbd> + drag',
       'helpPage.draw.colorsTitle': 'Colors & stroke style',
-      'helpPage.draw.colorsPrevNext': 'Prev / next color',
+      'helpPage.draw.colorsPrevNext': 'Prev / next color (edits the selection)',
       'helpPage.draw.colorsKeys': '<kbd>Q</kbd> / <kbd>E</kbd>',
       'helpPage.draw.dashStyle': 'Stroke style',
       'helpPage.draw.dashKeys': '<kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd>',
@@ -381,13 +383,13 @@
       'helpPage.tools.highlighter': '荧光笔',
       'helpPage.tools.highlighterDesc': '半透明高亮标记',
       'helpPage.tools.arrow': '箭头',
-      'helpPage.tools.arrowDesc': '带箭头指示线；按 <kbd>D</kbd> 循环线型',
+      'helpPage.tools.arrowDesc': '带箭头指示线；选中后拖中点可弯曲；按 <kbd>D</kbd> 循环线型',
       'helpPage.tools.rect': '矩形',
       'helpPage.tools.rectDesc': '矩形边框；按 <kbd>D</kbd> 循环线型',
       'helpPage.tools.ellipse': '椭圆',
       'helpPage.tools.ellipseDesc': '椭圆边框；按 <kbd>D</kbd> 循环线型',
       'helpPage.tools.line': '直线',
-      'helpPage.tools.lineDesc': '直线段；按 <kbd>D</kbd> 循环线型',
+      'helpPage.tools.lineDesc': '直线段；选中后拖中点可弯曲；按 <kbd>D</kbd> 循环线型',
       'helpPage.tools.eraser': '橡皮擦',
       'helpPage.tools.eraserDesc':
         '独立线宽；选中后再按 <kbd>7</kbd> 切换轨迹 / 对象擦除（也可在「设置 → 常规」中切换）',
@@ -415,7 +417,7 @@
       'helpPage.session.widthHint':
         '画笔、激光笔与箭头 / 矩形 / 椭圆 / 直线共用粗细；荧光笔、橡皮擦各自独立；文字与序号共用字号组。',
       'helpPage.session.dashHint':
-        '画笔 / 直线 / 箭头 / 矩形 / 椭圆：实线 → 虚线 → 点线；Shift+D 反向循环。',
+        '画笔 / 直线 / 箭头 / 矩形 / 椭圆：实线 → 虚线 → 点线；选中图形时直接修改选中项；Shift+D 反向循环。',
       'helpPage.draw.eyebrow': '04',
       'helpPage.draw.title': '绘制修饰键、颜色与白板',
       'helpPage.draw.lead': '拖动时按住修饰键吸附形状；无需离开画布即可切换颜色与线型。',
@@ -433,7 +435,7 @@
       'helpPage.draw.arrow': '箭头',
       'helpPage.draw.arrowKeys': '<kbd>Ctrl</kbd>+<kbd>Shift</kbd> / <kbd>⌘</kbd>+<kbd>⇧</kbd> + 拖动',
       'helpPage.draw.colorsTitle': '颜色与线型',
-      'helpPage.draw.colorsPrevNext': '上一个 / 下一个颜色',
+      'helpPage.draw.colorsPrevNext': '上一个 / 下一个颜色（选中时修改选中图形）',
       'helpPage.draw.colorsKeys': '<kbd>Q</kbd> / <kbd>E</kbd>',
       'helpPage.draw.dashStyle': '线型',
       'helpPage.draw.dashKeys': '<kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd>',

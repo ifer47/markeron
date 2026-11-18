@@ -61,6 +61,11 @@ export interface DrawAction {
    * Omitted or `solid` = solid; `dashed` / `dotted` use centerline stroke for pen.
    */
   dashStyle?: StrokeDashStyle
+  /**
+   * Pen / highlighter stroke locked to a straight line by holding still.
+   * A bent locked stroke stores `[start, control, end]` like a curved line.
+   */
+  lockedLine?: boolean
   attachedErasers?: DrawAction[]
   text?: string
   fontSize?: number

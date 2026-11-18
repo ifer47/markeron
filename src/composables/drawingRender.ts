@@ -1,4 +1,5 @@
 import type { DrawAction, Point } from './drawingTypes'
+import { isCurvedLinearAction, sampleQuadratic } from './drawingGeometry'
 import { isDashableTool, isNonSolidDashStyle, shapeDashPattern } from '../constants/tools'
 import { getActiveTextOutline } from '../constants/textOutline'
 import {
@@ -38,10 +39,49 @@ export function buildInkPath(points: Point[], size: number, pointerType?: string
   return buildSweptPath(nodes, pruneNodes(nodes, SWEPT_STYLE))
 }
 
+/**
+ * Bent ink is already a mathematically smooth curve. Position smoothing would
+ * lag it behind the bend handle, so only the pressure EMA stays enabled.
+ */
+const CURVED_INK_STYLE = { ...SWEPT_STYLE, positionStreamline: 0 }
+
+/**
+ * Sample a bent hold-locked ink stroke into a polyline for the swept ribbon.
+ * Every sample keeps the stroke's frozen pressure so the width stays uniform.
+ */
+function curvedInkPoints(action: DrawAction): Point[] {
+  const pts = action.points
+  const p0 = pts[0]
+  const c = pts[1]
+  const p1 = pts[pts.length - 1]
+  const chord = Math.hypot(c.x - p0.x, c.y - p0.y) + Math.hypot(p1.x - c.x, p1.y - c.y)
+  const segments = Math.max(16, Math.min(64, Math.ceil(chord / 4)))
+  const pressure = p0.pressure
+  return sampleQuadratic(p0, c, p1, segments).map((p) => (pressure != null ? { ...p, pressure } : p))
+}
+
+function buildCurvedInkPath(action: DrawAction): Path2D {
+  const nodes = nodesFromSmoothedPoints(curvedInkPoints(action), action.lineWidth, CURVED_INK_STYLE, action.pointerType)
+  // Keep every sample: the 3° freehand pruning tolerance would flatten a smooth
+  // quadratic into a visibly polygonal ribbon.
+  return buildSweptPath(nodes)
+}
+
 export function drawLine(ctx: CanvasRenderingContext2D, start: Point, end: Point) {
   ctx.beginPath()
   ctx.moveTo(start.x, start.y)
   ctx.lineTo(end.x, end.y)
+  ctx.stroke()
+}
+
+/** Bent line: native quadratic stroke so dashes, caps, and joins follow the curve. */
+export function drawCurvedLine(ctx: CanvasRenderingContext2D, points: Point[]) {
+  const p0 = points[0]
+  const c = points[1]
+  const p1 = points[points.length - 1]
+  ctx.beginPath()
+  ctx.moveTo(p0.x, p0.y)
+  ctx.quadraticCurveTo(c.x, c.y, p1.x, p1.y)
   ctx.stroke()
 }
 
@@ -96,6 +136,121 @@ export function drawArrow(ctx: CanvasRenderingContext2D, start: Point, end: Poin
   ctx.lineTo(baseX - nx * headHalfW, baseY - ny * headHalfW)
   ctx.lineTo(baseX - nx * shaftHalfW, baseY - ny * shaftHalfW)
   ctx.lineTo(start.x - nx * tailHalfW, start.y - ny * tailHalfW)
+  ctx.closePath()
+  ctx.fill()
+  ctx.restore()
+}
+
+/**
+ * Bent arrow: a tapered ribbon along the quadratic curve plus a triangular head
+ * whose base is perpendicular to the end tangent. Mirrors `drawArrow` so a
+ * straight (two-point) arrow and a bent (three-point) one share one visual style.
+ */
+export function drawCurvedArrow(ctx: CanvasRenderingContext2D, points: Point[], dashed = false) {
+  const p0 = points[0]
+  const c = points[1]
+  const p1 = points[points.length - 1]
+
+  const chordLen = Math.hypot(c.x - p0.x, c.y - p0.y) + Math.hypot(p1.x - c.x, p1.y - c.y)
+  if (chordLen < 2) return
+
+  // Dense enough that the ribbon reads as a curve, capped so long arrows stay cheap.
+  const segments = Math.max(16, Math.min(64, Math.ceil(chordLen / 4)))
+  const samples = sampleQuadratic(p0, c, p1, segments)
+  const cumulative: number[] = [0]
+  for (let i = 1; i < samples.length; i++) {
+    cumulative.push(cumulative[i - 1] + Math.hypot(samples[i].x - samples[i - 1].x, samples[i].y - samples[i - 1].y))
+  }
+  const total = cumulative[cumulative.length - 1]
+  if (total < 2) return
+
+  const w = ctx.lineWidth
+  const headLen = Math.max(18, w * 5)
+  const headHalfW = Math.max(8, w * 2.5)
+  const tailHalfW = Math.max(0.5, w * 0.15)
+  const shaftHalfW = Math.max(1.5, w * 0.7)
+
+  const actualHeadLen = Math.min(headLen, total * 0.45)
+  const baseDist = total - actualHeadLen
+
+  // Ribbon stops at the head base; interpolate that cross-section exactly between samples.
+  let seg = 0
+  while (seg < samples.length - 2 && cumulative[seg + 1] < baseDist) seg++
+  const segLen = cumulative[seg + 1] - cumulative[seg]
+  const segFrac = segLen > 1e-9 ? (baseDist - cumulative[seg]) / segLen : 0
+  const basePoint = {
+    x: samples[seg].x + (samples[seg + 1].x - samples[seg].x) * segFrac,
+    y: samples[seg].y + (samples[seg + 1].y - samples[seg].y) * segFrac,
+  }
+
+  const ribbon = samples.slice(0, seg + 1)
+  ribbon.push(basePoint)
+
+  const left: Point[] = []
+  const right: Point[] = []
+  for (let i = 0; i < ribbon.length; i++) {
+    const prev = ribbon[Math.max(0, i - 1)]
+    const next = ribbon[Math.min(ribbon.length - 1, i + 1)]
+    let tx = next.x - prev.x
+    let ty = next.y - prev.y
+    const tl = Math.hypot(tx, ty) || 1
+    tx /= tl
+    ty /= tl
+    const nx = -ty
+    const ny = tx
+    const t = baseDist > 1e-9 ? Math.min(1, cumulative[Math.min(i, seg)] / baseDist) : 1
+    const half = tailHalfW + (shaftHalfW - tailHalfW) * t
+    left.push({ x: ribbon[i].x + nx * half, y: ribbon[i].y + ny * half })
+    right.push({ x: ribbon[i].x - nx * half, y: ribbon[i].y - ny * half })
+  }
+
+  // Head base normal follows the end tangent so a curved head does not skew.
+  // Degenerate curve (control at the tip): fall back to the chord direction.
+  let htx = p1.x - c.x
+  let hty = p1.y - c.y
+  if (Math.hypot(htx, hty) < 1e-9) {
+    htx = p1.x - p0.x
+    hty = p1.y - p0.y
+  }
+  const htl = Math.hypot(htx, hty) || 1
+  htx /= htl
+  hty /= htl
+  const hnx = -hty
+  const hny = htx
+  // Shift the head base 1px back along the tangent so the ribbon joins it without a seam.
+  const headBase = { x: basePoint.x - htx, y: basePoint.y - hty }
+  const headLeft = { x: headBase.x + hnx * headHalfW, y: headBase.y + hny * headHalfW }
+  const headRight = { x: headBase.x - hnx * headHalfW, y: headBase.y - hny * headHalfW }
+
+  // Filled shafts ignore setLineDash — stroke a dashed shaft and keep a solid head.
+  if (dashed) {
+    ctx.beginPath()
+    ctx.moveTo(ribbon[0].x, ribbon[0].y)
+    for (let i = 1; i < ribbon.length; i++) ctx.lineTo(ribbon[i].x, ribbon[i].y)
+    ctx.stroke()
+
+    ctx.save()
+    ctx.setLineDash([])
+    ctx.fillStyle = ctx.strokeStyle
+    ctx.beginPath()
+    ctx.moveTo(headLeft.x, headLeft.y)
+    ctx.lineTo(p1.x, p1.y)
+    ctx.lineTo(headRight.x, headRight.y)
+    ctx.closePath()
+    ctx.fill()
+    ctx.restore()
+    return
+  }
+
+  ctx.save()
+  ctx.fillStyle = ctx.strokeStyle
+  ctx.beginPath()
+  ctx.moveTo(left[0].x, left[0].y)
+  for (let i = 1; i < left.length; i++) ctx.lineTo(left[i].x, left[i].y)
+  ctx.lineTo(headLeft.x, headLeft.y)
+  ctx.lineTo(p1.x, p1.y)
+  ctx.lineTo(headRight.x, headRight.y)
+  for (let i = right.length - 1; i >= 0; i--) ctx.lineTo(right[i].x, right[i].y)
   ctx.closePath()
   ctx.fill()
   ctx.restore()
@@ -296,14 +451,16 @@ export function drawActionDirect(
   switch (action.tool) {
     case 'pen':
     case 'highlighter': {
+      const curvedInk = isCurvedLinearAction(action)
       // Non-solid pen: stroke the centerline (ink fill ignores setLineDash).
       if (action.tool === 'pen' && isNonSolidDashStyle(action.dashStyle)) {
-        drawFreehand(ctx, pts)
+        if (curvedInk) drawCurvedLine(ctx, pts)
+        else drawFreehand(ctx, pts)
         break
       }
       let path = pathCache?.get(action)
       if (!path) {
-        path = buildInkPath(pts, action.lineWidth, action.pointerType)
+        path = curvedInk ? buildCurvedInkPath(action) : buildInkPath(pts, action.lineWidth, action.pointerType)
         if (action.bbox) pathCache?.set(action, path)
       }
       ctx.fill(path)
@@ -335,10 +492,18 @@ export function drawActionDirect(
       break
     }
     case 'line':
-      drawLine(ctx, pts[0], pts[1])
+      if (isCurvedLinearAction(action)) {
+        drawCurvedLine(ctx, pts)
+      } else {
+        drawLine(ctx, pts[0], pts[1])
+      }
       break
     case 'arrow':
-      drawArrow(ctx, pts[0], pts[1], isNonSolidDashStyle(action.dashStyle))
+      if (isCurvedLinearAction(action)) {
+        drawCurvedArrow(ctx, pts, isNonSolidDashStyle(action.dashStyle))
+      } else {
+        drawArrow(ctx, pts[0], pts[1], isNonSolidDashStyle(action.dashStyle))
+      }
       break
     case 'rect':
     case 'ellipse': {

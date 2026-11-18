@@ -38,13 +38,126 @@ describe('drawingReshape', () => {
     expect(isReshapeableTool('select')).toBe(false)
   })
 
-  it('getReshapeHandles returns endpoints and rotate for line/arrow', () => {
-    const line = shape('line', 10, 20, 100, 80)
-    const handles = getReshapeHandles(line)
-    expect(handles.map((h) => h.id)).toEqual(['p0', 'p1', 'rotate'])
-    expect(handles[0]).toMatchObject({ id: 'p0', x: 10, y: 20, cursor: 'grab' })
-    expect(handles[1]).toMatchObject({ id: 'p1', x: 100, y: 80, cursor: 'grab' })
-    expect(handles[2].id).toBe('rotate')
+  it('getReshapeHandles returns endpoints, bend, and rotate for a line/arrow', () => {
+    for (const tool of ['line', 'arrow'] as const) {
+      const linear = shape(tool, 10, 20, 100, 80)
+      const handles = getReshapeHandles(linear)
+      expect(handles.map((h) => h.id)).toEqual(['p0', 'bend', 'p1', 'rotate'])
+      expect(handles[0]).toMatchObject({ id: 'p0', x: 10, y: 20, cursor: 'grab' })
+      expect(handles[1]).toMatchObject({ id: 'bend', x: 55, y: 50, cursor: 'move' })
+      expect(handles[2]).toMatchObject({ id: 'p1', x: 100, y: 80, cursor: 'grab' })
+      expect(handles[3].id).toBe('rotate')
+    }
+  })
+
+  it('getReshapeHandles puts a bent arrow bend handle on the curve', () => {
+    const arrow: DrawAction = {
+      tool: 'arrow',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [
+        { x: 0, y: 0 },
+        { x: 50, y: 80 },
+        { x: 100, y: 0 },
+      ],
+    }
+    expect(getReshapeHandles(arrow).find((h) => h.id === 'bend')).toMatchObject({ x: 50, y: 40 })
+  })
+
+  it('gives hold-locked ink the same bend handles as a line', () => {
+    const locked: DrawAction = {
+      tool: 'pen',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      lockedLine: true,
+      points: [
+        { x: 10, y: 20, pressure: 0.6 },
+        { x: 100, y: 80, pressure: 0.6 },
+      ],
+    }
+    const handles = getReshapeHandles(locked)
+    expect(handles.map((h) => h.id)).toEqual(['p0', 'bend', 'p1', 'rotate'])
+    expect(handles[1]).toMatchObject({ id: 'bend', x: 55, y: 50, cursor: 'move' })
+  })
+
+  it('keeps corner handles for freehand ink', () => {
+    const freehand: DrawAction = {
+      tool: 'pen',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [
+        { x: 0, y: 0 },
+        { x: 50, y: 80 },
+        { x: 100, y: 0 },
+      ],
+    }
+    expect(getReshapeHandles(freehand).map((h) => h.id)).toEqual(['tl', 'tr', 'br', 'bl', 'rotate'])
+  })
+
+  it('applyReshapeHandle bends hold-locked ink through the dragged handle', () => {
+    const locked: DrawAction = {
+      tool: 'pen',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      lockedLine: true,
+      points: [
+        { x: 0, y: 0, pressure: 0.6 },
+        { x: 50, y: 50, pressure: 0.6 },
+        { x: 100, y: 0, pressure: 0.6 },
+      ],
+    }
+    applyReshapeHandle(locked, 'bend', { x: 50, y: 60 })
+    expect(locked.points[1]).toMatchObject({ x: 50, y: 120, pressure: 0.6 })
+  })
+
+  it('applyReshapeHandle bends a line through the dragged handle', () => {
+    const line = shape('line', 0, 0, 100, 0)
+    // beginReshape promotes a straight line to `[start, control, end]` first.
+    line.points.splice(1, 0, { x: 50, y: 0 })
+    applyReshapeHandle(line, 'bend', { x: 50, y: 40 })
+    expect(line.points[0]).toMatchObject({ x: 0, y: 0 })
+    expect(line.points[1]).toMatchObject({ x: 50, y: 80 })
+    expect(line.points[2]).toMatchObject({ x: 100, y: 0 })
+  })
+
+  it('applyReshapeHandle bends an arrow through the dragged handle', () => {
+    const arrow: DrawAction = {
+      tool: 'arrow',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [
+        { x: 0, y: 0 },
+        { x: 50, y: 50 },
+        { x: 100, y: 0 },
+      ],
+    }
+    applyReshapeHandle(arrow, 'bend', { x: 50, y: 60 })
+    // control = 2 × (50, 60) − (50, 0) = (50, 120)
+    expect(arrow.points[1]).toMatchObject({ x: 50, y: 120 })
+    expect(getReshapeHandles(arrow).find((h) => h.id === 'bend')).toMatchObject({ x: 50, y: 60 })
+  })
+
+  it('applyReshapeHandle moves the far endpoint of a bent arrow', () => {
+    const arrow: DrawAction = {
+      tool: 'arrow',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [
+        { x: 0, y: 0 },
+        { x: 50, y: 80 },
+        { x: 100, y: 0 },
+      ],
+    }
+    applyReshapeHandle(arrow, 'p1', { x: 120, y: 20 })
+    expect(arrow.points[0]).toMatchObject({ x: 0, y: 0 })
+    expect(arrow.points[1]).toMatchObject({ x: 50, y: 80 })
+    expect(arrow.points[2]).toMatchObject({ x: 120, y: 20 })
   })
 
   it('selectionFrameBounds matches corner handles, not the padded hit box', () => {
@@ -155,7 +268,8 @@ describe('drawingReshape', () => {
     const line = shape('line', 0, 0, 100, 0)
     expect(hitTestReshapeHandle(line, { x: 2, y: 3 })?.id).toBe('p0')
     expect(hitTestReshapeHandle(line, { x: 98, y: -2 })?.id).toBe('p1')
-    expect(hitTestReshapeHandle(line, { x: 50, y: 0 })).toBeNull()
+    expect(hitTestReshapeHandle(line, { x: 50, y: 0 })?.id).toBe('bend')
+    expect(hitTestReshapeHandle(line, { x: 50, y: 30 })).toBeNull()
   })
 
   it('applyReshapeHandle moves a line endpoint', () => {

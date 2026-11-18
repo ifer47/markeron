@@ -12,6 +12,7 @@ import {
   rotatePointAround,
   updateShapeHitCache,
   hitTestAction,
+  isLockedInkAction,
   perfectCircleCornersFromCenter,
   snapPointToAngle,
 } from './drawingGeometry'
@@ -71,12 +72,14 @@ import {
   highlighterLineWidth,
   isDashableTool,
   isNonSolidDashStyle,
+  nextStrokeDashStyle,
   normalizeStrokeDashStyle,
   resolveLineWidths,
   toolLineWidthGroup,
   type StrokeDashStyle,
   type ToolLineWidths,
 } from '../constants/tools'
+import { COLOR_PALETTE } from '../constants/colors'
 
 const HIT_GRID_SIZE = 192
 const HIT_GRID_MAX_CELLS = 64
@@ -159,6 +162,7 @@ export function useDrawing(
     const collapsed = collapseStrokeToLine(action.points)
     if (!collapsed) return
     action.points = collapsed
+    action.lockedLine = true
     strokeLineLocked = true
     clearLineLockTimer()
     // Drop the live ink buffer so locked preview redraws via drawActionOn each frame.
@@ -202,6 +206,91 @@ export function useDrawing(
       previewDirty = true
       scheduleRender()
     }
+  }
+
+  /**
+   * Cycle the dash style of the selected dashable actions (D / Shift+D).
+   * Returns false when the selection has no dashable action, so the caller can
+   * fall back to the session style used by the next drawing.
+   */
+  function cycleSelectedDashStyle(direction: 1 | -1): boolean {
+    const targets = selectedActions.value.filter(
+      (action) => isDashableTool(action.tool) && history.indexOf(action) !== -1,
+    )
+    if (targets.length === 0) return false
+
+    const next = nextStrokeDashStyle(normalizeStrokeDashStyle(targets[0].dashStyle), direction)
+    const nextDash = isNonSolidDashStyle(next) ? next : undefined
+    const items: { action: DrawAction; before: StrokeDashStyle | undefined; after: StrokeDashStyle | undefined }[] = []
+
+    for (const action of targets) {
+      if (action.dashStyle === nextDash) continue
+      items.push({ action, before: action.dashStyle, after: nextDash })
+      action.dashStyle = nextDash
+      pathCache.delete(action)
+    }
+
+    // Keep the session style (toolbar hint / next shape) aligned with the edit.
+    shapeDashStyle.value = next
+
+    if (items.length > 0) {
+      undoStack.push({ type: 'style', items })
+      redoStack.length = 0
+      markHistoryStacksChanged()
+    }
+
+    // Pen ink is a baked ribbon; drop the history cache so the new dash is used.
+    invalidateCache()
+    previewDirty = true
+    flushRender()
+    return true
+  }
+
+  /**
+   * Apply an explicit color to the selected actions (toolbar swatch / color picker).
+   * Returns false when nothing is selected, so the caller can fall back to the
+   * session color used by the next drawing.
+   */
+  function setSelectedColor(color: string): boolean {
+    const targets = selectedActions.value.filter((action) => history.indexOf(action) !== -1)
+    if (targets.length === 0) return false
+
+    const items: { action: DrawAction; before: string; after: string }[] = []
+    for (const action of targets) {
+      if (action.color === color) continue
+      items.push({ action, before: action.color, after: color })
+      action.color = color
+      pathCache.delete(action)
+    }
+
+    // Keep the session color (toolbar / next drawing) aligned with the edit.
+    currentColor.value = color
+
+    if (items.length > 0) {
+      undoStack.push({ type: 'color', items })
+      redoStack.length = 0
+      markHistoryStacksChanged()
+    }
+
+    // Pen ink is a baked ribbon; drop the history cache so the new color is used.
+    invalidateCache()
+    previewDirty = true
+    flushRender()
+    return true
+  }
+
+  /**
+   * Cycle the color of the selected actions (Q / E).
+   * Returns false when nothing is selected, so the caller can fall back to the
+   * session color used by the next drawing.
+   */
+  function cycleSelectedColor(direction: 1 | -1): boolean {
+    const targets = selectedActions.value.filter((action) => history.indexOf(action) !== -1)
+    if (targets.length === 0) return false
+
+    const baseIdx = COLOR_PALETTE.indexOf(targets[0].color)
+    const nextIdx = baseIdx === -1 ? 0 : (baseIdx + direction + COLOR_PALETTE.length) % COLOR_PALETTE.length
+    return setSelectedColor(COLOR_PALETTE[nextIdx])
   }
 
   function setLineWidths(widths: Partial<ToolLineWidths> | null | undefined) {
@@ -280,6 +369,14 @@ export function useDrawing(
     | {
         type: 'dragBatch'
         items: { action: DrawAction; from: DragSnapshot; to: DragSnapshot }[]
+      }
+    | {
+        type: 'style'
+        items: { action: DrawAction; before: StrokeDashStyle | undefined; after: StrokeDashStyle | undefined }[]
+      }
+    | {
+        type: 'color'
+        items: { action: DrawAction; before: string; after: string }[]
       }
     | {
         type: 'erase'
@@ -915,8 +1012,9 @@ export function useDrawing(
         const hy = h.y + oy
         ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'
         ctx.strokeStyle = 'rgba(0, 122, 255, 0.95)'
-        if (h.id === 'rotate') {
-          const r = half + 1.5
+        if (h.id === 'rotate' || h.id === 'bend') {
+          // Circular bend handle distinguishes "drag the curve" from endpoint squares.
+          const r = h.id === 'rotate' ? half + 1.5 : half + 0.5
           ctx.beginPath()
           ctx.arc(hx, hy, r, 0, Math.PI * 2)
           ctx.fill()
@@ -1984,9 +2082,27 @@ export function useDrawing(
     if (!isReshapeableTool(action.tool)) return
     if (action.points.length < 2) return
 
+    // Snapshot before promotion so undo/cancel restore the straight two-point arrow.
+    const beforeSnap = takeDragSnapshot(action, history.indexOf(action))
+
+    // A straight line/arrow/locked ink keeps two points; promote it to a bent curve.
+    if (
+      handleId === 'bend' &&
+      (action.tool === 'arrow' || action.tool === 'line' || isLockedInkAction(action)) &&
+      action.points.length === 2
+    ) {
+      const [p0, p1] = action.points
+      action.points.splice(1, 0, {
+        x: (p0.x + p1.x) / 2,
+        y: (p0.y + p1.y) / 2,
+        ...(p0.pressure != null ? { pressure: p0.pressure } : {}),
+      })
+      pathCache.delete(action)
+    }
+
     reshapingAction = action
     reshapeHandleId = handleId
-    reshapeBeforeSnap = takeDragSnapshot(action, history.indexOf(action))
+    reshapeBeforeSnap = beforeSnap
     // Deep-clone ink eraser attachments so live scale does not mutate the undo snapshot.
     if (isInkReshapeTool(action.tool) && action.attachedErasers?.length) {
       action.attachedErasers = action.attachedErasers.map((ae) => cloneActionWithOffset(ae, 0, 0))
@@ -2052,6 +2168,19 @@ export function useDrawing(
       previewDirty = true
       flushRender()
       return
+    }
+
+    // A bend gesture that ends on the chord midpoint is visually straight again; drop
+    // the promoted control point so a plain click leaves no phantom three-point curve.
+    if (
+      handleId === 'bend' &&
+      (action.tool === 'arrow' || action.tool === 'line' || isLockedInkAction(action)) &&
+      action.points.length === 3
+    ) {
+      const [p0, c, p1] = action.points
+      if (Math.abs(c.x - (p0.x + p1.x) / 2) < 1e-9 && Math.abs(c.y - (p0.y + p1.y) / 2) < 1e-9) {
+        action.points.splice(1, 1)
+      }
     }
 
     const changed =
@@ -2127,6 +2256,16 @@ export function useDrawing(
         history.splice(target, 0, entry.action)
       }
       refreshActionInHitGrid(entry.action, true)
+    } else if (entry.type === 'style') {
+      for (const item of entry.items) {
+        item.action.dashStyle = item.before
+        pathCache.delete(item.action)
+      }
+    } else if (entry.type === 'color') {
+      for (const item of entry.items) {
+        item.action.color = item.before
+        pathCache.delete(item.action)
+      }
     } else if (entry.type === 'dragBatch') {
       for (const item of entry.items) {
         restoreDragSnapshot(item.action, item.from)
@@ -2205,6 +2344,16 @@ export function useDrawing(
         history.splice(target, 0, entry.action)
       }
       refreshActionInHitGrid(entry.action, true)
+    } else if (entry.type === 'style') {
+      for (const item of entry.items) {
+        item.action.dashStyle = item.after
+        pathCache.delete(item.action)
+      }
+    } else if (entry.type === 'color') {
+      for (const item of entry.items) {
+        item.action.color = item.after
+        pathCache.delete(item.action)
+      }
     } else if (entry.type === 'dragBatch') {
       for (const item of entry.items) {
         restoreDragSnapshot(item.action, item.to)
@@ -2452,6 +2601,9 @@ export function useDrawing(
     setLaserMode,
     shapeDashStyle,
     setShapeDashStyle,
+    cycleSelectedDashStyle,
+    setSelectedColor,
+    cycleSelectedColor,
     isDrawing,
     /** True after a still hold locked the active pen/highlighter stroke to a line. */
     isStrokeLineLocked: () => strokeLineLocked,

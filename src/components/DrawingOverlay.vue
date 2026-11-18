@@ -209,6 +209,12 @@ function handleTextBoxContextMenu(e: MouseEvent): boolean {
 const quickColorList = COLOR_PALETTE
 
 function cycleColor(direction: number) {
+  // A selection wins over the session color: Q / E recolors the selected shapes.
+  if (cycleSelectedColor(direction < 0 ? -1 : 1)) {
+    showColorTip(currentColor.value)
+    logActionEvent('color cycled', { reason: 'keyboard', direction, target: 'selection' })
+    return
+  }
   const idx = quickColorList.indexOf(currentColor.value)
   const newIdx = idx === -1 ? 0 : (idx + direction + quickColorList.length) % quickColorList.length
   currentColor.value = quickColorList[newIdx]
@@ -341,6 +347,9 @@ const {
   setLaserMode,
   shapeDashStyle,
   setShapeDashStyle,
+  cycleSelectedDashStyle,
+  setSelectedColor,
+  cycleSelectedColor,
   isDrawing,
   startDraw,
   draw,
@@ -1764,6 +1773,18 @@ function showShapeDashTip() {
 }
 
 function cycleShapeDash(direction: 1 | -1 = 1, reason: 'keyboard' = 'keyboard') {
+  // A selection wins over the session style: D edits the selected shapes instead
+  // of only preparing the next stroke.
+  if (cycleSelectedDashStyle(direction)) {
+    showShapeDashTip()
+    logActionEvent('shape dash cycled', {
+      style: shapeDashStyle.value,
+      direction,
+      reason,
+      target: 'selection',
+    })
+    return
+  }
   if (!isDashableTool(currentTool.value)) return
   const next = nextStrokeDashStyle(shapeDashStyle.value, direction)
   setShapeDashStyle(next)
@@ -2087,6 +2108,8 @@ async function handleToolbarAction(action: ToolbarAction) {
     }
     case 'selectColor':
       await resumeDrawingFromToolbar()
+      // A selection wins over the session color: the swatch recolors the selected shapes.
+      setSelectedColor(action.color)
       currentColor.value = action.color
       showColorTip(action.color)
       break

@@ -969,6 +969,110 @@ describe('useDrawing', () => {
       expect(drawing.isDrawing.value).toBe(false)
     })
 
+    it('draws square line endpoints but circular bend and rotate handles', () => {
+      drawing.currentTool.value = 'line'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 100, y: 0 })
+      drawing.endDraw()
+      const line = drawing.findActionAt({ x: 50, y: 0 })!.action
+      drawing.setSelection([line])
+
+      const ctx = previewCanvas.getContext('2d') as unknown as {
+        arc: { mock: { calls: number[][] }; mockClear: () => void }
+        fillRect: { mock: { calls: number[][] }; mockClear: () => void }
+      }
+      ctx.arc.mockClear()
+      ctx.fillRect.mockClear()
+      drawing.redrawAll()
+
+      // p0 / p1 stay square; only the bend and rotate handles are circles.
+      expect(ctx.fillRect.mock.calls).toHaveLength(2)
+      expect(ctx.arc.mock.calls).toHaveLength(2)
+    })
+
+    it('dragging the line bend handle promotes it to a curved line', () => {
+      drawing.currentTool.value = 'line'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 80, y: 40 })
+      drawing.endDraw()
+      const line = drawing.findActionAt({ x: 40, y: 20 })!.action
+      expect(line.points).toHaveLength(2)
+
+      drawing.setSelection([line])
+      expect(drawing.findReshapeHandleAt({ x: 40, y: 20 })?.id).toBe('bend')
+
+      drawing.beginReshape(line, 'bend', { x: 40, y: 20 })
+      drawing.updateReshape({ x: 40, y: -40 })
+      drawing.endReshape()
+
+      expect(line.points).toHaveLength(3)
+      // control = 2 × (40, −40) − (40, 20) = (40, −100)
+      expect(line.points[1]).toMatchObject({ x: 40, y: -100 })
+      expect(drawing.findActionAt({ x: 40, y: -40 })).toBeTruthy()
+
+      drawing.undo()
+      expect(line.points).toHaveLength(2)
+      expect(line.points[1]).toMatchObject({ x: 80, y: 40 })
+    })
+
+    it('bends a hold-locked ink stroke and restores it on undo', () => {
+      vi.useFakeTimers()
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0, pressure: 0.5, pointerType: 'pen' })
+      for (let i = 1; i <= 10; i++) {
+        drawing.draw({ x: i * 8, y: 0, pressure: 0.5, pointerType: 'pen' })
+      }
+      vi.advanceTimersByTime(500)
+      expect(drawing.isStrokeLineLocked()).toBe(true)
+      drawing.draw({ x: 80, y: 0, pressure: 0.5, pointerType: 'pen' })
+      drawing.endDraw()
+      vi.useRealTimers()
+
+      const ink = drawing.findActionAt({ x: 40, y: 0 })!.action
+      expect(ink.lockedLine).toBe(true)
+      expect(ink.points).toHaveLength(2)
+
+      drawing.setSelection([ink])
+      expect(drawing.findReshapeHandleAt({ x: 40, y: 0 })?.id).toBe('bend')
+
+      drawing.beginReshape(ink, 'bend', { x: 40, y: 0 })
+      drawing.updateReshape({ x: 40, y: -60 })
+      drawing.endReshape()
+
+      expect(ink.points).toHaveLength(3)
+      // control = 2 × (40, −60) − (40, 0) = (40, −120)
+      expect(ink.points[1]).toMatchObject({ x: 40, y: -120 })
+      expect(ink.points[1].pressure).toBeCloseTo(0.5, 5)
+      expect(drawing.findActionAt({ x: 40, y: -60 })).toBeTruthy()
+
+      drawing.undo()
+      expect(ink.points).toHaveLength(2)
+      expect(ink.lockedLine).toBe(true)
+
+      // A plain click on the bend handle must not promote it back to three points.
+      drawing.beginReshape(ink, 'bend', { x: 40, y: 0 })
+      drawing.updateReshape({ x: 40, y: 0 })
+      drawing.endReshape()
+      expect(ink.points).toHaveLength(2)
+    })
+
+    it('zero-move bend click keeps the line straight', () => {
+      drawing.currentTool.value = 'line'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 80, y: 40 })
+      drawing.endDraw()
+      const line = drawing.findActionAt({ x: 40, y: 20 })!.action
+
+      drawing.setSelection([line])
+      drawing.beginReshape(line, 'bend', { x: 40, y: 20 })
+      drawing.updateReshape({ x: 40, y: 20 })
+      drawing.endReshape()
+
+      expect(line.points).toHaveLength(2)
+      drawing.undo()
+      expect(drawing.findActionAt({ x: 40, y: 20 })).toBeNull()
+    })
+
     it('reshape line endpoint is undoable and clears attached erasers', () => {
       drawing.currentTool.value = 'line'
       drawing.startDraw({ x: 0, y: 0 })
@@ -1038,6 +1142,51 @@ describe('useDrawing', () => {
       drawing.undo() // undoes the line add
       expect(drawing.findActionAt({ x: 50, y: 0 })).toBeNull()
       expect(undoCountBefore).toBe(true)
+    })
+
+    it('zero-move bend click keeps the arrow straight', () => {
+      drawing.currentTool.value = 'arrow'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 80, y: 40 })
+      drawing.endDraw()
+      const arrow = drawing.findActionAt({ x: 40, y: 20 })!.action
+
+      drawing.setSelection([arrow])
+      drawing.beginReshape(arrow, 'bend', { x: 40, y: 20 })
+      drawing.updateReshape({ x: 40, y: 20 })
+      drawing.endReshape()
+
+      // Promoted then collapsed: no phantom curve and no extra undo entry.
+      expect(arrow.points).toHaveLength(2)
+      drawing.undo()
+      expect(drawing.findActionAt({ x: 40, y: 20 })).toBeNull()
+    })
+
+    it('dragging the arrow bend handle promotes it to a curved arrow', () => {
+      drawing.currentTool.value = 'arrow'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 80, y: 40 })
+      drawing.endDraw()
+      const arrow = drawing.findActionAt({ x: 40, y: 20 })!.action
+      expect(arrow.points).toHaveLength(2)
+
+      drawing.setSelection([arrow])
+      // The straight arrow already exposes the bend handle at the chord midpoint.
+      expect(drawing.findReshapeHandleAt({ x: 40, y: 20 })?.id).toBe('bend')
+
+      drawing.beginReshape(arrow, 'bend', { x: 40, y: 20 })
+      drawing.updateReshape({ x: 40, y: -40 })
+      drawing.endReshape()
+
+      expect(arrow.points).toHaveLength(3)
+      // control = 2 × (40, −40) − (40, 20) = (40, −100)
+      expect(arrow.points[1]).toMatchObject({ x: 40, y: -100 })
+      // B(0.5) = (40, −40) lies on the rendered curve.
+      expect(drawing.findActionAt({ x: 40, y: -40 })).toBeTruthy()
+
+      drawing.undo()
+      expect(arrow.points).toHaveLength(2)
+      expect(arrow.points[1]).toMatchObject({ x: 80, y: 40 })
     })
 
     it('reshape rect corner keeps opposite corner fixed', () => {
@@ -1154,6 +1303,204 @@ describe('useDrawing', () => {
       drawing.undo()
       expect(pen.points.map((p) => ({ x: p.x, y: p.y }))).toEqual(beforePts)
       expect(pen.attachedErasers![0].points.map((p) => ({ x: p.x, y: p.y }))).toEqual(eraserBefore)
+    })
+  })
+
+  describe('selected dash style', () => {
+    function addRect(x0: number, y0: number, x1: number, y1: number) {
+      drawing.currentTool.value = 'rect'
+      drawing.startDraw({ x: x0, y: y0 })
+      drawing.draw({ x: x1, y: y1 })
+      drawing.endDraw()
+      return drawing.findActionAt({ x: x0, y: y0 })!.action
+    }
+
+    it('returns false without a dashable selection', () => {
+      expect(drawing.cycleSelectedDashStyle(1)).toBe(false)
+
+      drawing.addTextAction('T', 100, 100, 0, 24, '#000000')
+      const text = drawing.findActionAt({ x: 150, y: 100 })!.action
+      drawing.setSelection([text])
+      expect(drawing.cycleSelectedDashStyle(1)).toBe(false)
+      expect(text.dashStyle).toBeUndefined()
+    })
+
+    it('cycles a selected shape and is undoable', () => {
+      const rect = addRect(10, 10, 80, 60)
+      drawing.setSelection([rect])
+
+      expect(drawing.cycleSelectedDashStyle(1)).toBe(true)
+      expect(rect.dashStyle).toBe('dashed')
+      expect(drawing.shapeDashStyle.value).toBe('dashed')
+
+      drawing.cycleSelectedDashStyle(1)
+      expect(rect.dashStyle).toBe('dotted')
+
+      drawing.cycleSelectedDashStyle(1)
+      expect(rect.dashStyle).toBeUndefined()
+      expect(drawing.shapeDashStyle.value).toBe('solid')
+
+      // Shift+D reverses the direction.
+      drawing.cycleSelectedDashStyle(-1)
+      expect(rect.dashStyle).toBe('dotted')
+
+      drawing.undo()
+      expect(rect.dashStyle).toBeUndefined()
+      drawing.redo()
+      expect(rect.dashStyle).toBe('dotted')
+    })
+
+    it('applies to every selected dashable action and skips text', () => {
+      const rect = addRect(10, 10, 80, 60)
+      drawing.currentTool.value = 'line'
+      drawing.startDraw({ x: 0, y: 120 })
+      drawing.draw({ x: 100, y: 120 })
+      drawing.endDraw()
+      const line = drawing.findActionAt({ x: 50, y: 120 })!.action
+      drawing.addTextAction('T', 150, 120, 0, 24, '#000000')
+      const text = drawing.findActionAt({ x: 180, y: 120 })!.action
+
+      drawing.setSelection([rect, line, text])
+      drawing.cycleSelectedDashStyle(1)
+
+      expect(rect.dashStyle).toBe('dashed')
+      expect(line.dashStyle).toBe('dashed')
+      expect(text.dashStyle).toBeUndefined()
+    })
+
+    it('cycles dash style on bent hold-locked ink without losing the bend handle', () => {
+      vi.useFakeTimers()
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0, pressure: 0.5, pointerType: 'pen' })
+      for (let i = 1; i <= 10; i++) {
+        drawing.draw({ x: i * 8, y: 0, pressure: 0.5, pointerType: 'pen' })
+      }
+      vi.advanceTimersByTime(500)
+      drawing.draw({ x: 80, y: 0, pressure: 0.5, pointerType: 'pen' })
+      drawing.endDraw()
+      vi.useRealTimers()
+
+      const ink = drawing.findActionAt({ x: 40, y: 0 })!.action
+      drawing.setSelection([ink])
+      drawing.beginReshape(ink, 'bend', { x: 40, y: 0 })
+      drawing.updateReshape({ x: 40, y: -60 })
+      drawing.endReshape()
+      expect(ink.points).toHaveLength(3)
+
+      expect(drawing.cycleSelectedDashStyle(1)).toBe(true)
+      expect(ink.dashStyle).toBe('dashed')
+      expect(drawing.findReshapeHandleAt({ x: 40, y: -60 })?.id).toBe('bend')
+
+      drawing.undo()
+      expect(ink.dashStyle).toBeUndefined()
+      expect(ink.points).toHaveLength(3)
+    })
+  })
+
+  describe('selected color', () => {
+    function addRect(x0: number, y0: number, x1: number, y1: number) {
+      drawing.currentTool.value = 'rect'
+      drawing.startDraw({ x: x0, y: y0 })
+      drawing.draw({ x: x1, y: y1 })
+      drawing.endDraw()
+      return drawing.findActionAt({ x: x0, y: y0 })!.action
+    }
+
+    it('returns false without a selection', () => {
+      expect(drawing.cycleSelectedColor(1)).toBe(false)
+      expect(drawing.cycleSelectedColor(-1)).toBe(false)
+    })
+
+    it('applies an explicit swatch color to the selection', () => {
+      const rect = addRect(10, 10, 80, 60)
+      drawing.setSelection([rect])
+
+      expect(drawing.setSelectedColor('#5856D6')).toBe(true)
+      expect(rect.color).toBe('#5856D6')
+      expect(drawing.currentColor.value).toBe('#5856D6')
+
+      drawing.undo()
+      expect(rect.color).toBe('#FF0000')
+    })
+
+    it('returns false for an explicit color without a selection', () => {
+      expect(drawing.setSelectedColor('#5856D6')).toBe(false)
+      expect(drawing.currentColor.value).toBe('#FF0000')
+    })
+
+    it('cycles the selected color and is undoable', () => {
+      const rect = addRect(10, 10, 80, 60)
+      // Start from a palette entry so the cycle direction is unambiguous.
+      rect.color = '#FF3B30'
+      drawing.setSelection([rect])
+
+      expect(drawing.cycleSelectedColor(1)).toBe(true)
+      expect(rect.color).toBe('#FF6B35')
+      expect(drawing.currentColor.value).toBe('#FF6B35')
+
+      drawing.cycleSelectedColor(-1)
+      expect(rect.color).toBe('#FF3B30')
+
+      // Q wraps from the first palette entry to the last.
+      drawing.cycleSelectedColor(-1)
+      expect(rect.color).toBe('#000000')
+
+      drawing.undo()
+      expect(rect.color).toBe('#FF3B30')
+      drawing.redo()
+      expect(rect.color).toBe('#000000')
+    })
+
+    it('recolors every selected action including text', () => {
+      const rect = addRect(10, 10, 80, 60)
+      rect.color = '#FF3B30'
+      drawing.addTextAction('T', 150, 120, 0, 24, '#FF3B30')
+      const text = drawing.findActionAt({ x: 180, y: 120 })!.action
+
+      drawing.setSelection([rect, text])
+      drawing.cycleSelectedColor(1)
+
+      expect(rect.color).toBe('#FF6B35')
+      expect(text.color).toBe('#FF6B35')
+    })
+
+    it('recolors bent hold-locked ink without losing the curve', () => {
+      vi.useFakeTimers()
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0, pressure: 0.5, pointerType: 'pen' })
+      for (let i = 1; i <= 10; i++) {
+        drawing.draw({ x: i * 8, y: 0, pressure: 0.5, pointerType: 'pen' })
+      }
+      vi.advanceTimersByTime(500)
+      drawing.draw({ x: 80, y: 0, pressure: 0.5, pointerType: 'pen' })
+      drawing.endDraw()
+      vi.useRealTimers()
+
+      const ink = drawing.findActionAt({ x: 40, y: 0 })!.action
+      drawing.setSelection([ink])
+      drawing.beginReshape(ink, 'bend', { x: 40, y: 0 })
+      drawing.updateReshape({ x: 40, y: -60 })
+      drawing.endReshape()
+      ink.color = '#FF3B30'
+      const before = ink.color
+
+      expect(drawing.cycleSelectedColor(1)).toBe(true)
+      expect(ink.color).not.toBe(before)
+      expect(ink.points).toHaveLength(3)
+      expect(drawing.findReshapeHandleAt({ x: 40, y: -60 })?.id).toBe('bend')
+
+      drawing.undo()
+      expect(ink.color).toBe(before)
+      expect(ink.points).toHaveLength(3)
+    })
+
+    it('falls back to the first palette color for custom colors', () => {
+      const rect = addRect(10, 10, 80, 60)
+      rect.color = '#123456'
+      drawing.setSelection([rect])
+
+      drawing.cycleSelectedColor(-1)
+      expect(rect.color).toBe('#FF3B30')
     })
   })
 

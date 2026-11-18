@@ -1,7 +1,16 @@
 import type { DrawAction, Point, Tool } from './drawingTypes'
-import { getShapeRotation, rotatePointAround, rotatePointsInPlace, snapPointToAngle } from './drawingGeometry'
+import {
+  curveBendPoint,
+  getShapeRotation,
+  isLockedInkAction,
+  quadraticBounds,
+  quadraticControlFromHandle,
+  rotatePointAround,
+  rotatePointsInPlace,
+  snapPointToAngle,
+} from './drawingGeometry'
 
-export type ReshapeHandleId = 'p0' | 'p1' | 'tl' | 'tr' | 'br' | 'bl' | 'rotate'
+export type ReshapeHandleId = 'p0' | 'p1' | 'bend' | 'tl' | 'tr' | 'br' | 'bl' | 'rotate'
 
 export interface ReshapeHandle {
   id: ReshapeHandleId
@@ -83,7 +92,12 @@ export function selectionFrameBounds(action: DrawAction): ReshapeBounds | null {
 export function getActionReshapeBounds(action: DrawAction): ReshapeBounds | null {
   const pts = action.points
   if (pts.length < 2) return null
-  if (action.tool === 'line' || action.tool === 'arrow') {
+  if (action.tool === 'line' || action.tool === 'arrow' || isLockedInkAction(action)) {
+    if (pts.length >= 3) {
+      // The control point can sit outside the visible curve.
+      const b = quadraticBounds(pts[0], pts[1], pts[pts.length - 1])
+      return { x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 }
+    }
     return getPointsBounds(pts)
   }
   if (isInkReshapeTool(action.tool)) {
@@ -246,12 +260,14 @@ export function getReshapeHandles(action: DrawAction): ReshapeHandle[] {
   const pts = action.points
   if (pts.length < 2) return []
 
-  if (action.tool === 'line' || action.tool === 'arrow') {
-    const b = getPointsBounds(pts)
-    if (!b) return []
+  if (action.tool === 'line' || action.tool === 'arrow' || isLockedInkAction(action)) {
+    const b = getActionReshapeBounds(action)
+    const bend = curveBendPoint(action)
+    if (!b || !bend) return []
     return [
       { id: 'p0', x: pts[0].x, y: pts[0].y, cursor: 'grab' },
-      { id: 'p1', x: pts[1].x, y: pts[1].y, cursor: 'grab' },
+      { id: 'bend', x: bend.x, y: bend.y, cursor: 'move' },
+      { id: 'p1', x: pts[pts.length - 1].x, y: pts[pts.length - 1].y, cursor: 'grab' },
       rotateHandleForBounds(b, 0),
     ]
   }
@@ -354,9 +370,23 @@ export function applyReshapeHandle(
     return
   }
 
+  if (handleId === 'bend') {
+    if ((action.tool !== 'arrow' && action.tool !== 'line' && !isLockedInkAction(action)) || pts.length < 3) return
+    const p0 = pts[0]
+    const p1 = pts[pts.length - 1]
+    // Constrain snaps the offset from the chord midpoint, keeping the bend symmetric in angle.
+    const target = options?.constrain
+      ? snapPointToAngle({ x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 }, p, options.angleSnapStep ?? 15)
+      : p
+    const control = quadraticControlFromHandle(p0, p1, target)
+    pts[1].x = control.x
+    pts[1].y = control.y
+    return
+  }
+
   if (handleId === 'p0' || handleId === 'p1') {
-    const idx = handleId === 'p0' ? 0 : 1
-    const anchor = pts[idx === 0 ? 1 : 0]
+    const idx = handleId === 'p0' ? 0 : pts.length - 1
+    const anchor = pts[idx === 0 ? pts.length - 1 : 0]
     const target =
       options?.constrain && options.angleSnapStep != null
         ? snapPointToAngle(anchor, p, options.angleSnapStep)

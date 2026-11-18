@@ -1,5 +1,14 @@
 import { describe, it, expect, vi } from 'vitest'
-import { drawActionDirect, drawArrow, drawEllipse, drawText, drawStamp, isAxisAlignedCircle } from './drawingRender'
+import {
+  drawActionDirect,
+  drawArrow,
+  drawCurvedArrow,
+  drawCurvedLine,
+  drawEllipse,
+  drawText,
+  drawStamp,
+  isAxisAlignedCircle,
+} from './drawingRender'
 import { shapeDashPattern } from '../constants/tools'
 import type { DrawAction } from './drawingTypes'
 
@@ -232,6 +241,138 @@ describe('drawingRender dashed shapes', () => {
     expect(ctx.fill).toHaveBeenCalled()
     expect(ctx.stroke).not.toHaveBeenCalled()
     expect(ctx.getLineDash).not.toHaveBeenCalled()
+  })
+})
+
+describe('drawingRender curved linear shapes', () => {
+  function makeStrokeContext() {
+    let dash: number[] = []
+    return {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      quadraticCurveTo: vi.fn(),
+      closePath: vi.fn(),
+      stroke: vi.fn(),
+      fill: vi.fn(),
+      setLineDash: vi.fn((pattern: number[]) => {
+        dash = pattern
+      }),
+      getLineDash: vi.fn(() => dash),
+      globalAlpha: 1,
+      globalCompositeOperation: 'source-over',
+      strokeStyle: '',
+      fillStyle: '',
+      lineWidth: 1,
+      lineCap: 'butt',
+      lineJoin: 'miter',
+    } as unknown as CanvasRenderingContext2D
+  }
+
+  const bentArrow = [
+    { x: 0, y: 0 },
+    { x: 50, y: 80 },
+    { x: 100, y: 0 },
+  ]
+
+  it('fills a ribbon that follows the curve instead of the control point', () => {
+    const ctx = makeStrokeContext()
+    ctx.lineWidth = 3
+    ctx.strokeStyle = '#00FF00'
+
+    drawCurvedArrow(ctx, bentArrow)
+
+    expect(ctx.fill).toHaveBeenCalled()
+    expect(ctx.stroke).not.toHaveBeenCalled()
+    const ys = [
+      ...(ctx.moveTo as unknown as { mock: { calls: number[][] } }).mock.calls,
+      ...(ctx.lineTo as unknown as { mock: { calls: number[][] } }).mock.calls,
+    ].map((call) => call[1])
+    // Curve peaks at y = 40; the control point at y = 80 must not reach the path.
+    expect(Math.max(...ys)).toBeLessThan(60)
+  })
+
+  it('strokes a dashed shaft and keeps a solid head', () => {
+    const ctx = makeStrokeContext()
+    ctx.lineWidth = 3
+    ctx.strokeStyle = '#00FF00'
+
+    drawCurvedArrow(ctx, bentArrow, true)
+
+    expect(ctx.stroke).toHaveBeenCalled()
+    expect(ctx.fill).toHaveBeenCalled()
+    expect(ctx.setLineDash).toHaveBeenCalledWith([])
+  })
+
+  it('strokes a bent line with a native quadratic curve', () => {
+    const ctx = makeStrokeContext()
+    drawCurvedLine(ctx, bentArrow)
+    expect(ctx.quadraticCurveTo).toHaveBeenCalledWith(50, 80, 100, 0)
+    expect(ctx.stroke).toHaveBeenCalled()
+    expect(ctx.fill).not.toHaveBeenCalled()
+  })
+
+  it('routes three-point lines through the curved renderer', () => {
+    const ctx = makeStrokeContext()
+    drawActionDirect(ctx, {
+      tool: 'line',
+      color: '#FF0000',
+      lineWidth: 3,
+      opacity: 1,
+      points: bentArrow,
+    })
+    expect(ctx.quadraticCurveTo).toHaveBeenCalledWith(50, 80, 100, 0)
+    expect(ctx.stroke).toHaveBeenCalled()
+    expect(ctx.fill).not.toHaveBeenCalled()
+  })
+
+  it('fills a bent pen ribbon and a bent highlighter ribbon', () => {
+    for (const tool of ['pen', 'highlighter'] as const) {
+      const ctx = makeStrokeContext()
+      drawActionDirect(ctx, {
+        tool,
+        color: '#FF0000',
+        lineWidth: 3,
+        opacity: 1,
+        lockedLine: true,
+        pointerType: 'pen',
+        points: bentArrow.map((p) => ({ ...p, pressure: 0.6 })),
+      })
+      expect(ctx.fill).toHaveBeenCalled()
+      expect(ctx.stroke).not.toHaveBeenCalled()
+    }
+  })
+
+  it('strokes a dashed bent pen as a quadratic centerline', () => {
+    const ctx = makeStrokeContext()
+    drawActionDirect(ctx, {
+      tool: 'pen',
+      color: '#FF0000',
+      lineWidth: 3,
+      opacity: 1,
+      dashStyle: 'dashed',
+      lockedLine: true,
+      pointerType: 'pen',
+      points: bentArrow.map((p) => ({ ...p, pressure: 0.6 })),
+    })
+    expect(ctx.quadraticCurveTo).toHaveBeenCalledWith(50, 80, 100, 0)
+    expect(ctx.stroke).toHaveBeenCalled()
+    expect(ctx.fill).not.toHaveBeenCalled()
+  })
+
+  it('routes three-point arrows through the curved renderer', () => {
+    const ctx = makeStrokeContext()
+    drawActionDirect(ctx, {
+      tool: 'arrow',
+      color: '#FF0000',
+      lineWidth: 3,
+      opacity: 1,
+      points: bentArrow,
+    })
+    expect(ctx.fill).toHaveBeenCalled()
+    expect(ctx.stroke).not.toHaveBeenCalled()
   })
 })
 

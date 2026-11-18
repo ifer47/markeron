@@ -3,6 +3,11 @@ import type { DrawAction, Point } from './drawingTypes'
 import {
   computeBbox,
   computeTextBbox,
+  quadraticBounds,
+  quadraticControlFromHandle,
+  curveBendPoint,
+  sampleQuadratic,
+  isCurvedLinearAction,
   bboxesIntersect,
   cloneActionWithOffset,
   offsetAttachedErasers,
@@ -72,6 +77,20 @@ describe('computeBbox', () => {
     })
     const bbox = computeBbox(action, 0)
     expect(bbox).toEqual({ x1: -30, y1: -10, x2: 20, y2: 40 })
+  })
+
+  it('uses the curve, not the control point, for a bent line/arrow bbox', () => {
+    for (const tool of ['line', 'arrow'] as const) {
+      const action = makeAction({
+        tool,
+        points: [
+          { x: 0, y: 0 },
+          { x: 50, y: 80 },
+          { x: 100, y: 0 },
+        ],
+      })
+      expect(computeBbox(action, 0)).toEqual({ x1: 0, y1: 0, x2: 100, y2: 40 })
+    }
   })
 })
 
@@ -525,6 +544,64 @@ describe('hitTestAction', () => {
   })
 
   describe('arrow tool', () => {
+    it('detects bent lines and arrows by point count', () => {
+      for (const tool of ['line', 'arrow'] as const) {
+        expect(
+          isCurvedLinearAction(
+            makeAction({
+              tool,
+              points: [
+                { x: 0, y: 0 },
+                { x: 100, y: 0 },
+              ],
+            }),
+          ),
+        ).toBe(false)
+        expect(
+          isCurvedLinearAction(
+            makeAction({
+              tool,
+              points: [
+                { x: 0, y: 0 },
+                { x: 50, y: 80 },
+                { x: 100, y: 0 },
+              ],
+            }),
+          ),
+        ).toBe(true)
+      }
+      expect(
+        isCurvedLinearAction(
+          makeAction({
+            tool: 'rect',
+            points: [
+              { x: 0, y: 0 },
+              { x: 50, y: 80 },
+              { x: 100, y: 0 },
+            ],
+          }),
+        ),
+      ).toBe(false)
+    })
+
+    it('hits near a curved line/arrow shaft', () => {
+      for (const tool of ['line', 'arrow'] as const) {
+        const action = makeAction({
+          tool,
+          lineWidth: 3,
+          points: [
+            { x: 0, y: 0 },
+            { x: 50, y: 80 },
+            { x: 100, y: 0 },
+          ],
+          bbox: { x1: -15, y1: -15, x2: 115, y2: 55 },
+        })
+        // B(0.5) = (50, 40) sits on the curve.
+        expect(hitTestAction(action, { x: 50, y: 40 })).toBe(true)
+        expect(hitTestAction(action, { x: 50, y: 70 })).toBe(false)
+      }
+    })
+
     it('hits near an arrow shaft', () => {
       const action = makeAction({
         tool: 'arrow',
@@ -536,6 +613,98 @@ describe('hitTestAction', () => {
         bbox: { x1: -15, y1: -15, x2: 115, y2: 15 },
       })
       expect(hitTestAction(action, { x: 50, y: 5 })).toBe(true)
+    })
+  })
+
+  describe('quadratic arrow helpers', () => {
+    const p0 = { x: 0, y: 0 }
+    const c = { x: 50, y: 80 }
+    const p1 = { x: 100, y: 0 }
+
+    it('computes tight bounds from curve extrema, not the control point', () => {
+      const b = quadraticBounds(p0, c, p1)
+      expect(b.x0).toBeCloseTo(0, 5)
+      expect(b.y0).toBeCloseTo(0, 5)
+      expect(b.x1).toBeCloseTo(100, 5)
+      expect(b.y1).toBeCloseTo(40, 5)
+    })
+
+    it('round-trips the bend handle through the control point', () => {
+      const control = quadraticControlFromHandle(p0, p1, { x: 50, y: 40 })
+      expect(control.x).toBeCloseTo(50, 5)
+      expect(control.y).toBeCloseTo(80, 5)
+
+      for (const tool of ['line', 'arrow'] as const) {
+        const action = makeAction({ tool, points: [p0, control, p1] })
+        expect(curveBendPoint(action)).toMatchObject({ x: 50, y: 40 })
+      }
+    })
+
+    it('uses the chord midpoint for a straight line/arrow bend handle', () => {
+      for (const tool of ['line', 'arrow'] as const) {
+        const action = makeAction({
+          tool,
+          points: [
+            { x: 0, y: 0 },
+            { x: 100, y: 60 },
+          ],
+        })
+        expect(curveBendPoint(action)).toMatchObject({ x: 50, y: 30 })
+      }
+      expect(curveBendPoint(makeAction({ tool: 'rect', points: [p0, p1] }))).toBeNull()
+    })
+
+    it('samples inclusive endpoints', () => {
+      const samples = sampleQuadratic(p0, c, p1, 4)
+      expect(samples).toHaveLength(5)
+      expect(samples[0]).toMatchObject({ x: 0, y: 0 })
+      expect(samples[4]).toMatchObject({ x: 100, y: 0 })
+      expect(samples[2]).toMatchObject({ x: 50, y: 40 })
+    })
+  })
+
+  describe('hold-locked ink', () => {
+    const straight = makeAction({
+      tool: 'pen',
+      lockedLine: true,
+      points: [
+        { x: 0, y: 0, pressure: 0.6 },
+        { x: 100, y: 0, pressure: 0.6 },
+      ],
+    })
+    const bent = makeAction({
+      tool: 'pen',
+      lockedLine: true,
+      points: [
+        { x: 0, y: 0, pressure: 0.6 },
+        { x: 50, y: 80, pressure: 0.6 },
+        { x: 100, y: 0, pressure: 0.6 },
+      ],
+    })
+
+    it('treats only locked ink as a bendable linear path', () => {
+      expect(isCurvedLinearAction(straight)).toBe(false)
+      expect(isCurvedLinearAction(bent)).toBe(true)
+      expect(
+        isCurvedLinearAction(
+          makeAction({
+            tool: 'pen',
+            points: [
+              { x: 0, y: 0 },
+              { x: 50, y: 80 },
+              { x: 100, y: 0 },
+            ],
+          }),
+        ),
+      ).toBe(false)
+      expect(curveBendPoint(straight)).toMatchObject({ x: 50, y: 0 })
+      expect(curveBendPoint(bent)).toMatchObject({ x: 50, y: 40 })
+    })
+
+    it('uses the curve for bbox and hit testing', () => {
+      expect(computeBbox(bent, 0)).toEqual({ x1: 0, y1: 0, x2: 100, y2: 40 })
+      expect(hitTestAction(bent, { x: 50, y: 40 })).toBe(true)
+      expect(hitTestAction(bent, { x: 50, y: 70 })).toBe(false)
     })
   })
 

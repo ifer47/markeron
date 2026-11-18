@@ -30,6 +30,92 @@ export function getShapeRotation(action: DrawAction): number {
   return typeof r === 'number' && Number.isFinite(r) ? r : 0
 }
 
+/** Pen / highlighter stroke straightened by holding still (0.5s). */
+export function isLockedInkAction(action: DrawAction): boolean {
+  return (action.tool === 'pen' || action.tool === 'highlighter') && action.lockedLine === true
+}
+
+/**
+ * A bent two-point path stores `[start, control, end]`; a straight one stores
+ * `[start, end]`. Covers lines, arrows, and hold-locked ink strokes.
+ */
+export function isCurvedLinearAction(action: DrawAction): boolean {
+  return (action.tool === 'line' || action.tool === 'arrow' || isLockedInkAction(action)) && action.points.length >= 3
+}
+
+/** Point on the quadratic Bézier `p0 → c → p1` at `t`. */
+export function quadraticPoint(p0: Point, c: Point, p1: Point, t: number): Point {
+  const u = 1 - t
+  return {
+    x: u * u * p0.x + 2 * u * t * c.x + t * t * p1.x,
+    y: u * u * p0.y + 2 * u * t * c.y + t * t * p1.y,
+  }
+}
+
+/**
+ * Control point that makes the curve pass through `handle` at `t = 0.5`.
+ * `B(0.5) = (p0 + 2c + p1) / 4`, so `c = 2 × handle − (p0 + p1) / 2`.
+ */
+export function quadraticControlFromHandle(p0: Point, p1: Point, handle: Point): Point {
+  return {
+    x: 2 * handle.x - (p0.x + p1.x) / 2,
+    y: 2 * handle.y - (p0.y + p1.y) / 2,
+  }
+}
+
+/** Tight axis-aligned bounds of a quadratic Bézier (endpoints + interior extrema). */
+export function quadraticBounds(p0: Point, c: Point, p1: Point): { x0: number; y0: number; x1: number; y1: number } {
+  let x0 = Math.min(p0.x, p1.x)
+  let x1 = Math.max(p0.x, p1.x)
+  let y0 = Math.min(p0.y, p1.y)
+  let y1 = Math.max(p0.y, p1.y)
+
+  const denX = p0.x - 2 * c.x + p1.x
+  if (Math.abs(denX) > 1e-9) {
+    const t = (p0.x - c.x) / denX
+    if (t > 0 && t < 1) {
+      const x = quadraticPoint(p0, c, p1, t).x
+      x0 = Math.min(x0, x)
+      x1 = Math.max(x1, x)
+    }
+  }
+
+  const denY = p0.y - 2 * c.y + p1.y
+  if (Math.abs(denY) > 1e-9) {
+    const t = (p0.y - c.y) / denY
+    if (t > 0 && t < 1) {
+      const y = quadraticPoint(p0, c, p1, t).y
+      y0 = Math.min(y0, y)
+      y1 = Math.max(y1, y)
+    }
+  }
+
+  return { x0, y0, x1, y1 }
+}
+
+/** Sample a quadratic Bézier into `segments + 1` points (inclusive endpoints). */
+export function sampleQuadratic(p0: Point, c: Point, p1: Point, segments: number): Point[] {
+  const count = Math.max(1, Math.floor(segments))
+  const out: Point[] = []
+  for (let i = 0; i <= count; i++) out.push(quadraticPoint(p0, c, p1, i / count))
+  return out
+}
+
+/**
+ * Bend handle position for a line/arrow: the curve midpoint when bent, the chord
+ * midpoint when still straight. `null` for every other tool.
+ */
+export function curveBendPoint(action: DrawAction): Point | null {
+  const linear = action.tool === 'line' || action.tool === 'arrow' || isLockedInkAction(action)
+  if (!linear) return null
+  const pts = action.points
+  if (pts.length < 2) return null
+  const p0 = pts[0]
+  const p1 = pts[pts.length - 1]
+  if (pts.length >= 3) return quadraticPoint(p0, pts[1], p1, 0.5)
+  return { x: (p0.x + p1.x) / 2, y: (p0.y + p1.y) / 2 }
+}
+
 export function computeBbox(action: DrawAction, pad: number): DrawAction['bbox'] {
   const pts = action.points
   if (pts.length === 0) return undefined
@@ -60,6 +146,13 @@ export function computeBbox(action: DrawAction, pad: number): DrawAction['bbox']
       if (c.y > maxY) maxY = c.y
     }
     return { x1: minX - pad, y1: minY - pad, x2: maxX + pad, y2: maxY + pad }
+  }
+
+  // Bent lines/arrows/locked ink: the control point is outside the visible curve,
+  // so use the exact quadratic extrema instead of the control-polygon bounds.
+  if (isCurvedLinearAction(action)) {
+    const b = quadraticBounds(pts[0], pts[1], pts[pts.length - 1])
+    return { x1: b.x0 - pad, y1: b.y0 - pad, x2: b.x1 + pad, y2: b.y1 + pad }
   }
 
   let x1 = pts[0].x,
@@ -252,6 +345,15 @@ export function hitTestAction(action: DrawAction, p: Point, extraMargin = 0): bo
   if (action.tool === 'pen' || action.tool === 'highlighter') {
     // Variable-width ink can exceed lineWidth/2; keep a slightly generous hit radius.
     const inkThreshold = Math.max(10, action.lineWidth * 0.65 + 5) + extraMargin
+    if (isCurvedLinearAction(action)) {
+      const samples = sampleQuadratic(pts[0], pts[1], pts[pts.length - 1], 24)
+      for (let j = 0; j < samples.length - 1; j++) {
+        if (distToSeg(p.x, p.y, samples[j].x, samples[j].y, samples[j + 1].x, samples[j + 1].y) <= inkThreshold) {
+          return true
+        }
+      }
+      return false
+    }
     if (pts.length === 1) {
       if (Math.hypot(p.x - pts[0].x, p.y - pts[0].y) <= inkThreshold) return true
     } else {
@@ -263,6 +365,15 @@ export function hitTestAction(action: DrawAction, p: Point, extraMargin = 0): bo
   }
 
   if (action.tool === 'line' || action.tool === 'arrow') {
+    if (isCurvedLinearAction(action)) {
+      const samples = sampleQuadratic(pts[0], pts[1], pts[pts.length - 1], 24)
+      for (let j = 0; j < samples.length - 1; j++) {
+        if (distToSeg(p.x, p.y, samples[j].x, samples[j].y, samples[j + 1].x, samples[j + 1].y) <= threshold) {
+          return true
+        }
+      }
+      return false
+    }
     if (pts.length >= 2) {
       if (distancePointToSegment(p, pts[0], pts[1]) <= threshold) return true
     }

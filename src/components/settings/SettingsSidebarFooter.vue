@@ -19,6 +19,7 @@ type Phase = 'idle' | 'shake' | 'unroll' | 'scroll' | 'close'
 
 const phase = ref<Phase>('idle')
 const creditsHovered = ref(false)
+const creditsRef = ref<HTMLElement | null>(null)
 const sponsorsBtnRef = ref<HTMLElement | null>(null)
 const trackRef = ref<HTMLElement | null>(null)
 const listRef = ref<HTMLElement | null>(null)
@@ -32,10 +33,17 @@ onMounted(() => {
   void loadSponsors().then((list) => {
     sponsors.value = list
   })
+  window.addEventListener('blur', onWindowBlur)
+  document.addEventListener('pointerdown', onDocumentPointerDown)
+  document.addEventListener('pointermove', onDocumentPointerMove)
 })
 
 let sequenceTimers: ReturnType<typeof setTimeout>[] = []
 let closeTimers: ReturnType<typeof setTimeout>[] = []
+/** 离开面板后的延迟关闭：只由 pointerenter 取消 */
+let leaveTimer: ReturnType<typeof setTimeout> | null = null
+/** 无人交互时的兜底关闭：只由 resetEasterEgg 取消 */
+let guardTimer: ReturnType<typeof setTimeout> | null = null
 let shakeAnimation: Animation | null = null
 
 function scheduleSequence(ms: number, fn: () => void) {
@@ -58,9 +66,40 @@ function clearCloseTimers() {
   closeTimers = []
 }
 
+function clearLeaveTimer() {
+  if (leaveTimer === null) return
+  clearTimeout(leaveTimer)
+  leaveTimer = null
+}
+
+function clearGuardTimer() {
+  if (guardTimer === null) return
+  clearTimeout(guardTimer)
+  guardTimer = null
+}
+
+/** 离开后延迟关闭。与兜底计时器互不影响，避免一方把另一方清掉。 */
+function armLeaveClose(delayMs = LEAVE_CLOSE_DELAY_MS) {
+  clearLeaveTimer()
+  leaveTimer = setTimeout(() => {
+    leaveTimer = null
+    beginClose()
+  }, delayMs)
+}
+
+function armGuardClose(delayMs: number) {
+  clearGuardTimer()
+  guardTimer = setTimeout(() => {
+    guardTimer = null
+    beginClose()
+  }, delayMs)
+}
+
 function clearAllTimers() {
   clearSequenceTimers()
   clearCloseTimers()
+  clearLeaveTimer()
+  clearGuardTimer()
 }
 
 function resetScrollTrack() {
@@ -102,6 +141,8 @@ function playShake() {
 
 function resetEasterEgg() {
   stopShakeAnimation()
+  clearLeaveTimer()
+  clearGuardTimer()
   phase.value = 'idle'
   creditsHovered.value = false
   resetScrollTrack()
@@ -109,34 +150,28 @@ function resetEasterEgg() {
 
 function beginClose() {
   if (phase.value === 'idle' || phase.value === 'close') return
-  if (creditsHovered.value) return
-  clearCloseTimers()
+  // 悬停中不关闭，但要重排复检：一旦某次 pointerleave 没被派发，
+  // 也不能把面板忘在打开状态
+  if (creditsHovered.value) {
+    armLeaveClose()
+    return
+  }
+  clearAllTimers()
   phase.value = 'close'
-  scheduleClose(CLOSE_MS, () => {
-    if (creditsHovered.value) return
-    resetEasterEgg()
-  })
-}
-
-function scheduleAutoClose(delayMs: number) {
-  clearCloseTimers()
-  scheduleClose(delayMs, () => {
-    if (creditsHovered.value) return
-    beginClose()
-  })
+  scheduleClose(CLOSE_MS, resetEasterEgg)
 }
 
 function beginScroll() {
   const track = trackRef.value
   const list = listRef.value
   if (!track || !list) {
-    scheduleAutoClose(HOLD_AFTER_SCROLL_MS)
+    armGuardClose(HOLD_AFTER_SCROLL_MS)
     return
   }
 
   const distance = list.offsetHeight
   if (distance <= 0) {
-    scheduleAutoClose(HOLD_AFTER_SCROLL_MS)
+    armGuardClose(HOLD_AFTER_SCROLL_MS)
     return
   }
 
@@ -147,7 +182,8 @@ function beginScroll() {
   track.style.setProperty('--credits-duration', `${duration}ms`)
   track.classList.add('is-scrolling')
 
-  scheduleAutoClose(duration * 2 + HOLD_AFTER_SCROLL_MS)
+  // 兜底计时器独立维护，不能清掉上面已经排定的“离开后关闭”
+  armGuardClose(duration * 2 + HOLD_AFTER_SCROLL_MS)
 }
 
 function startEasterEgg() {
@@ -172,15 +208,47 @@ function startEasterEgg() {
 function onCreditsEnter() {
   if (phase.value === 'idle' || phase.value === 'close') return
   creditsHovered.value = true
-  // 只取消关闭计时，不要打断展开/滚动序列
-  clearCloseTimers()
+  // 只取消“离开关闭”，不要打断展开/滚动序列，也不要动兜底计时
+  clearLeaveTimer()
 }
 
 function onCreditsLeave() {
   creditsHovered.value = false
   if (phase.value === 'idle' || phase.value === 'close' || phase.value === 'shake') return
-  clearCloseTimers()
-  scheduleClose(LEAVE_CLOSE_DELAY_MS, beginClose)
+  armLeaveClose()
+}
+
+/**
+ * 自愈：只要指针真实移动过，就用命中测试重新同步悬停状态。
+ * 这样即使某次 pointerleave 没被派发（合成层、窗口切换等），也不会把面板永久卡在打开状态。
+ */
+function onDocumentPointerMove(event: PointerEvent) {
+  const panel = creditsRef.value
+  if (!panel || phase.value === 'idle' || phase.value === 'close') return
+  const inside = event.target instanceof Node && panel.contains(event.target)
+  if (inside === creditsHovered.value) return
+  creditsHovered.value = inside
+  if (inside) clearLeaveTimer()
+  else if (phase.value !== 'shake') armLeaveClose()
+}
+
+/** 窗口失焦（Alt+Tab、切换到其它应用）不会派发 pointerleave，需主动关闭 */
+function onWindowBlur() {
+  creditsHovered.value = false
+  if (phase.value === 'idle') return
+  beginClose()
+}
+
+/** 点击面板以外的区域关闭 */
+function onDocumentPointerDown(event: PointerEvent) {
+  const panel = creditsRef.value
+  if (!panel || phase.value === 'idle') return
+  const target = event.target
+  if (!(target instanceof Node)) return
+  if (panel.contains(target)) return
+  if (sponsorsBtnRef.value?.contains(target)) return
+  creditsHovered.value = false
+  beginClose()
 }
 
 function onSponsorsActivate(event: PointerEvent) {
@@ -203,6 +271,9 @@ const creditsVisible = computed(() => phase.value !== 'idle')
 const hideFooterLine = computed(() => phase.value === 'unroll' || phase.value === 'scroll')
 
 onUnmounted(() => {
+  window.removeEventListener('blur', onWindowBlur)
+  document.removeEventListener('pointerdown', onDocumentPointerDown)
+  document.removeEventListener('pointermove', onDocumentPointerMove)
   clearAllTimers()
   stopShakeAnimation()
 })
@@ -243,6 +314,7 @@ onUnmounted(() => {
 
     <div
       v-if="creditsVisible"
+      ref="creditsRef"
       class="settings-sidebar-credits"
       :class="{
         'is-unrolled': phase === 'unroll' || phase === 'scroll' || phase === 'close',

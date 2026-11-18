@@ -387,7 +387,8 @@ const {
 
 const textFontSize = computed(() => Math.max(16, lineWidth.value * 6))
 const eraserCursorDiameter = computed(() => Math.min(80, eraserLineWidth(lineWidth.value)))
-const eraserCursorRadius = computed(() => eraserCursorDiameter.value / 2)
+/** Smallest eraser glyph that still reads as an eraser; below this the icon is a speck. */
+const eraserCursorSize = computed(() => Math.max(16, eraserCursorDiameter.value))
 const textOutline = ref<TextOutlineStyle>(createDefaultTextOutline())
 
 const activeTextBoxColor = ref('#FF0000')
@@ -1862,7 +1863,7 @@ function getCursorHotspot(): { x: number; y: number } {
     return { x: 12, y: 26 }
   }
   if (tool === 'highlighter') return { x: 5, y: 27 } // tip at ~(150, 850) in 1024x1024 space
-  // Eraser uses CSS translate(-50%, -50%) so size changes stay centered on the pointer.
+  // The eraser glyph uses CSS translate(-50%, -50%) so size changes stay centered on the pointer.
   if (tool === 'eraser') return { x: 0, y: 0 }
   if (usesCrosshairCursor(tool) && crosshairCursorStyle.value === 'dot') return { x: 8, y: 8 }
   return { x: 14, y: 14 }
@@ -1871,7 +1872,7 @@ function getCursorHotspot(): { x: number; y: number } {
 function updateCursorEl(x: number, y: number) {
   if (!cursorEl.value) return
   if (currentTool.value === 'eraser') {
-    // Center of the ring stays under the pointer when Ctrl+wheel resizes the eraser.
+    // The glyph stays centered under the pointer when Ctrl+wheel resizes the eraser.
     cursorEl.value.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%)`
     return
   }
@@ -1940,7 +1941,7 @@ watch([currentTool, currentColor, penCursorStyle, crosshairCursorStyle], () => {
   void refreshCustomCursorPosition()
 })
 
-// Eraser ring diameter changes with Ctrl+wheel; keep the ring centered on the pointer.
+// Eraser glyph grows with Ctrl+wheel; keep it centered on the pointer.
 watch(eraserCursorDiameter, () => {
   if (currentTool.value === 'eraser' && showCustomCursor.value) {
     updateCursorEl(lastPointerX, lastPointerY)
@@ -2695,71 +2696,25 @@ function exitDrawing(reason: 'keyboard' | 'toolbar' | 'unknown' = 'unknown') {
           opacity="0.8"
         ></path>
       </svg>
-      <!-- Eraser: dashed circle + crosshair (dark halo under white for light/dark pages) -->
+      <!-- Eraser: same lucide glyph as the toolbar button, sized to the erase diameter.
+           Dark drop-shadow acts as the halo that keeps it visible on light pages. -->
       <svg
         v-else-if="currentTool === 'eraser'"
-        :width="eraserCursorDiameter"
-        :height="eraserCursorDiameter"
+        :width="eraserCursorSize"
+        :height="eraserCursorSize"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
         xmlns="http://www.w3.org/2000/svg"
-        style="display: block; overflow: visible"
+        style="display: block; overflow: visible; filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9))"
       >
-        <circle
-          :cx="eraserCursorRadius"
-          :cy="eraserCursorRadius"
-          :r="Math.max(2, eraserCursorRadius - 2)"
-          fill="none"
-          stroke="black"
-          stroke-opacity="0.55"
-          stroke-width="3"
-          stroke-dasharray="3 2"
+        <path
+          d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"
         />
-        <circle
-          :cx="eraserCursorRadius"
-          :cy="eraserCursorRadius"
-          :r="Math.max(2, eraserCursorRadius - 2)"
-          fill="none"
-          stroke="white"
-          stroke-width="1.5"
-          stroke-dasharray="3 2"
-        />
-        <line
-          :x1="eraserCursorRadius"
-          :y1="eraserCursorRadius - 4"
-          :x2="eraserCursorRadius"
-          :y2="eraserCursorRadius + 4"
-          stroke="black"
-          stroke-opacity="0.55"
-          stroke-width="3"
-          stroke-linecap="round"
-        />
-        <line
-          :x1="eraserCursorRadius - 4"
-          :y1="eraserCursorRadius"
-          :x2="eraserCursorRadius + 4"
-          :y2="eraserCursorRadius"
-          stroke="black"
-          stroke-opacity="0.55"
-          stroke-width="3"
-          stroke-linecap="round"
-        />
-        <line
-          :x1="eraserCursorRadius"
-          :y1="eraserCursorRadius - 4"
-          :x2="eraserCursorRadius"
-          :y2="eraserCursorRadius + 4"
-          stroke="white"
-          stroke-width="1"
-          stroke-linecap="round"
-        />
-        <line
-          :x1="eraserCursorRadius - 4"
-          :y1="eraserCursorRadius"
-          :x2="eraserCursorRadius + 4"
-          :y2="eraserCursorRadius"
-          stroke="white"
-          stroke-width="1"
-          stroke-linecap="round"
-        />
+        <path d="m5.082 11.09 8.828 8.828" />
       </svg>
       <!-- Shape/laser: crosshair (default) or compact color dot (re-press tool key to cycle) -->
       <svg

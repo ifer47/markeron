@@ -4,16 +4,16 @@ import type { Point } from '../composables/drawingTypes'
  * Port of WPF's ink renderer (`StrokeRenderer.CalcGeometryAndBounds` +
  * `EllipticalNodeOperations`), the pipeline used by Ink Canvas Plus:
  *
- * - one **elliptical stroke node** per pointer sample (radius = width/2 × pressure)
+ * - one **elliptical stroke node** per pointer sample (radius = width/2 × pressure curve)
  * - adjacent nodes joined by their **convex hull** (external tangents), so the
  *   silhouette is the exact swept ribbon with no polyline facets
  * - nodes **pruned** unless the direction changes past a tolerance or the node
  *   area changes a lot; pruned spans are covered by the tangent hull
  * - everything filled with the **non-zero** rule so overlaps merge into one shape
  *
- * Unlike perfect-freehand there is no thinning gain and no min-distance
- * decimation. Smoothness comes from three places: the tangent hull, a position /
- * pressure EMA, and **corner rounding** — a sharp turn is cut with a quadratic
+ * Unlike perfect-freehand there is no extra speed-based thinning and no
+ * min-distance decimation. Smoothness comes from three places: the tangent hull,
+ * a position / pressure EMA, and **corner rounding** — a sharp turn is cut with a quadratic
  * Bézier so its radius comes from `cornerCutMaxPx` instead of being inherited
  * from the pen width (otherwise a fast hand on a tight loop reads as a polygon).
  */
@@ -66,14 +66,22 @@ export interface StylusNode {
 
 export interface SweptStyle {
   /**
-   * Radius = (lineWidth / 2) × pressureGain × pressure, matching WPF's
-   * `Width / 2 * PressureFactor`.
+   * Radius at zero pressure, as a multiple of `lineWidth / 2` (mouse = 1).
+   * Keeps a light touch from collapsing the stroke into a hairline.
    */
-  pressureGain: number
+  pressureFloor: number
+  /** Radius added at full pressure, as a multiple of `lineWidth / 2`. */
+  pressureRange: number
   /** Position EMA towards the previous stored sample; 0 = raw samples. */
   positionStreamline: number
-  /** Pressure EMA coefficient; 0 = raw pressure (no width noise filtering). */
+  /** Steady-state pressure EMA coefficient; 0 = raw pressure (no width noise filtering). */
   pressureAlpha: number
+  /**
+   * Samples over which the pressure filter ramps from raw (1.0) down to
+   * `pressureAlpha`. A cold EMA only closes 15% of the gap per sample, so the
+   * first 10–20 samples would read as a thin lead-in.
+   */
+  pressureWarmupSamples: number
   /** Direction-change tolerance in degrees before a node is kept; 0 disables pruning. */
   pruneAngleDeg: number
   /** Keep a node when the neighbour area ratio drops to this; <= 0 disables. */
@@ -90,10 +98,15 @@ export interface SweptStyle {
 }
 
 /**
- * Radius gain. WPF uses `Width / 2`; ours doubles it so mid pressure keeps the
- * stroke as thick as the previous perfect-freehand build.
+ * Pressure → width curve.
+ *
+ * WPF maps radius = Width / 2 × pressure, so a light touch (0.05–0.3 on most
+ * tablets) collapses to 10–60% of the mouse width. Anchor mid pressure (0.5)
+ * at the mouse width and bound the range instead: 55% at zero pressure, 145%
+ * at full pressure.
  */
-const PRESSURE_GAIN = 2
+const PRESSURE_FLOOR = 0.55
+const PRESSURE_RANGE = 0.9
 
 /**
  * WPF prunes at 45° / 70% area, which is safe for its OS-filtered packets but
@@ -109,9 +122,11 @@ const SAFE_PRUNE_ANGLE_DEG = 3
  * ~45% below the raw sweep) and pruning stays safe, so no setting is exposed.
  */
 export const SWEPT_STYLE: SweptStyle = {
-  pressureGain: PRESSURE_GAIN,
+  pressureFloor: PRESSURE_FLOOR,
+  pressureRange: PRESSURE_RANGE,
   positionStreamline: 0.65,
   pressureAlpha: 0.15,
+  pressureWarmupSamples: 6,
   pruneAngleDeg: SAFE_PRUNE_ANGLE_DEG,
   pruneAreaRatio: 0,
   cornerAngleDeg: 8,
@@ -122,13 +137,17 @@ export const SWEPT_STYLE: SweptStyle = {
 /**
  * Excalidraw-style EMA towards the previous stored sample. Pressure is filtered
  * too: unfiltered pressure noise is what makes the silhouette look furry.
+ *
+ * The pressure filter warms up: a cold EMA only closes 15% of the gap per
+ * sample, so a pen-down that starts light and presses harder would keep the
+ * first 10–20 samples below the real pressure and leave a visible thin lead-in.
  */
-export function smoothPenPoint(prev: Point, raw: Point, style: SweptStyle): Point {
+export function smoothPenPoint(prev: Point, raw: Point, style: SweptStyle, index = 0): Point {
   const pull = 1 - style.positionStreamline
   const prevPressure = normalizePressure(prev.pressure)
   const rawPressure = normalizePressure(raw.pressure)
-  const pressure =
-    style.pressureAlpha > 0 ? prevPressure + (rawPressure - prevPressure) * style.pressureAlpha : rawPressure
+  const alpha = pressureAlphaAt(index, style)
+  const pressure = alpha > 0 ? prevPressure + (rawPressure - prevPressure) * alpha : rawPressure
   return {
     x: style.positionStreamline > 0 ? prev.x + (raw.x - prev.x) * pull : raw.x,
     y: style.positionStreamline > 0 ? prev.y + (raw.y - prev.y) * pull : raw.y,
@@ -136,13 +155,34 @@ export function smoothPenPoint(prev: Point, raw: Point, style: SweptStyle): Poin
   }
 }
 
+/**
+ * Pressure EMA coefficient for sample `index`: ramps from 1 (raw) down to
+ * `pressureAlpha` across `pressureWarmupSamples`, then stays there.
+ */
+export function pressureAlphaAt(index: number, style: SweptStyle): number {
+  if (!(style.pressureAlpha > 0)) return 0
+  const warmup = Math.max(0, style.pressureWarmupSamples)
+  if (warmup === 0 || index >= warmup) return style.pressureAlpha
+  return 1 - (index / warmup) * (1 - style.pressureAlpha)
+}
+
 /** Build the stroke node for one sample (WPF `StrokeNodeData` radius). */
 export function nodeFromPoint(point: Point, lineWidth: number, style: SweptStyle, pressureInk: boolean): StylusNode {
   const baseRadius = Math.max(0.5, lineWidth / 2)
   const r = pressureInk
-    ? Math.max(0.1, baseRadius * style.pressureGain * normalizePressure(point.pressure))
+    ? Math.max(0.1, baseRadius * pressureRadiusScale(normalizePressure(point.pressure), style))
     : baseRadius
   return { x: point.x, y: point.y, r }
+}
+
+/** Width multiplier for a normalized pressure: `pressureFloor + pressureRange × p`. */
+export function pressureRadiusScale(pressure: number, style: SweptStyle): number {
+  return style.pressureFloor + style.pressureRange * pressure
+}
+
+/** Radius of a single-tap dot; identical to the swept stroke at the same pressure. */
+export function dotRadius(point: Point, lineWidth: number, style: SweptStyle, pointerType?: string | null): number {
+  return nodeFromPoint(point, lineWidth, style, usesPressureInk(pointerType)).r
 }
 
 export function nodesFromPoints(
@@ -217,8 +257,9 @@ export function roundCornerTips(prev: Point, node: Point, next: Point, style: Sw
 export function smoothSamples(points: Point[], style: SweptStyle): Point[] {
   const out: Point[] = []
   let prev: Point | null = null
-  for (const raw of points) {
-    const current: Point = prev ? smoothPenPoint(prev, raw, style) : raw
+  for (let i = 0; i < points.length; i++) {
+    const raw = points[i]
+    const current: Point = prev ? smoothPenPoint(prev, raw, style, i) : raw
     out.push(current)
     prev = current
   }
@@ -282,7 +323,7 @@ export class SweptSampleCache {
     while (this.smoothed.length < points.length) {
       const i = this.smoothed.length
       const prev = i > 0 ? this.smoothed[i - 1] : null
-      this.smoothed.push(prev ? smoothPenPoint(prev, points[i], this.style) : points[i])
+      this.smoothed.push(prev ? smoothPenPoint(prev, points[i], this.style, i) : points[i])
     }
 
     // Samples 0…n-2 are settled: their rounded corner depends only on neighbours that exist.

@@ -161,6 +161,38 @@ describe('drawingRender dashed shapes', () => {
     expect(ctx.fill).not.toHaveBeenCalled()
   })
 
+  it('scales solid pen taps with pressure', () => {
+    const ctx = makeStrokeContext()
+    drawActionDirect(ctx, {
+      tool: 'pen',
+      color: '#FF0000',
+      lineWidth: 3,
+      opacity: 1,
+      pointerType: 'pen',
+      points: [{ x: 0, y: 0, pressure: 0.05 }],
+    })
+    const arc = ctx.arc as unknown as { mock: { calls: number[][] } }
+    // 基础半径 1.5 × (0.55 + 0.9 × 0.05) = 0.8925
+    expect(arc.mock.calls[0][2]).toBeCloseTo(0.8925, 5)
+    expect(ctx.fill).toHaveBeenCalled()
+  })
+
+  it('keeps dashed pen taps at the uniform stroke width', () => {
+    const ctx = makeStrokeContext()
+    drawActionDirect(ctx, {
+      tool: 'pen',
+      color: '#FF0000',
+      lineWidth: 3,
+      opacity: 1,
+      dashStyle: 'dotted',
+      pointerType: 'pen',
+      points: [{ x: 0, y: 0, pressure: 0.05 }],
+    })
+    const arc = ctx.arc as unknown as { mock: { calls: number[][] } }
+    expect(arc.mock.calls[0][2]).toBeCloseTo(1.5, 5)
+    expect(ctx.fill).toHaveBeenCalled()
+  })
+
   it('keeps solid strokes without setLineDash', () => {
     const ctx = makeStrokeContext()
     drawActionDirect(ctx, {

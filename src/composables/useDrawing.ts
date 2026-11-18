@@ -37,6 +37,7 @@ import { LASER_WRITING_HOLD_MS, isLaserTrailGone, laserWritingOpacity, pruneAged
 import {
   buildSweptPath,
   computeMinDistSq,
+  dotRadius,
   INK_MIN_DIST_SQ,
   normalizePressure,
   planSweptFreeze,
@@ -1149,10 +1150,10 @@ export function useDrawing(
     }
 
     if (pts.length === 1) {
-      // A tap stays on the raw radius the committed path uses (`drawActionDirect`),
-      // otherwise the dot would grow by the pressure gain on pointer up.
+      // A tap uses the same pressure-aware radius as the committed path
+      // (`drawActionDirect`), so the dot does not jump on pointer up.
       const path = new Path2D()
-      path.arc(pts[0].x, pts[0].y, Math.max(0.5, action.lineWidth / 2), 0, Math.PI * 2)
+      path.arc(pts[0].x, pts[0].y, dotRadius(pts[0], action.lineWidth, SWEPT_STYLE, action.pointerType), 0, Math.PI * 2)
       inkTailPath = path
       inkPreviewDirty = false
       return

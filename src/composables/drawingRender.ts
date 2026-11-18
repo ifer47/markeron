@@ -11,7 +11,7 @@ import {
 } from '../constants/stamp'
 import { LaserPointer } from '@excalidraw/laser-pointer'
 import { laserSizeFromMapping, smoothLaserPositions } from '../constants/laser'
-import { buildSweptPath, nodesFromSmoothedPoints, pruneNodes, SWEPT_STYLE } from '../constants/sweptStylus'
+import { buildSweptPath, dotRadius, nodesFromSmoothedPoints, pruneNodes, SWEPT_STYLE } from '../constants/sweptStylus'
 
 /** Constant-width freehand (eraser / legacy fallback). */
 export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
@@ -278,8 +278,16 @@ export function drawActionDirect(
 
   const pts = action.points
   if (pts.length < 2) {
+    // Solid ink taps use the same pressure-aware radius as a swept stroke, so a
+    // tap and a short stroke no longer disagree. Dashed pen strokes are uniform
+    // (`drawFreehand`), and other tools (eraser included) keep their radius.
+    const pressureDot =
+      action.tool === 'highlighter' || (action.tool === 'pen' && !isNonSolidDashStyle(action.dashStyle))
+    const dotR = pressureDot
+      ? dotRadius(pts[0], action.lineWidth, SWEPT_STYLE, action.pointerType)
+      : action.lineWidth / 2
     ctx.beginPath()
-    ctx.arc(pts[0].x, pts[0].y, action.lineWidth / 2, 0, Math.PI * 2)
+    ctx.arc(pts[0].x, pts[0].y, dotR, 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
     return

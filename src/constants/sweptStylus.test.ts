@@ -4,12 +4,14 @@ import {
   buildSweptPath,
   computeMinDistSq,
   connectingQuadPoints,
+  dotRadius,
   ellipsePoints,
   INK_MIN_DIST_SQ,
   nodeFromPoint,
   nodesFromPoints,
   normalizePressure,
   planSweptFreeze,
+  pressureAlphaAt,
   pruneNodes,
   nodesFromSmoothedPoints,
   roundCornerTips,
@@ -72,22 +74,30 @@ describe('computeMinDistSq', () => {
 })
 
 describe('node radii', () => {
-  it('scales with pressure for pen and stays uniform for mouse', () => {
+  it('maps pressure onto a bounded width range for pen and stays uniform for mouse', () => {
     const style = SWEPT_STYLE
     const half = nodeFromPoint({ x: 0, y: 0, pressure: 0.5 }, 6, style, true)
     const full = nodeFromPoint({ x: 0, y: 0, pressure: 1 }, 6, style, true)
     const mouse = nodeFromPoint({ x: 0, y: 0, pressure: 0.1 }, 6, style, false)
 
-    expect(half.r).toBeCloseTo(3, 5) // 与旧实现的中等压感笔宽一致
-    expect(full.r).toBeCloseTo(6, 5)
+    // 中压 = 鼠标宽度；两端夹在 55%–145%，轻压不再塌成发丝线。
+    expect(half.r).toBeCloseTo(3, 5)
+    expect(full.r).toBeCloseTo(3 * 1.45, 5)
     expect(mouse.r).toBeCloseTo(3, 5)
   })
 
-  it('clamps degenerate widths', () => {
+  it('keeps a light touch above the hairline floor', () => {
     const style = SWEPT_STYLE
     expect(nodeFromPoint({ x: 0, y: 0 }, 0, style, false).r).toBe(0.5)
-    // 压感下限 0.05，半径 = 3 × 2 × 0.05
-    expect(nodeFromPoint({ x: 0, y: 0, pressure: 0.05 }, 6, style, true).r).toBeCloseTo(0.3, 5)
+    // 压感下限 0.05：3 × (0.55 + 0.9 × 0.05) = 1.785
+    expect(nodeFromPoint({ x: 0, y: 0, pressure: 0.05 }, 6, style, true).r).toBeCloseTo(1.785, 5)
+  })
+
+  it('uses the same radius for an ink tap as for a swept stroke', () => {
+    const style = SWEPT_STYLE
+    const pen = { x: 0, y: 0, pressure: 0.2 }
+    expect(dotRadius(pen, 6, style, 'pen')).toBeCloseTo(nodeFromPoint(pen, 6, style, true).r, 5)
+    expect(dotRadius(pen, 6, style, 'mouse')).toBeCloseTo(3, 5)
   })
 })
 
@@ -144,9 +154,14 @@ describe('smoothPenPoint', () => {
     expect(smoothPenPoint({ x: 0, y: 0, pressure: 0.2 }, raw, style)).toEqual(raw)
   })
 
-  it('pulls position and pressure towards the previous sample', () => {
+  it('pulls position and pressure towards the previous sample once warm', () => {
     const style = SWEPT_STYLE
-    const out = smoothPenPoint({ x: 0, y: 0, pressure: 0.2 }, { x: 10, y: 10, pressure: 0.8 }, style)
+    const out = smoothPenPoint(
+      { x: 0, y: 0, pressure: 0.2 },
+      { x: 10, y: 10, pressure: 0.8 },
+      style,
+      style.pressureWarmupSamples,
+    )
     expect(out.x).toBeCloseTo(10 * (1 - style.positionStreamline), 5)
     expect(out.y).toBeCloseTo(10 * (1 - style.positionStreamline), 5)
     // 压感也被滤波：介于两者之间且偏向旧值
@@ -154,9 +169,25 @@ describe('smoothPenPoint', () => {
     expect(out.pressure).toBeLessThan(0.8)
   })
 
-  it('ships with both filters enabled', () => {
+  it('warms the pressure filter up so a stroke starts at the real width', () => {
+    const style = SWEPT_STYLE
+    const prev = { x: 0, y: 0, pressure: 0.2 }
+    const raw = { x: 10, y: 0, pressure: 0.8 }
+    const steady = smoothPenPoint(prev, raw, style, style.pressureWarmupSamples).pressure ?? 0
+    const first = smoothPenPoint(prev, raw, style, 1).pressure ?? 0
+
+    // 第 1 个采样几乎直接采用真实压感，随后才回到稳态滤波。
+    expect(smoothPenPoint(prev, raw, style, 0).pressure).toBeCloseTo(0.8, 5)
+    expect(first).toBeGreaterThan(steady)
+    expect(first).toBeGreaterThan(0.6)
+    expect(pressureAlphaAt(style.pressureWarmupSamples - 1, style)).toBeGreaterThan(style.pressureAlpha)
+    expect(pressureAlphaAt(style.pressureWarmupSamples, style)).toBe(style.pressureAlpha)
+  })
+
+  it('ships with all filters enabled', () => {
     expect(SWEPT_STYLE.positionStreamline).toBeGreaterThan(0)
     expect(SWEPT_STYLE.pressureAlpha).toBeGreaterThan(0)
+    expect(SWEPT_STYLE.pressureWarmupSamples).toBeGreaterThan(0)
   })
 })
 
@@ -233,7 +264,7 @@ describe('buildSweptPath', () => {
         'mouse',
       ),
     )
-    expect(penBounds.maxY).toBeCloseTo(6, 5)
+    expect(penBounds.maxY).toBeCloseTo(3 * 1.45, 5)
     expect(mouseBounds.maxY).toBeCloseTo(3, 5)
   })
 

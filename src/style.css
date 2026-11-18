@@ -309,6 +309,25 @@ html:not(.settings) {
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+
+    /* 致谢名单是点击后主动触发的装饰内容，滚动本身承载信息（视口只露出约三行，
+       静止后其余赞助者不可见）。系统关闭动画效果时保留其时长与无限循环，
+       避免同一版本在不同机器上表现不一致。 */
+    .settings-sidebar-credits__track.is-scrolling.is-looping {
+      animation-duration: var(--credits-duration, 8s) !important;
+      animation-iteration-count: infinite !important;
+    }
+
+    /* 弹层展开/关闭过渡同理：duration 需按 transition 简写里
+       transform / opacity / filter 的顺序一一对应。这两条同特异性、靠书写顺序
+       决胜，.is-closing 必须放在 .is-unrolled 之后，否则关闭会复用展开的时长。 */
+    .settings-sidebar-credits.is-unrolled {
+      transition-duration: 560ms, 380ms, 420ms !important;
+    }
+
+    .settings-sidebar-credits.is-closing {
+      transition-duration: 420ms, 320ms, 320ms !important;
+    }
   }
 }
 

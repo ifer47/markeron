@@ -224,6 +224,7 @@ export default {
     penCursorHint: '选中画笔后再按 1 可切换钢笔图标 / 圆点光标',
     crosshairCursorHint: '选中形状或激光笔后再按对应数字可切换十字准星 / 圆点',
     shapeDashHint: '画笔 / 直线 / 箭头 / 矩形 / 椭圆：实线 → 虚线 → 点线（Shift+D 反向）；选中图形时直接修改选中项',
+    selectionNudgeHint: '选中图形后方向键微移 1px（Shift 10px）',
     editAndOther: '编辑',
     settingsPanel: '工具栏',
     toolbarOptionsHint: '',

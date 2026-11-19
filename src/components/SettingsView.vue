@@ -653,6 +653,10 @@ onUnmounted(() => {
                 <HelpTruncateLabel :text="t('help.shapeDashHint')" />
                 <div class="help-keys"><kbd class="help-kbd">D</kbd> / <kbd class="help-kbd">Shift+D</kbd></div>
               </div>
+              <div class="help-row">
+                <HelpTruncateLabel :text="t('help.selectionNudgeHint')" />
+                <div class="help-keys"><kbd class="help-kbd">↑↓←→</kbd> / <kbd class="help-kbd">Shift</kbd></div>
+              </div>
             </div>
           </div>
 

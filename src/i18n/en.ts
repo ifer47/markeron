@@ -231,6 +231,7 @@ export default {
     crosshairCursorHint: 'With a shape or laser selected, press its key again to switch crosshair / dot',
     shapeDashHint:
       'Cycle solid → dashed → dotted (Shift+D reverses) for pen, line, arrow, rectangle, and ellipse; with a selection, edits the selected shapes',
+    selectionNudgeHint: 'Arrow keys nudge the selection 1px (Shift 10px)',
     editAndOther: 'Edit',
     settingsPanel: 'Toolbar',
     toolbarOptionsHint: '',

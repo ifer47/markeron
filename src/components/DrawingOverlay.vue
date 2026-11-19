@@ -325,6 +325,9 @@ function onWheel(e: WheelEvent) {
           WIDTH_PRESETS.findIndex((v) => v >= lineWidth.value),
         )
   const next = Math.max(0, Math.min(WIDTH_PRESETS.length - 1, cur + dir))
+  // A selection wins over the session width: the preset resizes the selected shapes.
+  // Skip mid-gesture so an eraser resize never mutates unrelated shapes.
+  if (!isDrawing.value) setSelectedLineWidth(WIDTH_PRESETS[next])
   // Pass current pointer so mid-gesture eraser resize splits at the cursor (not old path points).
   setLineWidth(WIDTH_PRESETS[next], { x: lastPointerX, y: lastPointerY })
   const labelKey = tool === 'text' || tool === 'stamp' ? `textSizes.${lineWidth.value}` : `widths.${lineWidth.value}`
@@ -350,6 +353,8 @@ const {
   cycleSelectedDashStyle,
   setSelectedColor,
   cycleSelectedColor,
+  setSelectedLineWidth,
+  nudgeSelected,
   isDrawing,
   startDraw,
   draw,
@@ -1832,6 +1837,7 @@ const onKeyDown = createKeyDownHandler(
     cycleCrosshairCursorStyle,
     showCrosshairTip,
     cycleShapeDash,
+    nudgeSelected,
     undo,
     redo,
     removeSelected: () => {
@@ -2115,6 +2121,8 @@ async function handleToolbarAction(action: ToolbarAction) {
       break
     case 'updateLineWidth':
       await resumeDrawingFromToolbar()
+      // A selection wins over the session width: the preset resizes the selected shapes.
+      setSelectedLineWidth(action.width)
       lineWidth.value = action.width
       schedulePersistLineWidths()
       break

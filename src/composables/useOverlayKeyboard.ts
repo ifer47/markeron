@@ -51,6 +51,8 @@ export interface KeyboardActions {
   showCrosshairTip?: () => void
   /** Cycle solid → dashed → dotted (D) or reverse (Shift+D). */
   cycleShapeDash?: (direction: 1 | -1) => void
+  /** Arrow-key nudge of the current selection (Shift = 10px). */
+  nudgeSelected?: (dx: number, dy: number) => boolean
   undo: () => void
   redo: () => void
   removeSelected?: () => void
@@ -72,6 +74,14 @@ export interface KeyboardActions {
 
 function modDown(e: KeyboardEvent): boolean {
   return e.ctrlKey || (isMacOS() && e.metaKey)
+}
+
+/** Unit arrow-key nudge vectors. */
+const ARROW_NUDGE: Record<string, readonly [number, number] | undefined> = {
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
 }
 
 /** Mod+C without Shift — used when the toolbar window has OS focus (overlay never sees the chord). */
@@ -342,6 +352,18 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
 
     // Don't process edit shortcuts when toolbar popup is open (space mode)
     if (ctx.showToolbarPopup.value && !ctx.toolbarPinned.value) return
+
+    // Arrow keys nudge the current selection (1px; Shift = 10px).
+    const nudge = ARROW_NUDGE[e.key]
+    if (nudge && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (!actions.hasSelection?.() || ctx.isDrawing.value) return
+      e.preventDefault()
+      const step = e.shiftKey ? 10 : 1
+      if (actions.nudgeSelected?.(nudge[0] * step, nudge[1] * step)) {
+        logActionEvent('selection nudged', { reason: 'keyboard', dx: nudge[0] * step, dy: nudge[1] * step })
+      }
+      return
+    }
 
     // Delete / Backspace removes the current selection (select tool or leftover selection).
     if (e.key === 'Delete' || e.key === 'Backspace') {

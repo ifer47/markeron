@@ -53,6 +53,7 @@ function createActions(): KeyboardActions & { calls: Record<string, unknown[][]>
     cycleCrosshairCursorStyle: make('cycleCrosshairCursorStyle') as KeyboardActions['cycleCrosshairCursorStyle'],
     showCrosshairTip: make('showCrosshairTip') as KeyboardActions['showCrosshairTip'],
     cycleShapeDash: make('cycleShapeDash') as KeyboardActions['cycleShapeDash'],
+    nudgeSelected: make('nudgeSelected') as KeyboardActions['nudgeSelected'],
     undo: make('undo') as KeyboardActions['undo'],
     redo: make('redo') as KeyboardActions['redo'],
     removeSelected: make('removeSelected') as KeyboardActions['removeSelected'],
@@ -408,6 +409,56 @@ describe('useOverlayKeyboard', () => {
       expect(actions.calls.cycleShapeDash).toHaveLength(0)
       handler(key('d', { metaKey: true }))
       expect(actions.calls.cycleShapeDash).toHaveLength(0)
+    })
+  })
+
+  describe('arrow nudge', () => {
+    it('nudges the selection by 1px', () => {
+      actions.hasSelection = () => true
+
+      handler(key('ArrowUp'))
+      expect(actions.calls.nudgeSelected[0]).toEqual([0, -1])
+
+      handler(key('ArrowDown'))
+      expect(actions.calls.nudgeSelected[1]).toEqual([0, 1])
+
+      handler(key('ArrowLeft'))
+      expect(actions.calls.nudgeSelected[2]).toEqual([-1, 0])
+
+      handler(key('ArrowRight'))
+      expect(actions.calls.nudgeSelected[3]).toEqual([1, 0])
+    })
+
+    it('uses 10px with Shift', () => {
+      actions.hasSelection = () => true
+
+      handler(key('ArrowLeft', { shiftKey: true }))
+      expect(actions.calls.nudgeSelected[0]).toEqual([-10, 0])
+
+      handler(key('ArrowUp', { shiftKey: true }))
+      expect(actions.calls.nudgeSelected[1]).toEqual([0, -10])
+    })
+
+    it('does nothing without a selection', () => {
+      handler(key('ArrowDown'))
+      expect(actions.calls.nudgeSelected).toHaveLength(0)
+    })
+
+    it('ignores modified arrows', () => {
+      actions.hasSelection = () => true
+
+      handler(key('ArrowUp', { ctrlKey: true }))
+      handler(key('ArrowUp', { metaKey: true }))
+      handler(key('ArrowUp', { altKey: true }))
+      expect(actions.calls.nudgeSelected).toHaveLength(0)
+    })
+
+    it('does not nudge while drawing', () => {
+      actions.hasSelection = () => true
+      ctx.isDrawing.value = true
+
+      handler(key('ArrowUp'))
+      expect(actions.calls.nudgeSelected).toHaveLength(0)
     })
   })
 

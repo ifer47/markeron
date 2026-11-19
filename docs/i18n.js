@@ -142,6 +142,8 @@
       'helpPage.session.toolbar': 'Toolbar',
       'helpPage.session.delete': 'Delete selection',
       'helpPage.session.deleteKeys': '<kbd>Delete</kbd> / <kbd>Backspace</kbd>',
+      'helpPage.session.nudge': 'Nudge selection',
+      'helpPage.session.nudgeKeys': '<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> / <kbd>Shift</kbd>',
       'helpPage.session.undo': 'Undo',
       'helpPage.session.undoKeys': `${undoCombo} <span class="help-key-sep" aria-hidden="true">/</span> ${undoComboMac}`,
       'helpPage.session.redo': 'Redo',
@@ -153,7 +155,7 @@
       'helpPage.session.copy': 'Copy screen',
       'helpPage.session.copyKeys': `${copyCombo} <span class="help-key-sep" aria-hidden="true">/</span> ${copyComboMac}`,
       'helpPage.session.widthHint':
-        'Pen, laser, arrow, rectangle, ellipse, and line share one width; highlighter and eraser each have their own; text and stamp share one size group.',
+        'Pen, laser, arrow, rectangle, ellipse, and line share one width; highlighter and eraser each have their own; text and stamp share one size group. With a selection, edits the selected shapes.',
       'helpPage.session.dashHint':
         'Cycle solid → dashed → dotted for pen, line, arrow, rectangle, and ellipse; with a selection, edits the selected shapes. Shift+D reverses.',
       'helpPage.draw.eyebrow': '04',
@@ -198,7 +200,7 @@
       'helpPage.tips.throughBody': `Toggle from the toolbar, with ${clickThroughCombo} (global), or <kbd>X</kbd> while drawing. Marks stay visible; clicks reach the app below.`,
       'helpPage.tips.selectTitle': 'Select & batch edit',
       'helpPage.tips.selectBody':
-        'Press <kbd>V</kbd> for Select. Marquee or click to select (hold <kbd>Shift</kbd> to add). Drag the selection to move; <kbd>Delete</kbd> / <kbd>Backspace</kbd> to remove; <kbd>Esc</kbd> clears selection.',
+        'Press <kbd>V</kbd> for Select. Marquee or click to select (hold <kbd>Shift</kbd> to add). Drag the selection to move; arrow keys nudge it (1px, <kbd>Shift</kbd> 10px); <kbd>Delete</kbd> / <kbd>Backspace</kbd> to remove; <kbd>Esc</kbd> clears selection.',
       'helpPage.tips.dragTitle': 'Drag elements',
       'helpPage.tips.dragBody':
         'In General settings: off, hover to drag, or hold Ctrl/Command to drag. Disabled while eraser is selected. Prefer Select (<kbd>V</kbd>) for moving several marks at once.',
@@ -404,6 +406,8 @@
       'helpPage.session.toolbar': '工具栏',
       'helpPage.session.delete': '删除选中',
       'helpPage.session.deleteKeys': '<kbd>Delete</kbd> / <kbd>Backspace</kbd>',
+      'helpPage.session.nudge': '微移选中图形',
+      'helpPage.session.nudgeKeys': '<kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> / <kbd>Shift</kbd>',
       'helpPage.session.undo': '撤销',
       'helpPage.session.undoKeys': `${undoCombo} <span class="help-key-sep" aria-hidden="true">/</span> ${undoComboMac}`,
       'helpPage.session.redo': '重做',
@@ -415,7 +419,7 @@
       'helpPage.session.copy': '复制屏幕',
       'helpPage.session.copyKeys': `${copyCombo} <span class="help-key-sep" aria-hidden="true">/</span> ${copyComboMac}`,
       'helpPage.session.widthHint':
-        '画笔、激光笔与箭头 / 矩形 / 椭圆 / 直线共用粗细；荧光笔、橡皮擦各自独立；文字与序号共用字号组。',
+        '画笔、激光笔与箭头 / 矩形 / 椭圆 / 直线共用粗细；荧光笔、橡皮擦各自独立；文字与序号共用字号组；选中图形时直接修改选中项。',
       'helpPage.session.dashHint':
         '画笔 / 直线 / 箭头 / 矩形 / 椭圆：实线 → 虚线 → 点线；选中图形时直接修改选中项；Shift+D 反向循环。',
       'helpPage.draw.eyebrow': '04',
@@ -459,7 +463,7 @@
       'helpPage.tips.throughBody': `在工具栏切换，或按 ${clickThroughCombo}（全局）、绘制中按 <kbd>X</kbd>。标注保持可见，点击可到达下层应用。`,
       'helpPage.tips.selectTitle': '选择与批量编辑',
       'helpPage.tips.selectBody':
-        '按 <kbd>V</kbd> 进入选择。框选或点选（按住 <kbd>Shift</kbd> 追加）。拖动选中区域整组移动；<kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除；<kbd>Esc</kbd> 清空选中。',
+        '按 <kbd>V</kbd> 进入选择。框选或点选（按住 <kbd>Shift</kbd> 追加）。拖动选中区域整组移动；方向键微移 1px（<kbd>Shift</kbd> 10px）；<kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除；<kbd>Esc</kbd> 清空选中。',
       'helpPage.tips.dragTitle': '拖拽元素',
       'helpPage.tips.dragBody':
         '「常规」中可选：关闭、悬停拖动，或按住 Ctrl/Command 拖动。选中橡皮擦时不触发。批量移动请用选择工具（<kbd>V</kbd>）。',

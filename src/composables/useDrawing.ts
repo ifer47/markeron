@@ -54,6 +54,9 @@ export type { InputPointLike } from './drawingTypes'
 /** CSS px a pasted copy is offset by, per consecutive paste. */
 const PASTE_CASCADE_OFFSET_PX = 12
 
+/** Consecutive nudges within this window merge into one undo entry. */
+const NUDGE_COALESCE_MS = 600
+
 export type SelectionRect = { x1: number; y1: number; x2: number; y2: number }
 
 function normalizeSelectionRect(r: SelectionRect): SelectionRect {
@@ -72,6 +75,7 @@ import {
   highlighterLineWidth,
   isDashableTool,
   isNonSolidDashStyle,
+  isStrokeTool,
   nextStrokeDashStyle,
   normalizeStrokeDashStyle,
   resolveLineWidths,
@@ -293,6 +297,75 @@ export function useDrawing(
     return setSelectedColor(COLOR_PALETTE[nextIdx])
   }
 
+  /** Text / stamp font size for a width preset (mirrors new-text sizing). */
+  function fontSizeForWidthPreset(preset: number): number {
+    return stampFontSizeFromWidth(preset)
+  }
+
+  /**
+   * Apply a toolbar width preset to the current selection.
+   * Returns false when nothing is selected, so the caller can fall back to the
+   * session width used by the next drawing.
+   */
+  function setSelectedLineWidth(preset: number): boolean {
+    const targets = selectedActions.value.filter((action) => history.indexOf(action) !== -1)
+    if (targets.length === 0) return false
+
+    const items: { action: DrawAction; before: LineWidthSnapshot; after: LineWidthSnapshot }[] = []
+    for (const action of targets) {
+      const before = takeLineWidthSnapshot(action)
+
+      if (action.tool === 'text' || action.tool === 'stamp') {
+        const fontSize = fontSizeForWidthPreset(preset)
+        if (action.fontSize === fontSize) continue
+        if (action.tool === 'text') {
+          // textWidth was measured at the old size; scale it so the bbox stays proportional.
+          if (action.textWidth != null) {
+            const oldSize = action.fontSize && action.fontSize > 0 ? action.fontSize : 24
+            action.textWidth = (action.textWidth * fontSize) / oldSize
+          }
+          action.fontSize = fontSize
+          action.bbox = computeTextBbox(action)
+        } else {
+          action.fontSize = fontSize
+          action.bbox = computeStampBbox(action)
+        }
+        action.lineWidth = preset
+      } else if (action.tool === 'highlighter') {
+        const width = highlighterLineWidth(preset)
+        if (action.lineWidth === width) continue
+        action.lineWidth = width
+      } else if (isStrokeTool(action.tool)) {
+        if (action.lineWidth === preset) continue
+        action.lineWidth = preset
+      } else {
+        continue
+      }
+
+      items.push({ action, before, after: takeLineWidthSnapshot(action) })
+      pathCache.delete(action)
+      refreshActionGeometry(action)
+      refreshActionInHitGrid(action)
+    }
+
+    // Keep each affected tool group's session width aligned with the edit.
+    for (const action of targets) {
+      lineWidths.value[toolLineWidthGroup(action.tool)] = preset
+    }
+
+    if (items.length > 0) {
+      undoStack.push({ type: 'lineWidth', items })
+      redoStack.length = 0
+      markHistoryStacksChanged()
+    }
+
+    // Pen ink is a baked ribbon; drop the history cache so the new width is used.
+    invalidateCache()
+    previewDirty = true
+    flushRender()
+    return true
+  }
+
   function setLineWidths(widths: Partial<ToolLineWidths> | null | undefined) {
     lineWidths.value = resolveLineWidths(widths)
   }
@@ -362,6 +435,14 @@ export function useDrawing(
     rotation?: number
   }
 
+  /** Snapshot of the size-related fields a width preset can change. */
+  type LineWidthSnapshot = {
+    lineWidth: number
+    fontSize?: number
+    textWidth?: number
+    bbox?: DrawAction['bbox']
+  }
+
   type UndoEntry =
     | { type: 'add'; action: DrawAction }
     | { type: 'remove'; action: DrawAction; index: number }
@@ -377,6 +458,14 @@ export function useDrawing(
     | {
         type: 'color'
         items: { action: DrawAction; before: string; after: string }[]
+      }
+    | {
+        type: 'lineWidth'
+        items: { action: DrawAction; before: LineWidthSnapshot; after: LineWidthSnapshot }[]
+      }
+    | {
+        type: 'nudge'
+        items: { action: DrawAction; from: DragSnapshot; to: DragSnapshot }[]
       }
     | {
         type: 'erase'
@@ -418,9 +507,31 @@ export function useDrawing(
     pathCache.delete(action)
   }
 
+  function takeLineWidthSnapshot(action: DrawAction): LineWidthSnapshot {
+    return {
+      lineWidth: action.lineWidth,
+      ...(action.fontSize != null ? { fontSize: action.fontSize } : {}),
+      ...(action.textWidth != null ? { textWidth: action.textWidth } : {}),
+      ...(action.bbox ? { bbox: { ...action.bbox } } : {}),
+    }
+  }
+
+  function restoreLineWidthSnapshot(action: DrawAction, snap: LineWidthSnapshot) {
+    action.lineWidth = snap.lineWidth
+    if (snap.fontSize != null) action.fontSize = snap.fontSize
+    else delete action.fontSize
+    if (snap.textWidth != null) action.textWidth = snap.textWidth
+    else delete action.textWidth
+    if (snap.bbox) action.bbox = { ...snap.bbox }
+    else delete action.bbox
+    pathCache.delete(action)
+  }
+
   const history: DrawAction[] = []
   const undoStack: UndoEntry[] = []
   const redoStack: UndoEntry[] = []
+  /** Last nudge timestamp — consecutive key presses merge into one undo entry. */
+  let lastNudgeAt = -Infinity
   const historyRevision = ref(0)
   /** Internal vector clipboard for Ctrl+C on a selection (never the OS bitmap clipboard). */
   let copiedActions: DrawAction[] = []
@@ -2017,6 +2128,62 @@ export function useDrawing(
     flushRender()
   }
 
+  /**
+   * Move the selected actions by (dx, dy) — arrow-key nudging.
+   * Consecutive nudges on the same selection within a short window merge into a
+   * single undo entry, so holding an arrow key is one undo step.
+   */
+  function nudgeSelected(dx: number, dy: number): boolean {
+    if (dx === 0 && dy === 0) return false
+    // A live drag/reshape already owns the undo baseline; folding a nudge into it
+    // would make the key press impossible to undo on its own.
+    if (draggingSet.size > 0 || reshapingAction) return false
+    const targets = selectedActions.value.filter((action) => history.indexOf(action) !== -1)
+    if (targets.length === 0) return false
+
+    const fromSnaps = targets.map((action) => takeDragSnapshot(action, history.indexOf(action)))
+    for (const action of targets) {
+      for (const pt of action.points) {
+        pt.x += dx
+        pt.y += dy
+      }
+      offsetAttachedErasers(action, dx, dy)
+      pathCache.delete(action)
+      refreshActionGeometry(action)
+      refreshActionInHitGrid(action)
+    }
+    const items = targets.map((action, i) => ({
+      action,
+      from: fromSnaps[i],
+      to: takeDragSnapshot(action, history.indexOf(action)),
+    }))
+
+    const now = Date.now()
+    const last = undoStack[undoStack.length - 1]
+    const canMerge =
+      last?.type === 'nudge' &&
+      now - lastNudgeAt <= NUDGE_COALESCE_MS &&
+      last.items.length === items.length &&
+      last.items.every((item) => targets.includes(item.action))
+
+    if (canMerge && last?.type === 'nudge') {
+      // Extend the previous nudge; `from` stays at the original position.
+      for (const item of last.items) {
+        item.to = takeDragSnapshot(item.action, history.indexOf(item.action))
+      }
+    } else {
+      undoStack.push({ type: 'nudge', items })
+    }
+    redoStack.length = 0
+    markHistoryStacksChanged()
+    lastNudgeAt = now
+
+    invalidateCache()
+    previewDirty = true
+    flushRender()
+    return true
+  }
+
   function clearReshapeState() {
     reshapingAction = null
     reshapeHandleId = null
@@ -2234,6 +2401,7 @@ export function useDrawing(
   function undo() {
     if (undoStack.length === 0) return
     historyIndexDirty = true
+    lastNudgeAt = -Infinity
     const entry = undoStack.pop()!
 
     if (entry.type === 'add') {
@@ -2265,6 +2433,17 @@ export function useDrawing(
       for (const item of entry.items) {
         item.action.color = item.before
         pathCache.delete(item.action)
+      }
+    } else if (entry.type === 'lineWidth') {
+      for (const item of entry.items) {
+        restoreLineWidthSnapshot(item.action, item.before)
+        refreshActionGeometry(item.action)
+        refreshActionInHitGrid(item.action)
+      }
+    } else if (entry.type === 'nudge') {
+      for (const item of entry.items) {
+        restoreDragSnapshot(item.action, item.from)
+        refreshActionInHitGrid(item.action)
       }
     } else if (entry.type === 'dragBatch') {
       for (const item of entry.items) {
@@ -2323,6 +2502,7 @@ export function useDrawing(
   function redo() {
     if (redoStack.length === 0) return
     historyIndexDirty = true
+    lastNudgeAt = -Infinity
     const entry = redoStack.pop()!
 
     if (entry.type === 'add') {
@@ -2353,6 +2533,17 @@ export function useDrawing(
       for (const item of entry.items) {
         item.action.color = item.after
         pathCache.delete(item.action)
+      }
+    } else if (entry.type === 'lineWidth') {
+      for (const item of entry.items) {
+        restoreLineWidthSnapshot(item.action, item.after)
+        refreshActionGeometry(item.action)
+        refreshActionInHitGrid(item.action)
+      }
+    } else if (entry.type === 'nudge') {
+      for (const item of entry.items) {
+        restoreDragSnapshot(item.action, item.to)
+        refreshActionInHitGrid(item.action)
       }
     } else if (entry.type === 'dragBatch') {
       for (const item of entry.items) {
@@ -2604,6 +2795,8 @@ export function useDrawing(
     cycleSelectedDashStyle,
     setSelectedColor,
     cycleSelectedColor,
+    setSelectedLineWidth,
+    nudgeSelected,
     isDrawing,
     /** True after a still hold locked the active pen/highlighter stroke to a line. */
     isStrokeLineLocked: () => strokeLineLocked,

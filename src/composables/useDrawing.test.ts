@@ -1504,6 +1504,157 @@ describe('useDrawing', () => {
     })
   })
 
+  describe('selected line width', () => {
+    function addRect(x0: number, y0: number, x1: number, y1: number) {
+      drawing.currentTool.value = 'rect'
+      drawing.startDraw({ x: x0, y: y0 })
+      drawing.draw({ x: x1, y: y1 })
+      drawing.endDraw()
+      return drawing.findActionAt({ x: x0, y: y0 })!.action
+    }
+
+    it('returns false without a selection', () => {
+      expect(drawing.setSelectedLineWidth(5)).toBe(false)
+    })
+
+    it('applies a preset to the selected shapes and is undoable', () => {
+      const rect = addRect(10, 10, 80, 60)
+      expect(rect.lineWidth).toBe(3)
+
+      drawing.setSelection([rect])
+      expect(drawing.setSelectedLineWidth(5)).toBe(true)
+      expect(rect.lineWidth).toBe(5)
+      expect(drawing.lineWidths.value.stroke).toBe(5)
+
+      drawing.undo()
+      expect(rect.lineWidth).toBe(3)
+      drawing.redo()
+      expect(rect.lineWidth).toBe(5)
+    })
+
+    it('maps the preset for highlighter strokes', () => {
+      drawing.currentTool.value = 'highlighter'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 80, y: 0 })
+      drawing.endDraw()
+      const ink = drawing.findActionAt({ x: 40, y: 0 })!.action
+      expect(ink.lineWidth).toBe(21)
+
+      drawing.setSelection([ink])
+      drawing.setSelectedLineWidth(5)
+      expect(ink.lineWidth).toBe(35)
+      expect(drawing.lineWidths.value.highlighter).toBe(5)
+    })
+
+    it('resizes selected text and restores its measured width on undo', () => {
+      drawing.addTextAction('T', 100, 100, 0, 24, '#000000')
+      const text = drawing.findActionAt({ x: 120, y: 100 })!.action
+      const widthBefore = text.textWidth!
+      const heightBefore = text.bbox!.y2 - text.bbox!.y1
+
+      drawing.setSelection([text])
+      drawing.setSelectedLineWidth(8)
+      expect(text.fontSize).toBe(48)
+      expect(text.textWidth).toBeCloseTo(widthBefore * 2, 5)
+      expect(text.bbox!.y2 - text.bbox!.y1).toBeGreaterThan(heightBefore)
+
+      drawing.undo()
+      expect(text.fontSize).toBe(24)
+      expect(text.textWidth).toBeCloseTo(widthBefore, 5)
+      expect(text.bbox!.y2 - text.bbox!.y1).toBeCloseTo(heightBefore, 5)
+    })
+
+    it('applies to every selected sizeable action', () => {
+      const rect = addRect(10, 10, 80, 60)
+      drawing.addTextAction('T', 150, 120, 0, 24, '#000000')
+      const text = drawing.findActionAt({ x: 180, y: 120 })!.action
+
+      drawing.setSelection([rect, text])
+      drawing.setSelectedLineWidth(5)
+      expect(rect.lineWidth).toBe(5)
+      expect(text.fontSize).toBe(30)
+    })
+
+    it('resizes selected stamps and updates their bbox', () => {
+      drawing.addStampAction('1', 100, 100, 18, '#FF0000')
+      const stamp = drawing.findActionAt({ x: 100, y: 100 })!.action
+      const sizeBefore = stamp.bbox!.x2 - stamp.bbox!.x1
+
+      drawing.setSelection([stamp])
+      drawing.setSelectedLineWidth(8)
+      expect(stamp.fontSize).toBe(48)
+      expect(stamp.bbox!.x2 - stamp.bbox!.x1).toBeGreaterThan(sizeBefore)
+
+      drawing.undo()
+      expect(stamp.fontSize).toBe(18)
+      expect(stamp.bbox!.x2 - stamp.bbox!.x1).toBeCloseTo(sizeBefore, 5)
+    })
+  })
+
+  describe('selection nudge', () => {
+    function addRect(x0: number, y0: number, x1: number, y1: number) {
+      drawing.currentTool.value = 'rect'
+      drawing.startDraw({ x: x0, y: y0 })
+      drawing.draw({ x: x1, y: y1 })
+      drawing.endDraw()
+      return drawing.findActionAt({ x: x0, y: y0 })!.action
+    }
+
+    it('returns false without a selection', () => {
+      expect(drawing.nudgeSelected(1, 0)).toBe(false)
+    })
+
+    it('moves the selection and is undoable', () => {
+      const rect = addRect(10, 10, 80, 60)
+      const before = rect.points.map((p) => ({ x: p.x, y: p.y }))
+      drawing.setSelection([rect])
+
+      expect(drawing.nudgeSelected(1, -1)).toBe(true)
+      expect(rect.points.map((p) => ({ x: p.x, y: p.y }))).toEqual([
+        { x: 11, y: 9 },
+        { x: 81, y: 59 },
+      ])
+      expect(rect.bbox).toBeTruthy()
+
+      drawing.undo()
+      expect(rect.points.map((p) => ({ x: p.x, y: p.y }))).toEqual(before)
+      drawing.redo()
+      expect({ x: rect.points[0].x, y: rect.points[0].y }).toEqual({ x: 11, y: 9 })
+    })
+
+    it('merges consecutive nudges into one undo entry', () => {
+      const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_000_000)
+      try {
+        const rect = addRect(10, 10, 80, 60)
+        drawing.setSelection([rect])
+
+        drawing.nudgeSelected(1, 0)
+        drawing.nudgeSelected(1, 0)
+        drawing.nudgeSelected(0, 1)
+        expect({ x: rect.points[0].x, y: rect.points[0].y }).toEqual({ x: 12, y: 11 })
+
+        drawing.undo()
+        expect({ x: rect.points[0].x, y: rect.points[0].y }).toEqual({ x: 10, y: 10 })
+      } finally {
+        nowSpy.mockRestore()
+      }
+    })
+
+    it('does not merge nudges from a different selection', () => {
+      const first = addRect(10, 10, 80, 60)
+      const second = addRect(100, 100, 180, 160)
+
+      drawing.setSelection([first])
+      drawing.nudgeSelected(1, 0)
+      drawing.setSelection([second])
+      drawing.nudgeSelected(1, 0)
+
+      drawing.undo()
+      expect({ x: second.points[0].x, y: second.points[0].y }).toEqual({ x: 100, y: 100 })
+      expect({ x: first.points[0].x, y: first.points[0].y }).toEqual({ x: 11, y: 10 })
+    })
+  })
+
   describe('copy / paste', () => {
     function addRect(x0: number, y0: number, x1: number, y1: number) {
       drawing.currentTool.value = 'rect'

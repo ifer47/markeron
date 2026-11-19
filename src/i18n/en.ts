@@ -168,7 +168,7 @@ export default {
       'Laser strokes stay while you keep writing, even across short pauses between strokes. About 1 second after you stop, they fade out together — no eraser needed.',
     autoRevertToPen: 'Return to pen after shape',
     autoRevertToPenDesc:
-      'After drawing one line, arrow, rectangle, or ellipse, automatically switch back to the pen. Modifier-key temporary tools still restore the previous tool as before.',
+      'After drawing one line, arrow, rectangle, or ellipse, automatically switch back to the pen. Re-entering drawing mode also starts from the pen. Modifier-key temporary tools still restore the previous tool as before.',
   },
   toolbar: {
     shortcutTooltip: '{label} ({shortcut})',

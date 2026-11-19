@@ -4,6 +4,7 @@ import {
   isOneShotShapeTool,
   resolveAutoRevertToPen,
   toolAfterShapeStroke,
+  toolOnDrawingEntry,
 } from './autoRevertToPen'
 
 describe('autoRevertToPen', () => {
@@ -26,6 +27,11 @@ describe('autoRevertToPen', () => {
     expect(isOneShotShapeTool('pen')).toBe(false)
     expect(isOneShotShapeTool('eraser')).toBe(false)
     expect(isOneShotShapeTool('stamp')).toBe(false)
+  })
+
+  it('starts from the pen on drawing entry only when enabled', () => {
+    expect(toolOnDrawingEntry(true)).toBe('pen')
+    expect(toolOnDrawingEntry(false)).toBeNull()
   })
 
   it('prefers restoring modifier-temporary tool over auto-revert', () => {

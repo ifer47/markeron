@@ -78,6 +78,7 @@ beforeEach(async () => {
   native.state = null
   native.config.general.defaultEntryMode = 'screen'
   native.config.general.preserveDrawings = false
+  native.config.general.autoRevertToPen = false
   // Keep the overlay, drawing composable and event bridge real; replace only
   // native IPC and browser APIs unavailable in jsdom.
   mockWindows('overlay')
@@ -181,6 +182,44 @@ describe('overlay tool selection across sessions', () => {
     await sendEvent('overlay-mode-changed', 'drawing')
     expect(native.state?.whiteboardMode).toBe(true)
     expect(native.state?.currentTool).toBe('rect')
+  })
+
+  it('starts from the pen on each activation when auto-revert to pen is enabled', async () => {
+    native.config.general.autoRevertToPen = true
+    await mountOverlay()
+    await sendEvent('overlay-mode-changed', 'drawing')
+    await sendEvent(TOOLBAR_ACTION_EVENT, { type: 'selectTool', tool: 'rect' })
+    expect(native.state?.currentTool).toBe('rect')
+
+    for (let cycle = 0; cycle < 2; cycle++) {
+      await sendEvent('overlay-mode-changed', 'hidden')
+      await sendEvent('overlay-mode-changed', 'drawing')
+      expect(native.state?.currentTool).toBe('pen')
+    }
+  })
+
+  it('starts from the pen on whiteboard entry when auto-revert to pen is enabled', async () => {
+    native.config.general.autoRevertToPen = true
+    native.config.general.defaultEntryMode = 'whiteboard'
+    await mountOverlay()
+    await sendEvent('overlay-mode-changed', 'drawing')
+    await sendEvent(TOOLBAR_ACTION_EVENT, { type: 'selectTool', tool: 'ellipse' })
+
+    await sendEvent('overlay-mode-changed', 'hidden')
+    await sendEvent('overlay-mode-changed', 'drawing')
+    expect(native.state?.whiteboardMode).toBe(true)
+    expect(native.state?.currentTool).toBe('pen')
+  })
+
+  it('keeps the selected tool when returning from penetration mode', async () => {
+    native.config.general.autoRevertToPen = true
+    await mountOverlay()
+    await sendEvent('overlay-mode-changed', 'drawing')
+    await sendEvent(TOOLBAR_ACTION_EVENT, { type: 'selectTool', tool: 'highlighter' })
+
+    await sendEvent('overlay-mode-changed', 'penetration')
+    await sendEvent('overlay-mode-changed', 'drawing')
+    expect(native.state?.currentTool).toBe('highlighter')
   })
 
   it('still selects the pen when explicitly entering whiteboard mode', async () => {

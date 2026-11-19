@@ -162,7 +162,7 @@ export default {
     laserModeDescWriting: '连续书写时笔迹一直保留，笔画之间短暂停顿也不会消失；停笔约 1 秒后全部一起淡出，无需橡皮擦。',
     autoRevertToPen: '画完图形后回到画笔',
     autoRevertToPenDesc:
-      '用直线、箭头、矩形或椭圆画完一次后，自动切回画笔。用修饰键临时切换工具时，仍会恢复到切换前的工具。',
+      '用直线、箭头、矩形或椭圆画完一次后，自动切回画笔；再次进入绘图模式时也从画笔开始。用修饰键临时切换工具时，仍会恢复到切换前的工具。',
   },
   toolbar: {
     shortcutTooltip: '{label}（{shortcut}）',

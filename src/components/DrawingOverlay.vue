@@ -88,7 +88,7 @@ import {
   type CrosshairCursorStyle,
 } from '../utils/crosshairCursor'
 import { resolveToolbarSelectTool } from '../utils/toolbarSelectTool'
-import { resolveAutoRevertToPen, toolAfterShapeStroke } from '../utils/autoRevertToPen'
+import { resolveAutoRevertToPen, toolAfterShapeStroke, toolOnDrawingEntry } from '../utils/autoRevertToPen'
 import { resolveModifierTempTool } from '../utils/modifierTempTool'
 import { noteStableViewportSample } from '../utils/overlayViewport'
 import { normalizePressure } from '../constants/sweptStylus'
@@ -2345,6 +2345,13 @@ onMounted(async () => {
           showToolbarPopup.value = false
         }
         if (previousMode === 'hidden') {
+          // With auto-revert enabled, every entry starts from the pen instead of
+          // the tool left over from the previous drawing session.
+          const entryTool = toolOnDrawingEntry(autoRevertToPen.value)
+          if (entryTool !== null) {
+            toolBeforeModifier = null
+            currentTool.value = entryTool
+          }
           applyDefaultEntryOnActivate()
         }
         void (async () => {

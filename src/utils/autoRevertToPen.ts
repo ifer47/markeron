@@ -15,6 +15,15 @@ export function isOneShotShapeTool(tool: Tool): boolean {
 }
 
 /**
+ * Entering drawing mode (Ctrl+Shift+D) while auto-revert is enabled: always
+ * start from the pen instead of the tool left over from the previous session.
+ * Returns null when the previous session's tool should be kept.
+ */
+export function toolOnDrawingEntry(autoRevertToPen: boolean): Tool | null {
+  return autoRevertToPen ? 'pen' : null
+}
+
+/**
  * After a stroke ends: restore a *real* modifier-temp tool first; otherwise
  * optionally switch one-shot shape tools back to pen.
  *

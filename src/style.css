@@ -675,6 +675,13 @@ html.settings .ui-select {
   font-size: var(--settings-fs-label, 14.5px);
 }
 
+/* Secondary explanation under a settings label (key roles, caveats). */
+.settings-row-hint {
+  color: var(--ui-text-dim);
+  font-size: var(--settings-fs-caption, 12.5px);
+  line-height: 1.45;
+}
+
 .settings-text-value {
   color: var(--ui-text-value);
   font-size: var(--settings-fs-body, 13.5px);

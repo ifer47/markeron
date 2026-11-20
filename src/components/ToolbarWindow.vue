@@ -209,7 +209,8 @@ onMounted(async () => {
       const mode = event.payload
       const fromHidden = lastOverlayMode === 'hidden'
       lastOverlayMode = mode
-      const hidden = mode === 'hidden'
+      // Kept-behind ink is a desktop layer, not an annotation session: no toolbar either.
+      const hidden = mode === 'hidden' || mode === 'preserved'
       document.body.style.visibility = hidden ? 'hidden' : 'visible'
       penetrationMode.value = mode === 'penetration'
       // Always-on: re-clamp only when entering drawing from hidden (Ctrl+Shift+D).

@@ -629,6 +629,7 @@ onUnmounted(() => {
         :whiteboard-preserve-drawings="whiteboardPreserveDrawings"
         :auto-start-enabled="autoStartEnabled"
         :angle-snap-step="angleSnapStep"
+        :shortcuts="shortcuts"
         @update:theme="theme = $event"
         @update:drag-mode="dragMode = $event"
         @update:default-entry-mode="defaultEntryMode = $event"

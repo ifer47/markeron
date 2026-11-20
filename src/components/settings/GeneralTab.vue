@@ -51,6 +51,13 @@ const eraserModeOptions = ERASER_MODE_OPTIONS
 const laserModeOptions = LASER_MODE_OPTIONS
 const modKeyLabel = computed(() => (isMacOS() ? 'Command' : 'Ctrl'))
 
+/** Esc and the annotation toggle both leave ink behind; spell out what each one does. */
+const preserveDrawingsHint = computed(() =>
+  t('settings.preserveDrawingsHint', {
+    toggle: props.shortcuts.toggleDrawing || t('settings.shortcutNotSet'),
+  }),
+)
+
 function themeLabelKey(opt: ThemePreference): string {
   if (opt === 'dark') return 'settings.themeDark'
   if (opt === 'light') return 'settings.themeLight'
@@ -80,6 +87,8 @@ const props = defineProps<{
   whiteboardPreserveDrawings: boolean
   autoStartEnabled: boolean
   angleSnapStep: number
+  /** Live global shortcuts, so the hint under "Keep ink after exit" shows the user's own keys. */
+  shortcuts: AppConfig['shortcuts']
 }>()
 
 const emit = defineEmits<{
@@ -670,12 +679,15 @@ async function commitAngleSnapStep(step: number) {
         </div>
 
         <div class="settings-card-row settings-card-row--divided">
-          <span class="settings-text-label">{{ t('settings.preserveDrawings') }}</span>
+          <div class="flex flex-col gap-0.5 min-w-0">
+            <span class="settings-text-label">{{ t('settings.preserveDrawings') }}</span>
+            <span class="settings-row-hint">{{ preserveDrawingsHint }}</span>
+          </div>
           <button
             role="switch"
             :aria-checked="preserveDrawings"
             :aria-label="t('settings.preserveDrawings')"
-            class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
+            class="relative w-8 h-4.5 shrink-0 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
             :class="preserveDrawings ? 'settings-toggle-on' : 'settings-toggle-off'"
             @click="togglePreserveDrawings"
           >

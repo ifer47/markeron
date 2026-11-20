@@ -137,15 +137,17 @@ export default {
     dragModeDescOff: 'Drawings cannot be moved in annotation mode.',
     dragModeDescHover: 'Hover over an element and drag to move it.',
     dragModeDescModifier: 'Hold {modKey} and drag to move. Draw freely over elements without the modifier.',
-    preserveDrawings: 'Keep after exit',
+    preserveDrawings: 'Keep ink after exit',
     preserveDrawingsDesc:
-      'When enabled, annotations are kept in memory after exiting annotation mode. Re-entering will restore your previous drawings.',
+      'When enabled, exiting never discards your drawings. The toggle-annotation shortcut leaves the ink on screen as a click-through layer (press it again to resume editing); the first Esc also leaves the ink on screen, and a second Esc fully tucks the layer away with the ink kept. When disabled, exiting clears the canvas.',
+    preserveDrawingsHint:
+      'When on: Esc once closes annotation leaving the ink on screen, twice tucks the layer away (ink kept) · {toggle} leaves ink on exit, press again to resume editing.',
     whiteboardPreserveDrawings: 'Keep on W toggle',
     whiteboardPreserveDrawingsDesc:
       'When enabled, pressing W to enter or exit whiteboard mode keeps the existing whiteboard content. Turn this off to start whiteboard mode with a clean canvas each time.',
     whiteboardSection: 'Whiteboard & content',
     whiteboardSectionDesc:
-      'Default entry chooses screen overlay or whiteboard. Board color sets a white or black canvas in whiteboard mode. Keep after exit restores your last session when you re-enter. Keep on W toggle preserves drawings when switching modes without exiting; turn off to start with a blank board each time you press W.',
+      'Default entry chooses screen overlay or whiteboard. Board color sets a white or black canvas in whiteboard mode. Keep ink after exit means the toggle-annotation shortcut leaves your drawings on screen as a click-through layer over the desktop, and one Esc does the same while a second Esc tucks the layer away. Keep on W toggle preserves drawings when switching modes without exiting; turn off to start with a blank board each time you press W.',
     angleSnapStep: 'Angle snap step',
     angleSnapStepDesc: 'Straight lines drawn while holding Alt snap to this angle (1–90°). Use 1° for precise angles.',
     defaultEntryMode: 'Default entry',
@@ -253,7 +255,8 @@ export default {
       deleteSelection: 'Backspace does the same.',
       nudge: 'With a selection, arrow keys move it by 1px.',
       nudgeLarge: 'Hold Shift with the arrow keys to move by 10px.',
-      exitDrawing: 'Clears the selection first when something is selected.',
+      exitDrawing:
+        'Clears the selection first when something is selected. With “Keep ink after exit” on, Esc leaves the ink on screen, then tucks the layer away; the toggle-annotation shortcut only switches editing on and off.',
       prevColor: 'With a selection, updates the selected objects instead.',
       nextColor: 'Cycles colors the opposite way.',
       toggleDash: 'Solid → dashed → dotted for pen, line, arrow, rectangle and ellipse.',

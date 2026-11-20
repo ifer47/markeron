@@ -172,7 +172,10 @@ pub fn save_general(
     if let Err(e) = app.emit("config-changed", snapshot) {
         warn!("Failed to emit config-changed: {}", e);
     }
-    if crate::overlay::current_mode(&state) != crate::overlay::OverlayMode::Hidden {
+    if matches!(
+        crate::overlay::current_mode(&state),
+        crate::overlay::OverlayMode::Drawing | crate::overlay::OverlayMode::Penetration
+    ) {
         crate::overlay::ensure_toolbar_window(&app, &state);
     }
     crate::theme::apply_app_theme(&app, &theme);

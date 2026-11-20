@@ -22,6 +22,8 @@ let selectAllPress: SelectAllPressState = { ...EMPTY_SELECT_ALL_PRESS }
 
 export interface KeyboardContext {
   active: Ref<boolean>
+  /** Ink is kept on screen as a click-through layer (annotation already exited). */
+  preservedMode: Ref<boolean>
   showToolbarPopup: Ref<boolean>
   toolbarPinned: Ref<boolean> | ComputedRef<boolean>
   showQuickColors: Ref<boolean>
@@ -173,7 +175,16 @@ function shouldTriggerKeyboardPaste(e: KeyboardEvent, ctx: KeyboardContext): boo
 
 export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActions) {
   return function onKeyDown(e: KeyboardEvent) {
-    if (!ctx.active.value) return
+    if (!ctx.active.value) {
+      // Preserved ink is click-through, but the overlay can still own the keyboard right after
+      // exiting. Esc there tucks the whole layer away (content stays in memory for re-entry).
+      if (ctx.preservedMode.value && e.key === 'Escape' && !e.repeat) {
+        e.preventDefault()
+        logActionEvent('preserved layer dismissed', { reason: 'keyboard', shortcut: 'escape' })
+        actions.exitDrawing()
+      }
+      return
+    }
 
     trackCopyModifierKeyDown(e)
 

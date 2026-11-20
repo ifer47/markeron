@@ -27,7 +27,7 @@ MarkerOn only saves the following information locally:
 
 2. **Drawing Data**
    Annotations exist only in memory during the app process and are **never** written to disk or uploaded.
-   By default, exiting annotation mode clears drawings. If **Keep after exit** is enabled in Settings, drawings remain in memory until the next annotation session or until you quit the app.
+   By default, exiting annotation mode clears drawings. If **Keep ink after exit** is enabled in Settings, drawings stay visible on screen (and in memory) after you exit — until you tuck the layer away, clear it, or quit the app.
 
 ### Network Access
 

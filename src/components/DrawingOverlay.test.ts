@@ -73,6 +73,30 @@ async function pointerDown(options: MouseEventInit) {
   await settle()
 }
 
+async function pointerUp(options: MouseEventInit) {
+  const event = new MouseEvent('pointerup', {
+    bubbles: true,
+    button: 0,
+    buttons: 0,
+    clientX: 50,
+    clientY: 50,
+    ...options,
+  })
+  Object.defineProperties(event, {
+    pointerId: { value: 1 },
+    pointerType: { value: 'mouse' },
+    pressure: { value: 0 },
+  })
+  host.querySelectorAll('canvas')[1].dispatchEvent(event)
+  await settle()
+}
+
+/** Draw one pen stroke so the canvas reports `canClear`. */
+async function drawStroke() {
+  await pointerDown({})
+  await pointerUp({ clientX: 80, clientY: 80 })
+}
+
 beforeEach(async () => {
   vi.useFakeTimers()
   native.state = null
@@ -208,6 +232,58 @@ describe('overlay tool selection across sessions', () => {
     await sendEvent('overlay-mode-changed', 'hidden')
     await sendEvent('overlay-mode-changed', 'drawing')
     expect(native.state?.whiteboardMode).toBe(true)
+    expect(native.state?.currentTool).toBe('pen')
+  })
+
+  it('keeps the ink on the canvas when ending in preserved mode', async () => {
+    native.config.general.preserveDrawings = true
+    await mountOverlay()
+    await sendEvent('overlay-mode-changed', 'drawing')
+    await drawStroke()
+    expect(native.state?.canClear).toBe(true)
+
+    await sendEvent('overlay-mode-changed', 'preserved')
+    // Preserved mode stops syncing state (click-through, no toolbar); resume to read it back
+    // and prove the stroke survived the exit.
+    await sendEvent('overlay-mode-changed', 'drawing')
+    expect(native.state?.canClear).toBe(true)
+  })
+
+  it('clears the canvas on exit when drawings are not preserved', async () => {
+    native.config.general.preserveDrawings = false
+    await mountOverlay()
+    await sendEvent('overlay-mode-changed', 'drawing')
+    await drawStroke()
+    expect(native.state?.canClear).toBe(true)
+
+    await sendEvent('overlay-mode-changed', 'hidden')
+    await sendEvent('overlay-mode-changed', 'drawing')
+    expect(native.state?.canClear).toBe(false)
+  })
+
+  it('drops the whiteboard background when ending in preserved mode', async () => {
+    native.config.general.preserveDrawings = true
+    await mountOverlay()
+    await sendEvent('overlay-mode-changed', 'drawing')
+    await sendEvent(TOOLBAR_ACTION_EVENT, { type: 'toggleWhiteboard' })
+    expect(native.state?.whiteboardMode).toBe(true)
+    // Opaque board fill would hide the desktop the preserved ink is meant to sit on.
+    const container = host.firstElementChild as HTMLElement
+    expect(container.style.backgroundColor).not.toBe('')
+
+    await sendEvent('overlay-mode-changed', 'preserved')
+    expect(container.style.backgroundColor).toBe('')
+  })
+
+  it('starts from the pen when resuming from preserved mode with auto-revert enabled', async () => {
+    native.config.general.preserveDrawings = true
+    native.config.general.autoRevertToPen = true
+    await mountOverlay()
+    await sendEvent('overlay-mode-changed', 'drawing')
+    await sendEvent(TOOLBAR_ACTION_EVENT, { type: 'selectTool', tool: 'rect' })
+
+    await sendEvent('overlay-mode-changed', 'preserved')
+    await sendEvent('overlay-mode-changed', 'drawing')
     expect(native.state?.currentTool).toBe('pen')
   })
 

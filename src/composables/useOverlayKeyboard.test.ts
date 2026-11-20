@@ -16,6 +16,7 @@ import { SELECT_ALL_DOUBLE_MS } from '../utils/selectAllDoublePress'
 function createContext(overrides: Partial<KeyboardContext> = {}): KeyboardContext {
   return {
     active: ref(true),
+    preservedMode: ref(false),
     showToolbarPopup: ref(false),
     toolbarPinned: ref(false),
     showQuickColors: ref(false),
@@ -379,6 +380,30 @@ describe('useOverlayKeyboard', () => {
     it('Escape exits drawing', () => {
       handler(key('Escape'))
       expect(actions.calls.exitDrawing).toHaveLength(1)
+    })
+
+    it('Escape dismisses the preserved ink layer', () => {
+      ctx.active.value = false
+      ctx.preservedMode.value = true
+      handler(key('Escape'))
+      expect(actions.calls.exitDrawing).toHaveLength(1)
+    })
+
+    it('ignores keys other than Escape while the ink is preserved', () => {
+      ctx.active.value = false
+      ctx.preservedMode.value = true
+      handler(key('1'))
+      handler(key('z', { ctrlKey: true }))
+      expect(actions.calls.showToolTip).toHaveLength(0)
+      expect(actions.calls.undo).toHaveLength(0)
+      expect(actions.calls.exitDrawing).toHaveLength(0)
+    })
+
+    it('does not dismiss the preserved layer on Escape auto-repeat', () => {
+      ctx.active.value = false
+      ctx.preservedMode.value = true
+      handler(key('Escape', { repeat: true }))
+      expect(actions.calls.exitDrawing).toHaveLength(0)
     })
 
     it('Escape clears selection before exiting', () => {

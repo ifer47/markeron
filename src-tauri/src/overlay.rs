@@ -48,6 +48,8 @@ pub enum OverlayMode {
     Hidden,
     Drawing,
     Penetration,
+    /// Annotation ended but the ink stays on screen, click-through over the desktop.
+    Preserved,
 }
 
 impl OverlayMode {
@@ -56,6 +58,7 @@ impl OverlayMode {
             OverlayMode::Hidden => "hidden",
             OverlayMode::Drawing => "drawing",
             OverlayMode::Penetration => "penetration",
+            OverlayMode::Preserved => "preserved",
         }
     }
 }
@@ -95,7 +98,7 @@ fn emit_mode(app: &AppHandle, mode: OverlayMode) {
     if let Err(e) = app.emit("overlay-mode-changed", payload) {
         warn!("Failed to emit overlay-mode-changed: {}", e);
     }
-    let is_active = mode != OverlayMode::Hidden;
+    let is_active = matches!(mode, OverlayMode::Drawing | OverlayMode::Penetration);
     if let Err(e) = app.emit("toggle-drawing", is_active) {
         warn!("Failed to emit toggle-drawing({}): {}", is_active, e);
     }
@@ -598,37 +601,84 @@ pub fn hide_toolbar_window(app: &AppHandle) {
     }
 }
 
-pub fn deactivate_drawing(app: &AppHandle, state: &AppState) {
-    if current_mode(state) == OverlayMode::Hidden {
-        return;
+/// Give focus back to the fullscreen app the session covered.
+///
+/// Windows: restore the foreground window before the overlay leaves the screen and give
+/// Explorer a moment to register it; otherwise the taskbar briefly flashes above that app.
+#[cfg(windows)]
+fn hand_back_covered_app(app: &AppHandle, window: &WebviewWindow) {
+    let fullscreen_app = COVERED_FULLSCREEN_APP.swap(0, Ordering::Relaxed);
+    let toolbar = app.get_webview_window("toolbar");
+    let holders: Vec<isize> = std::iter::once(window)
+        .chain(toolbar.as_ref())
+        .filter_map(|w| w.hwnd().ok().map(|h| h.0 as isize))
+        .collect();
+    if fullscreen_app != 0 && crate::win32::restore_foreground_window(fullscreen_app, &holders) {
+        std::thread::sleep(Duration::from_millis(50));
     }
+}
 
+#[cfg(not(windows))]
+fn hand_back_covered_app(_app: &AppHandle, _window: &WebviewWindow) {}
+
+/// Leave the ink on screen after annotation ends (`preserveDrawings`).
+///
+/// The overlay stays visible above the desktop but becomes click-through, so the user can
+/// keep working in the apps underneath while the annotations stay painted. The next
+/// activation re-enables pointer input and keeps the ink, so it can be edited or cleared.
+fn preserve_drawing(app: &AppHandle, state: &AppState) {
+    monitor::release_drawing_cursor_clip();
+    set_mode(state, OverlayMode::Preserved);
+    // Whiteboard background is a frontend CSS fill; the frontend drops it on mode change,
+    // leaving only the ink visible over the desktop.
+    *lock_or_recover(&state.whiteboard_mode) = false;
+
+    if let Some(window) = app.get_webview_window("overlay") {
+        hand_back_covered_app(app, &window);
+        window.set_always_on_top(true).ok();
+        ensure_overlay_transparent(&window);
+        // Click-through last: it rewrites WS_EX_TRANSPARENT, which the calls above may touch.
+        // Pointer input then reaches the desktop while the ink keeps rendering here.
+        set_ignore_cursor_events(&window, true);
+    }
+    hide_toolbar_window(app);
+    emit_mode(app, OverlayMode::Preserved);
+}
+
+/// Take the overlay off screen without touching the canvas.
+///
+/// `preserveDrawings` keeps the ink in the webview, so the next activation restores it.
+fn hide_overlay(app: &AppHandle, state: &AppState) {
     monitor::release_drawing_cursor_clip();
     set_mode(state, OverlayMode::Hidden);
     *lock_or_recover(&state.whiteboard_mode) = false;
 
     if let Some(window) = app.get_webview_window("overlay") {
-        // Hand focus back to the covered fullscreen app before hiding, and give Explorer a
-        // moment to register it; otherwise the taskbar briefly flashes above that app.
-        #[cfg(windows)]
-        {
-            let fullscreen_app = COVERED_FULLSCREEN_APP.swap(0, Ordering::Relaxed);
-            let toolbar = app.get_webview_window("toolbar");
-            let holders: Vec<isize> = std::iter::once(&window)
-                .chain(toolbar.as_ref())
-                .filter_map(|w| w.hwnd().ok().map(|h| h.0 as isize))
-                .collect();
-            if fullscreen_app != 0
-                && crate::win32::restore_foreground_window(fullscreen_app, &holders)
-            {
-                std::thread::sleep(Duration::from_millis(50));
-            }
-        }
+        hand_back_covered_app(app, &window);
         set_ignore_cursor_events(&window, true);
         window.hide().ok();
     }
     hide_toolbar_window(app);
     emit_mode(app, OverlayMode::Hidden);
+}
+
+pub fn deactivate_drawing(app: &AppHandle, state: &AppState) {
+    match current_mode(state) {
+        OverlayMode::Hidden => return,
+        // Preserved ink is already "exited": this second exit fully tucks the layer away.
+        OverlayMode::Preserved => {
+            hide_overlay(app, state);
+            return;
+        }
+        OverlayMode::Drawing | OverlayMode::Penetration => {}
+    }
+
+    if lock_or_recover(&state.config).general.preserve_drawings {
+        preserve_drawing(app, state);
+        return;
+    }
+
+    hide_overlay(app, state);
 }
 
 pub fn activate_drawing(app: &AppHandle, state: &AppState) {
@@ -801,21 +851,34 @@ pub fn toggle_penetration_mode(app: &AppHandle, state: &AppState) {
     match current_mode(state) {
         OverlayMode::Drawing => enter_penetration_mode(app, state),
         OverlayMode::Penetration => exit_penetration_mode(app, state),
-        OverlayMode::Hidden => {}
+        // No annotation session to click through; the drawing shortcut resumes on top of the ink.
+        OverlayMode::Preserved | OverlayMode::Hidden => {}
     }
 }
 
 pub fn toggle_drawing(app: &AppHandle) {
     let state = app.state::<AppState>();
     match current_mode(&state) {
-        OverlayMode::Hidden => activate_drawing(app, &state),
+        // Preserved ink resumes editing; the toggle never hides the layer — Esc (or the
+        // toolbar exit) is the only "fully exit" path.
+        OverlayMode::Hidden | OverlayMode::Preserved => activate_drawing(app, &state),
         OverlayMode::Drawing | OverlayMode::Penetration => deactivate_drawing(app, &state),
     }
 }
 
 pub fn clear_drawing(app: &AppHandle, state: &AppState) {
-    if current_mode(state) == OverlayMode::Hidden {
-        return;
+    match current_mode(state) {
+        OverlayMode::Hidden => return,
+        OverlayMode::Preserved => {
+            // Kept-behind ink: wipe it, then drop the click-through overlay so an empty
+            // always-on-top window does not linger over the desktop.
+            if let Err(e) = app.emit("clear-drawing", false) {
+                warn!("Failed to emit clear-drawing: {}", e);
+            }
+            hide_overlay(app, state);
+            return;
+        }
+        OverlayMode::Drawing | OverlayMode::Penetration => {}
     }
     // `true` = undoable clear (Ctrl+Z restores). Activation without preserve emits `()`.
     if let Err(e) = app.emit("clear-drawing", true) {

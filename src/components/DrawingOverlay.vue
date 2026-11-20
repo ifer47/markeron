@@ -115,7 +115,9 @@ const containerRef = ref<HTMLDivElement | null>(null)
 const textBoxRef = ref<InstanceType<typeof TextBox> | null>(null)
 const active = ref(false)
 const penetrationMode = ref(false)
-type OverlaySessionMode = 'hidden' | 'drawing' | 'penetration'
+/** Annotation ended but the ink is still painted over a click-through overlay. */
+const preservedMode = ref(false)
+type OverlaySessionMode = 'hidden' | 'drawing' | 'penetration' | 'preserved'
 let lastOverlayMode: OverlaySessionMode = 'hidden'
 const toolbarVisibility = ref<ToolbarVisibility>('space')
 const toolbarPinned = computed(() => isToolbarPinned(toolbarVisibility.value))
@@ -125,6 +127,8 @@ const toolbarPanelDragging = ref(false)
 /** Hide overlay chrome during screen capture so panels are not in the clipboard image. */
 const hideUiForCapture = ref(false)
 const sessionActive = computed(() => active.value || penetrationMode.value)
+/** No pointer/keyboard interaction: the overlay is only a layer of ink over the desktop. */
+const pointerThrough = computed(() => penetrationMode.value || preservedMode.value)
 const mousePos = ref({ x: 0, y: 0 })
 const textBoxPos = ref<{ x: number; y: number } | null>(null)
 const whiteboardMode = ref(false)
@@ -1818,6 +1822,7 @@ function placeStampAt(x: number, y: number) {
 const onKeyDown = createKeyDownHandler(
   {
     active,
+    preservedMode,
     showToolbarPopup,
     toolbarPinned,
     showQuickColors,
@@ -1957,7 +1962,7 @@ const wantsCustomCursor = computed(
 
 // Use system cursor as fallback whenever the SVG overlay cursor is suppressed.
 const canvasCursor = computed(() => {
-  if (penetrationMode.value) return 'default'
+  if (pointerThrough.value) return 'default'
   if (isReshaping.value || pointerOverReshapeHandle.value) {
     return isReshaping.value && reshapeHandleCursor.value === 'grab' ? 'grabbing' : reshapeHandleCursor.value
   }
@@ -2324,16 +2329,24 @@ onMounted(async () => {
       lastOverlayMode = mode
       logSessionEvent('overlay mode changed', { from: previousMode, to: mode })
       penetrationMode.value = mode === 'penetration'
+      preservedMode.value = mode === 'preserved'
+      // Keeping the ink on screen ends the session exactly like hiding the overlay does;
+      // only the window stays visible (and click-through) instead of being hidden.
+      const sessionEnded = mode === 'hidden' || mode === 'preserved'
       if (mode === 'drawing') {
         customCursorPositionReady.value = false
         overlayLayoutReady.value = false
-      } else if (mode === 'hidden') {
+      } else if (sessionEnded) {
         customCursorPositionReady.value = true
       }
       active.value = mode === 'drawing'
       showQuickColors.value = false
+      // A shortcut-driven exit can leave an open text box behind. When the ink is kept, the
+      // typed text belongs on that canvas instead of vanishing with the editor (Esc commits
+      // it in `exitDrawing` before the mode change).
+      if (mode === 'preserved') commitCurrentTextBox()
       textBoxPos.value = null
-      if (mode === 'hidden') {
+      if (sessionEnded) {
         // Remember this session's CSS size so the next activate does not treat a
         // stale WebView2 viewport (previous monitor) as already settled.
         if (window.innerWidth > 0 && window.innerHeight > 0) {
@@ -2357,10 +2370,11 @@ onMounted(async () => {
       } else if (mode === 'drawing') {
         toolbarPanelHovered.value = false
         toolbarPanelDragging.value = false
-        if (!toolbarPinned.value && previousMode === 'hidden') {
+        const freshEntry = previousMode === 'hidden' || previousMode === 'preserved'
+        if (!toolbarPinned.value && freshEntry) {
           showToolbarPopup.value = false
         }
-        if (previousMode === 'hidden') {
+        if (freshEntry) {
           // With auto-revert enabled, every entry starts from the pen instead of
           // the tool left over from the previous drawing session.
           const entryTool = toolOnDrawingEntry(autoRevertToPen.value)
@@ -2645,9 +2659,9 @@ function exitDrawing(reason: 'keyboard' | 'toolbar' | 'unknown' = 'unknown') {
   <div
     ref="containerRef"
     class="fixed top-0 left-0 w-screen h-screen z-99999"
-    :class="[active && !penetrationMode ? 'pointer-events-auto' : 'pointer-events-none']"
+    :class="[active ? 'pointer-events-auto' : 'pointer-events-none']"
     :style="[
-      active && !penetrationMode ? { cursor: canvasCursor } : undefined,
+      active ? { cursor: canvasCursor } : undefined,
       whiteboardMode ? { backgroundColor: whiteboardBgColor } : undefined,
     ]"
   >

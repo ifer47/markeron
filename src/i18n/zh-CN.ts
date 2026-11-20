@@ -135,14 +135,17 @@ export default {
     dragModeDescOff: '标注中无法拖动已有图形。',
     dragModeDescHover: '悬停在图形上拖动即可移动。',
     dragModeDescModifier: '需按住 {modKey} 并拖动才能移动，不按修饰键时可继续在图形上绘制。',
-    preserveDrawings: '退出标注后保留',
-    preserveDrawingsDesc: '开启后，退出标注模式时不会清除已有标注，下次进入将恢复上次的绘制内容。',
+    preserveDrawings: '退出后保留绘制内容',
+    preserveDrawingsDesc:
+      '开启后，退出标注不会清除绘制内容。用快捷键关闭标注时，笔迹留在桌面并可穿透操作下层窗口（再按快捷键回到编辑）；按第一次 Esc 同样留下笔迹，再按一次才完全收起标注层，内容仍保留，下次进入可继续编辑。关闭时退出即清除绘制内容。',
+    preserveDrawingsHint:
+      '开启后：Esc 一次关闭标注留笔迹、两次完全收起（内容保留）· {toggle} 关闭标注留笔迹，再按回到编辑。',
     whiteboardPreserveDrawings: '按 W 切换时保留',
     whiteboardPreserveDrawingsDesc:
       '开启后，按 W 进入或退出白板模式时会保留当前白板内容；关闭后，每次切换白板都会从空白画布开始。',
     whiteboardSection: '白板与内容',
     whiteboardSectionDesc:
-      '默认进入选择屏幕叠加或画板。画板颜色可在白底与黑底之间切换。退出标注后保留：再次进入时恢复上次内容。按 W 切换时保留：在标注模式内切换屏幕/画板时不重置画布；关闭后每次按 W 进入画板均为空白画布。',
+      '默认进入选择屏幕叠加或画板。画板颜色可在白底与黑底间切换。退出后保留绘制内容：快捷键关闭标注时笔迹留在桌面（可穿透操作下层窗口），Esc 按一次同样留笔迹、再按一次才完全收起。按 W 切换时保留：在标注模式内切换屏幕/画板时不重置画布；关闭后每次按 W 进入画板均为空白画布。',
     angleSnapStep: '吸附角度步进',
     angleSnapStepDesc: '按住 Alt 绘制直线时，按此角度间隔吸附（1–90°）。设为 1° 可精确绘制特定角度。',
     defaultEntryMode: '默认进入',
@@ -246,7 +249,8 @@ export default {
       deleteSelection: 'Backspace 效果相同。',
       nudge: '选中图形后，用方向键微调位置。',
       nudgeLarge: '按住 Shift 再按方向键，每次移动 10px。',
-      exitDrawing: '有选中内容时先取消选中。',
+      exitDrawing:
+        '有选中内容时先取消选中。开启「退出后保留绘制内容」后，Esc 先留下笔迹，再按一次则完全收起（内容仍保留）；开始标注快捷键只切换编辑状态。',
       prevColor: '选中图形时直接修改选中图形的颜色。',
       nextColor: '与「上一个颜色」方向相反。',
       toggleDash: '实线 → 虚线 → 点线，支持画笔、直线、箭头、矩形、椭圆。',

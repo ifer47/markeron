@@ -63,7 +63,7 @@ winget install --id 9N6623X973JV --source msstore
 - **Flexible toolbar** — press <kbd>Space</kbd> to toggle, or enable **always-on** in Settings; compact panel with **Expand** for full options, undo, copy, and whiteboard actions in-panel; **independent floating window** with drawing / click-through toggles
 - **Click-through mode** — interact with apps below while staying in the session; toggle via toolbar buttons, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> (global), or <kbd>X</kbd> while drawing; disabled in whiteboard mode
 - **Full keyboard control** — every action has a shortcut, no menus needed
-- **Preserve drawings** — enable **Keep after exit** under Whiteboard & content to resume on re-enter
+- **Preserve drawings** — enable **Keep ink after exit** under Whiteboard & content so the toggle-annotation shortcut leaves ink on screen (click-through); one Esc also leaves the ink, a second Esc tucks the layer away with the ink kept for next time
 - **Whiteboard mode** — set default entry to whiteboard, or press <kbd>W</kbd> to toggle; choose **white or black** board color under **Whiteboard & content**
 - **Whiteboard copy** — copy the whiteboard as an image with <kbd>Ctrl</kbd>/<kbd>Command</kbd> + <kbd>C</kbd>
 
@@ -163,7 +163,7 @@ On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd
 
 In **Settings → General** (toolbar display, click-through, and stroke width — see [Features](#features)):
 
-- **Whiteboard & content** — default entry (screen / whiteboard), board color (white / black), keep after exit, keep on <kbd>W</kbd> toggle
+- **Whiteboard & content** — default entry (screen / whiteboard), board color (white / black), keep ink after exit, keep on <kbd>W</kbd> toggle
 - **Element dragging** — off, hover to drag, or hold <kbd>Ctrl</kbd>/<kbd>Command</kbd> to drag (disabled while eraser is selected)
 - **Eraser mode** — stroke (local erase) or object (delete whole elements); with eraser selected, press <kbd>7</kbd> again (or click the toolbar eraser again) to switch
 - **Angle snap step** — snap interval for straight lines drawn with <kbd>Alt</kbd>

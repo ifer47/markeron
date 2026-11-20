@@ -192,7 +192,7 @@
         'Stroke: erase pixels along the drag path (undoable). Object: delete entire shapes or text when you pass over them (undoable). Element dragging is disabled while the eraser is selected, even with hover drag on. Switch in Settings → General, or press <kbd>7</kbd> again while the eraser is selected.',
       'helpPage.settings.boardTitle': 'Whiteboard & content',
       'helpPage.settings.boardBody':
-        'Default entry chooses screen overlay or whiteboard. Keep after exit restores your last session when you re-enter. Keep on W toggle preserves drawings when switching modes without exiting; turn off to start with a blank whiteboard each time you press W. Configure these in Settings → General.',
+        'Default entry chooses screen overlay or whiteboard. Keep ink after exit means the toggle-annotation shortcut leaves your drawings on screen as a click-through layer over the desktop, and one Esc does the same while a second Esc tucks the layer away. Keep on W toggle preserves drawings when switching modes without exiting; turn off to start with a blank whiteboard each time you press W. Configure these in Settings → General.',
       'helpPage.tips.eyebrow': '05',
       'helpPage.tips.title': 'Click-through & drag tips',
       'helpPage.tips.lead': 'Keep marks on screen while you present — then move or edit when needed.',
@@ -455,7 +455,7 @@
         '轨迹擦除：按路径局部擦除像素（可撤销）。对象擦除：划过图形或文字时删除整个元素（可撤销）。使用橡皮擦时不会触发元素拖拽，即使已开启悬停拖动。可在「设置 → 常规」中切换，或在已选中橡皮擦时再按 <kbd>7</kbd>。',
       'helpPage.settings.boardTitle': '白板与内容',
       'helpPage.settings.boardBody':
-        '默认进入选择屏幕叠加或白底画布。退出标注后保留：再次进入时恢复上次内容。按 W 切换时保留：在标注模式内切换屏幕/白板时不重置画布；关闭后每次按 W 进入白板均为空白画布。可在「设置 → 常规」中配置。',
+        '默认进入选择屏幕叠加或白底画布。退出后保留绘制内容：快捷键关闭标注时笔迹留在桌面（可穿透操作下层窗口），Esc 按一次同样留笔迹、再按一次才完全收起。按 W 切换时保留：在标注模式内切换屏幕/白板时不重置画布；关闭后每次按 W 进入白板均为空白画布。可在「设置 → 常规」中配置。',
       'helpPage.tips.eyebrow': '05',
       'helpPage.tips.title': '穿透与拖拽技巧',
       'helpPage.tips.lead': '演示时让标注留在屏幕上 — 需要时再移动或编辑。',

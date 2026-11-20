@@ -47,8 +47,8 @@ export default {
     '#FFFFFF': 'White',
     '#000000': 'Black',
   },
-  widths: { 1: 'XS', 2: 'S', 3: 'M', 5: 'L', 8: 'XL' },
-  textSizes: { 1: 'XS', 2: 'S', 3: 'M', 5: 'L', 8: 'XL' },
+  widths: { xs: 'XS', s: 'S', m: 'M', l: 'L', xl: 'XL' },
+  textSizes: { xs: 'XS', s: 'S', m: 'M', l: 'L', xl: 'XL' },
   panel: {
     tools: 'Tools',
     toolsHint: 'Press V / 1-8 / T / N',

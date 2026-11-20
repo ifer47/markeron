@@ -46,8 +46,8 @@ export default {
     '#FFFFFF': '白色',
     '#000000': '黑色',
   },
-  widths: { 1: '极细', 2: '细', 3: '中', 5: '粗', 8: '极粗' },
-  textSizes: { 1: '极小', 2: '小', 3: '中', 5: '大', 8: '极大' },
+  widths: { xs: '极细', s: '细', m: '中', l: '粗', xl: '极粗' },
+  textSizes: { xs: '极小', s: '小', m: '中', l: '大', xl: '极大' },
   panel: {
     tools: '工具',
     toolsHint: '按 V / 1-8 / T / N 切换',

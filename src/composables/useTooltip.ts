@@ -15,11 +15,10 @@ export interface TooltipState {
 export interface UseTooltipOptions {
   toolLabelMap: ComputedRef<Record<Tool, string>>
   colorNameMap: ComputedRef<Record<string, string>>
-  t: (key: string) => string
 }
 
 export function useTooltip(options: UseTooltipOptions) {
-  const { toolLabelMap, colorNameMap, t } = options
+  const { toolLabelMap, colorNameMap } = options
 
   const text = ref('')
   const tool = ref<Tool | null>(null)
@@ -58,8 +57,7 @@ export function useTooltip(options: UseTooltipOptions) {
   }
 
   function showWidth(w: number, label?: string) {
-    const resolved = t(`widths.${w}`)
-    text.value = label ?? (resolved !== `widths.${w}` ? resolved : `${w}px`)
+    text.value = label ?? `${w}px`
     tool.value = null
     color.value = null
     width.value = w

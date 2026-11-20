@@ -24,9 +24,7 @@ function createTooltip() {
     '#000000': 'Black',
   }))
 
-  const t = (key: string) => key
-
-  return useTooltip({ toolLabelMap, colorNameMap, t })
+  return useTooltip({ toolLabelMap, colorNameMap })
 }
 
 describe('useTooltip', () => {

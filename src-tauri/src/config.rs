@@ -38,20 +38,29 @@ fn default_auto_revert_to_pen() -> bool {
 }
 
 fn default_line_width() -> u32 {
-    3
+    345
 }
 
 /// Bumped whenever the on-disk shape changes in a way that needs migration.
 /// Older files without the field deserialize as `0` and are upgraded on load.
 pub const CONFIG_VERSION: u32 = 1;
 
-const LINE_WIDTH_PRESETS: [u32; 5] = [1, 2, 3, 5, 8];
+/// Persisted widths are hundredths of a CSS pixel (115 = 1.15px).
+const LINE_WIDTH_PRESET_STORAGE: [u32; 5] = [115, 230, 345, 575, 920];
+/// Older builds stored the 1/2/3/5/8 px presets directly.
+const LEGACY_LINE_WIDTH_PRESETS: [u32; 5] = [1, 2, 3, 5, 8];
 
 fn is_valid_line_width(value: u32) -> bool {
-    LINE_WIDTH_PRESETS.contains(&value)
+    LINE_WIDTH_PRESET_STORAGE.contains(&value)
 }
 
 fn normalize_line_width(value: u32) -> u32 {
+    if let Some(index) = LEGACY_LINE_WIDTH_PRESETS
+        .iter()
+        .position(|&legacy| legacy == value)
+    {
+        return LINE_WIDTH_PRESET_STORAGE[index];
+    }
     if is_valid_line_width(value) {
         value
     } else {
@@ -59,15 +68,50 @@ fn normalize_line_width(value: u32) -> u32 {
     }
 }
 
+/// Accept legacy integer presets, intermediate float values, and new hundredths storage.
+fn deserialize_line_width<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = f64::deserialize(deserializer)?;
+    Ok(normalize_decoded_line_width(value))
+}
+
+fn normalize_decoded_line_width(value: f64) -> u32 {
+    if !value.is_finite() || value < 0.0 || value > u32::MAX as f64 {
+        return default_line_width();
+    }
+    if value.fract() == 0.0 {
+        return normalize_line_width(value as u32);
+    }
+    let scaled = (value * 100.0).round();
+    if scaled < 0.0 || scaled > u32::MAX as f64 {
+        return default_line_width();
+    }
+    normalize_line_width(scaled as u32)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LineWidthsConfig {
-    #[serde(default = "default_line_width")]
+    #[serde(
+        default = "default_line_width",
+        deserialize_with = "deserialize_line_width"
+    )]
     pub stroke: u32,
-    #[serde(default = "default_line_width")]
+    #[serde(
+        default = "default_line_width",
+        deserialize_with = "deserialize_line_width"
+    )]
     pub highlighter: u32,
-    #[serde(default = "default_line_width")]
+    #[serde(
+        default = "default_line_width",
+        deserialize_with = "deserialize_line_width"
+    )]
     pub eraser: u32,
-    #[serde(default = "default_line_width")]
+    #[serde(
+        default = "default_line_width",
+        deserialize_with = "deserialize_line_width"
+    )]
     pub text: u32,
 }
 
@@ -1289,25 +1333,56 @@ mod tests {
             },
             "general": {
                 "lineWidths": {
-                    "stroke": 5,
-                    "highlighter": 8,
-                    "eraser": 2,
-                    "text": 1
+                    "stroke": 575,
+                    "highlighter": 920,
+                    "eraser": 230,
+                    "text": 115
                 }
             }
         }"#;
         let config: AppConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(config.general.line_widths.stroke, 5);
-        assert_eq!(config.general.line_widths.highlighter, 8);
-        assert_eq!(config.general.line_widths.eraser, 2);
-        assert_eq!(config.general.line_widths.text, 1);
+        assert_eq!(config.general.line_widths.stroke, 575);
+        assert_eq!(config.general.line_widths.highlighter, 920);
+        assert_eq!(config.general.line_widths.eraser, 230);
+        assert_eq!(config.general.line_widths.text, 115);
+    }
+
+    #[test]
+    fn config_deserializes_legacy_and_float_line_widths() {
+        let legacy = r#"{
+            "general": { "lineWidths": {
+                "stroke": 5, "highlighter": 8, "eraser": 2, "text": 1
+            } }
+        }"#;
+        let legacy: AppConfig = serde_json::from_str(legacy).unwrap();
+        assert_eq!(legacy.general.line_widths.stroke, 575);
+        assert_eq!(legacy.general.line_widths.highlighter, 920);
+        assert_eq!(legacy.general.line_widths.eraser, 230);
+        assert_eq!(legacy.general.line_widths.text, 115);
+
+        let floats = r#"{
+            "general": { "lineWidths": {
+                "stroke": 5.75, "highlighter": 9.2, "eraser": 2.3, "text": 1.15
+            } }
+        }"#;
+        let floats: AppConfig = serde_json::from_str(floats).unwrap();
+        assert_eq!(floats.general.line_widths.stroke, 575);
+        assert_eq!(floats.general.line_widths.highlighter, 920);
+        assert_eq!(floats.general.line_widths.eraser, 230);
+        assert_eq!(floats.general.line_widths.text, 115);
+    }
+
+    #[test]
+    fn normalized_migrates_legacy_line_widths() {
+        let migrated = LEGACY_LINE_WIDTH_PRESETS.map(normalize_line_width);
+        assert_eq!(migrated, LINE_WIDTH_PRESET_STORAGE);
     }
 
     #[test]
     fn general_config_defaults_line_widths() {
         let general = GeneralConfig::default();
         assert_eq!(general.line_widths, LineWidthsConfig::default());
-        assert_eq!(general.line_widths.stroke, 3);
+        assert_eq!(general.line_widths.stroke, 345);
     }
 
     #[test]
@@ -1322,10 +1397,10 @@ mod tests {
             ..GeneralConfig::default()
         };
         let normalized = general.normalized();
-        assert_eq!(normalized.line_widths.stroke, 3);
-        assert_eq!(normalized.line_widths.highlighter, 3);
-        assert_eq!(normalized.line_widths.eraser, 3);
-        assert_eq!(normalized.line_widths.text, 5);
+        assert_eq!(normalized.line_widths.stroke, 345);
+        assert_eq!(normalized.line_widths.highlighter, 345);
+        assert_eq!(normalized.line_widths.eraser, 345);
+        assert_eq!(normalized.line_widths.text, 575);
     }
 
     #[test]

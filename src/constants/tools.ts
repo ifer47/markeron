@@ -46,7 +46,18 @@ export const TOOL_ICON_MAP: Record<Tool, Component> = Object.fromEntries(
   TOOL_DEFS.map((d) => [d.id, d.icon]),
 ) as Record<Tool, Component>
 
-export const WIDTH_PRESETS: number[] = [1, 2, 3, 5, 8]
+/** Five stroke-width presets in CSS pixels (legacy 1/2/3/5/8 × 1.15). */
+export const WIDTH_PRESETS: number[] = [1.15, 2.3, 3.45, 5.75, 9.2]
+
+/** Persisted line widths are hundredths of a CSS pixel (115 = 1.15px). */
+export const WIDTH_PRESET_STORAGE: number[] = [115, 230, 345, 575, 920]
+export const WIDTH_STORAGE_SCALE = 100
+
+/** Stable i18n label keys for the five width presets (no decimal path segments). */
+export const WIDTH_LABEL_KEYS = ['xs', 's', 'm', 'l', 'xl'] as const
+
+/** Legacy presets persisted by older versions; normalized to the new values on load. */
+const LEGACY_WIDTH_PRESETS: number[] = [1, 2, 3, 5, 8]
 
 /** Middle preset — default line width for every width group. */
 export const DEFAULT_LINE_WIDTH = WIDTH_PRESETS[2]
@@ -121,7 +132,31 @@ export function createDefaultLineWidths(): ToolLineWidths {
 }
 
 export function normalizeLineWidth(value: unknown): number {
-  return typeof value === 'number' && WIDTH_PRESETS.includes(value) ? value : DEFAULT_LINE_WIDTH
+  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_LINE_WIDTH
+  const storedIndex = WIDTH_PRESET_STORAGE.indexOf(value)
+  if (storedIndex !== -1) return WIDTH_PRESETS[storedIndex]
+  const legacyIndex = LEGACY_WIDTH_PRESETS.indexOf(value)
+  if (legacyIndex !== -1) return WIDTH_PRESETS[legacyIndex]
+  const rounded = Math.round(value * WIDTH_STORAGE_SCALE) / WIDTH_STORAGE_SCALE
+  return WIDTH_PRESETS.includes(rounded) ? rounded : DEFAULT_LINE_WIDTH
+}
+
+/** Convert in-memory CSS-pixel widths to the persisted hundredths-of-a-pixel form. */
+export function toStoredLineWidths(widths: ToolLineWidths): ToolLineWidths {
+  const store = (value: number): number => {
+    const presetIndex = WIDTH_PRESETS.indexOf(value)
+    if (presetIndex !== -1) return WIDTH_PRESET_STORAGE[presetIndex]
+    const legacyIndex = LEGACY_WIDTH_PRESETS.indexOf(value)
+    if (legacyIndex !== -1) return WIDTH_PRESET_STORAGE[legacyIndex]
+    const stored = Math.round(value * WIDTH_STORAGE_SCALE)
+    return WIDTH_PRESET_STORAGE.includes(stored) ? stored : WIDTH_PRESET_STORAGE[2]
+  }
+  return {
+    stroke: store(widths.stroke),
+    highlighter: store(widths.highlighter),
+    eraser: store(widths.eraser),
+    text: store(widths.text),
+  }
 }
 
 /** Resolve persisted line widths; missing/invalid values fall back to defaults. */

@@ -12,6 +12,9 @@ import {
   resolveLineWidths,
   shapeDashPattern,
   toolLineWidthGroup,
+  toStoredLineWidths,
+  WIDTH_PRESET_STORAGE,
+  WIDTH_PRESETS,
 } from './tools'
 
 describe('line width helpers', () => {
@@ -20,7 +23,9 @@ describe('line width helpers', () => {
     for (const value of Object.values(widths)) {
       expect(value).toBe(DEFAULT_LINE_WIDTH)
     }
-    expect(DEFAULT_LINE_WIDTH).toBe(3)
+    expect(DEFAULT_LINE_WIDTH).toBe(3.45)
+    expect(WIDTH_PRESETS).toEqual([1.15, 2.3, 3.45, 5.75, 9.2])
+    expect(WIDTH_PRESET_STORAGE).toEqual([115, 230, 345, 575, 920])
   })
 
   it('maps stroke tools to shared group; others are separate', () => {
@@ -42,18 +47,48 @@ describe('line width helpers', () => {
     expect(highlighterLineWidth(3)).toBe(21)
   })
 
-  it('normalizes line width to presets', () => {
-    expect(normalizeLineWidth(5)).toBe(5)
+  it('normalizes line width to presets and migrates legacy/storage values', () => {
+    expect([1, 2, 3, 5, 8].map(normalizeLineWidth)).toEqual(WIDTH_PRESETS)
+    expect(WIDTH_PRESET_STORAGE.map(normalizeLineWidth)).toEqual(WIDTH_PRESETS)
+    expect(normalizeLineWidth(2.3000000000000003)).toBe(2.3)
     expect(normalizeLineWidth(4)).toBe(DEFAULT_LINE_WIDTH)
     expect(normalizeLineWidth('3')).toBe(DEFAULT_LINE_WIDTH)
+    expect(normalizeLineWidth(Number.NaN)).toBe(DEFAULT_LINE_WIDTH)
+  })
+
+  it('converts CSS-pixel widths to integer storage', () => {
+    expect(toStoredLineWidths({ stroke: 1.15, highlighter: 2.3, eraser: 3.45, text: 5.75 })).toEqual({
+      stroke: 115,
+      highlighter: 230,
+      eraser: 345,
+      text: 575,
+    })
+    expect(toStoredLineWidths({ stroke: 9.2, highlighter: 8, eraser: 3, text: 1 })).toEqual({
+      stroke: 920,
+      highlighter: 920,
+      eraser: 345,
+      text: 115,
+    })
+    expect(toStoredLineWidths({ stroke: 4, highlighter: Number.NaN, eraser: 0, text: 99 })).toEqual({
+      stroke: 345,
+      highlighter: 345,
+      eraser: 345,
+      text: 345,
+    })
   })
 
   it('resolves persisted line widths with fallbacks', () => {
     expect(resolveLineWidths()).toEqual(createDefaultLineWidths())
     expect(resolveLineWidths({ stroke: 8, eraser: 4 })).toEqual({
-      stroke: 8,
+      stroke: 9.2,
       highlighter: DEFAULT_LINE_WIDTH,
       eraser: DEFAULT_LINE_WIDTH,
+      text: DEFAULT_LINE_WIDTH,
+    })
+    expect(resolveLineWidths({ stroke: 575, eraser: 345 })).toEqual({
+      stroke: 5.75,
+      highlighter: DEFAULT_LINE_WIDTH,
+      eraser: 3.45,
       text: DEFAULT_LINE_WIDTH,
     })
   })

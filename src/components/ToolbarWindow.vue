@@ -25,6 +25,7 @@ import {
   clampToolbarWindowToOverlay,
 } from '../utils/toolbarWindow'
 import { isMacOS } from '../utils/platform'
+import { DEFAULT_LINE_WIDTH } from '../constants/tools'
 import { isCopyShortcut, isPasteShortcut } from '../composables/useOverlayKeyboard'
 import { getCurrentWindow } from '@tauri-apps/api/window'
 import type { AppConfig } from '../types/app'
@@ -32,7 +33,7 @@ import { applyTheme, watchSystemTheme, type ThemePreference } from '../composabl
 
 const currentTool = ref<Tool>('pen')
 const currentColor = ref('#FFCC02')
-const lineWidth = ref(3)
+const lineWidth = ref(DEFAULT_LINE_WIDTH)
 const textOutline = ref<TextOutlineStyle>(createDefaultTextOutline())
 const whiteboardMode = ref(false)
 const penetrationMode = ref(false)

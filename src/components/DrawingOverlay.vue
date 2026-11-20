@@ -31,8 +31,10 @@ import { applyTheme, watchSystemTheme, type ThemePreference } from '../composabl
 import TextBox from './TextBox.vue'
 import {
   TOOL_ICON_MAP,
+  WIDTH_LABEL_KEYS,
   WIDTH_PRESETS,
   eraserLineWidth,
+  toStoredLineWidths,
   isDashableTool,
   nextStrokeDashStyle,
   resolveLineWidths,
@@ -162,7 +164,7 @@ const {
   showWidth: showWidthTip,
   showMessage: showTip,
   dispose: disposeTooltip,
-} = useTooltip({ toolLabelMap, colorNameMap, t })
+} = useTooltip({ toolLabelMap, colorNameMap })
 
 const toolTip = tooltip.text
 const toolTipTool = tooltip.tool
@@ -331,7 +333,9 @@ function onWheel(e: WheelEvent) {
   if (!isDrawing.value) setSelectedLineWidth(WIDTH_PRESETS[next])
   // Pass current pointer so mid-gesture eraser resize splits at the cursor (not old path points).
   setLineWidth(WIDTH_PRESETS[next], { x: lastPointerX, y: lastPointerY })
-  const labelKey = tool === 'text' || tool === 'stamp' ? `textSizes.${lineWidth.value}` : `widths.${lineWidth.value}`
+  const presetIndex = WIDTH_PRESETS.indexOf(lineWidth.value)
+  const sizeKey = WIDTH_LABEL_KEYS[presetIndex] ?? WIDTH_LABEL_KEYS[2]
+  const labelKey = tool === 'text' || tool === 'stamp' ? `textSizes.${sizeKey}` : `widths.${sizeKey}`
   showWidthTip(lineWidth.value, t(labelKey))
   schedulePersistLineWidths()
   // Wheel often does not fire pointermove; re-anchor cursor so eraser scales from center.
@@ -582,7 +586,7 @@ async function persistLineWidths() {
   try {
     // Dedicated IPC patches only lineWidths under the Rust config lock —
     // avoids read-modify-write races with settings `save_general`.
-    await invoke('save_line_widths', { lineWidths: resolveLineWidths(lineWidths.value) })
+    await invoke('save_line_widths', { lineWidths: toStoredLineWidths(lineWidths.value) })
   } catch (error) {
     console.error('Failed to save line widths:', error)
   }

@@ -4,9 +4,10 @@ import { Undo2, Redo2, Trash2, Layout, Copy, MoreHorizontal, ChevronUp, MousePoi
 import type { Tool } from '../composables/useDrawing'
 import { isMacOS } from '../utils/platform'
 import { useI18n } from '../i18n'
-import { DRAWING_TOOL_DEFS, SELECT_TOOL_DEF, WIDTH_LABEL_KEYS, WIDTH_PRESETS } from '../constants/tools'
+import { DRAWING_TOOL_DEFS, SELECT_TOOL_DEF, WIDTH_PRESETS, widthPresetLabelKey } from '../constants/tools'
 import { COLOR_ROWS } from '../constants/colors'
 import {
+  TEXT_OUTLINE_WIDTH_LABEL_KEYS,
   TEXT_OUTLINE_WIDTH_PRESETS,
   normalizeTextOutline,
   resolveTextOutlineColor,
@@ -86,12 +87,16 @@ const selectToolTitle = computed(() => withShortcut(selectToolLabel.value, SELEC
 const colors = COLOR_ROWS
 const simpleColors = computed(() => colors[0] ?? [])
 function widthLabel(index: number): string {
-  return t(`widths.${WIDTH_LABEL_KEYS[index] ?? WIDTH_LABEL_KEYS[2]}`)
+  return t(`widths.${widthPresetLabelKey(index)}`)
+}
+
+function outlineWidthLabel(index: number): string {
+  return t(`widths.${TEXT_OUTLINE_WIDTH_LABEL_KEYS[index] ?? TEXT_OUTLINE_WIDTH_LABEL_KEYS[2]}`)
 }
 
 const widths = computed(() => WIDTH_PRESETS.map((value, index) => ({ value, label: widthLabel(index) })))
 const outlineWidths = computed(() =>
-  TEXT_OUTLINE_WIDTH_PRESETS.map((value, index) => ({ value, label: widthLabel(index) })),
+  TEXT_OUTLINE_WIDTH_PRESETS.map((value, index) => ({ value, label: outlineWidthLabel(index) })),
 )
 const outlinePreviewColor = computed(() => resolveTextOutlineColor(props.textOutline, props.currentColor))
 const customOutlineColor = computed(() => normalizeTextOutline(props.textOutline).color)

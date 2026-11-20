@@ -2,6 +2,9 @@ import type { TextOutlineColorMode, TextOutlineStyle } from '../composables/draw
 
 export const TEXT_OUTLINE_WIDTH_PRESETS: number[] = [1, 2, 3, 5, 8]
 
+/** Outline widths keep their own five-step ladder, independent of the stroke-width presets. */
+export const TEXT_OUTLINE_WIDTH_LABEL_KEYS = ['xs', 's', 'm', 'l', 'xl'] as const
+
 const DEFAULT_TEXT_OUTLINE: TextOutlineStyle = {
   enabled: false,
   colorMode: 'auto',

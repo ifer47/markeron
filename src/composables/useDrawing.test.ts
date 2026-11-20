@@ -101,8 +101,8 @@ describe('useDrawing', () => {
       expect(drawing.currentColor.value).toBe('#FF0000')
     })
 
-    it('starts with default line width of 3.45', () => {
-      expect(drawing.lineWidth.value).toBe(3.45)
+    it('starts with the middle line width preset of 3.25', () => {
+      expect(drawing.lineWidth.value).toBe(3.25)
     })
 
     it('applies persisted line widths per group', () => {
@@ -110,7 +110,7 @@ describe('useDrawing', () => {
       drawing.currentTool.value = 'pen'
       expect(drawing.lineWidth.value).toBe(9.2)
       drawing.currentTool.value = 'highlighter'
-      expect(drawing.lineWidth.value).toBe(5.75)
+      expect(drawing.lineWidth.value).toBe(4.6)
       drawing.currentTool.value = 'eraser'
       expect(drawing.lineWidth.value).toBe(2.3)
       drawing.currentTool.value = 'text'
@@ -125,9 +125,9 @@ describe('useDrawing', () => {
       drawing.currentTool.value = 'rect'
       expect(drawing.lineWidth.value).toBe(9.2)
       drawing.currentTool.value = 'highlighter'
-      expect(drawing.lineWidth.value).toBe(3.45)
+      expect(drawing.lineWidth.value).toBe(3.25)
       drawing.currentTool.value = 'eraser'
-      expect(drawing.lineWidth.value).toBe(3.45)
+      expect(drawing.lineWidth.value).toBe(3.25)
       drawing.lineWidth.value = 2.3
       drawing.currentTool.value = 'pen'
       expect(drawing.lineWidth.value).toBe(9.2)
@@ -1582,7 +1582,7 @@ describe('useDrawing', () => {
 
     it('applies a preset to the selected shapes and is undoable', () => {
       const rect = addRect(10, 10, 80, 60)
-      expect(rect.lineWidth).toBe(3.45)
+      expect(rect.lineWidth).toBe(3.25)
 
       drawing.setSelection([rect])
       expect(drawing.setSelectedLineWidth(5.75)).toBe(true)
@@ -1590,7 +1590,7 @@ describe('useDrawing', () => {
       expect(drawing.lineWidths.value.stroke).toBe(5.75)
 
       drawing.undo()
-      expect(rect.lineWidth).toBe(3.45)
+      expect(rect.lineWidth).toBe(3.25)
       drawing.redo()
       expect(rect.lineWidth).toBe(5.75)
     })
@@ -1601,7 +1601,7 @@ describe('useDrawing', () => {
       drawing.draw({ x: 80, y: 0 })
       drawing.endDraw()
       const ink = drawing.findActionAt({ x: 40, y: 0 })!.action
-      expect(ink.lineWidth).toBeCloseTo(24.15, 10)
+      expect(ink.lineWidth).toBeCloseTo(22.75, 10)
 
       drawing.setSelection([ink])
       drawing.setSelectedLineWidth(5.75)

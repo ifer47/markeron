@@ -31,8 +31,8 @@ import { applyTheme, watchSystemTheme, type ThemePreference } from '../composabl
 import TextBox from './TextBox.vue'
 import {
   TOOL_ICON_MAP,
-  WIDTH_LABEL_KEYS,
   WIDTH_PRESETS,
+  widthPresetLabelKey,
   eraserLineWidth,
   toStoredLineWidths,
   isDashableTool,
@@ -338,7 +338,7 @@ function onWheel(e: WheelEvent) {
   // Pass current pointer so mid-gesture eraser resize splits at the cursor (not old path points).
   setLineWidth(WIDTH_PRESETS[next], { x: lastPointerX, y: lastPointerY })
   const presetIndex = WIDTH_PRESETS.indexOf(lineWidth.value)
-  const sizeKey = WIDTH_LABEL_KEYS[presetIndex] ?? WIDTH_LABEL_KEYS[2]
+  const sizeKey = widthPresetLabelKey(presetIndex)
   const labelKey = tool === 'text' || tool === 'stamp' ? `textSizes.${sizeKey}` : `widths.${sizeKey}`
   showWidthTip(lineWidth.value, t(labelKey))
   schedulePersistLineWidths()

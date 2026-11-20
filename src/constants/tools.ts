@@ -46,21 +46,43 @@ export const TOOL_ICON_MAP: Record<Tool, Component> = Object.fromEntries(
   TOOL_DEFS.map((d) => [d.id, d.icon]),
 ) as Record<Tool, Component>
 
-/** Five stroke-width presets in CSS pixels (legacy 1/2/3/5/8 × 1.15). */
-export const WIDTH_PRESETS: number[] = [1.15, 2.3, 3.45, 5.75, 9.2]
+/**
+ * Seven stroke-width presets in CSS pixels: geometric steps (×√2) between the same 1.15–9.2
+ * bounds, so each step is a similar perceived change instead of a linear jump.
+ */
+export const WIDTH_PRESETS: number[] = [1.15, 1.63, 2.3, 3.25, 4.6, 6.5, 9.2]
 
 /** Persisted line widths are hundredths of a CSS pixel (115 = 1.15px). */
-export const WIDTH_PRESET_STORAGE: number[] = [115, 230, 345, 575, 920]
+export const WIDTH_PRESET_STORAGE: number[] = [115, 163, 230, 325, 460, 650, 920]
 export const WIDTH_STORAGE_SCALE = 100
 
-/** Stable i18n label keys for the five width presets (no decimal path segments). */
-export const WIDTH_LABEL_KEYS = ['xs', 's', 'm', 'l', 'xl'] as const
+/** Stable i18n label keys for the seven width presets (no decimal path segments). */
+export const WIDTH_LABEL_KEYS = ['xxs', 'xs', 's', 'm', 'l', 'xl', 'xxl'] as const
 
-/** Legacy presets persisted by older versions; normalized to the new values on load. */
-const LEGACY_WIDTH_PRESETS: number[] = [1, 2, 3, 5, 8]
+/** Index of the middle preset — the default line width for every width group. */
+const MIDDLE_PRESET_INDEX = Math.floor(WIDTH_PRESETS.length / 2)
 
-/** Middle preset — default line width for every width group. */
-export const DEFAULT_LINE_WIDTH = WIDTH_PRESETS[2]
+/** Default line width for every width group (middle preset). */
+export const DEFAULT_LINE_WIDTH = WIDTH_PRESETS[MIDDLE_PRESET_INDEX]
+
+/** i18n label key for a width preset index; out-of-range indexes read as the middle preset. */
+export function widthPresetLabelKey(index: number): string {
+  return WIDTH_LABEL_KEYS[index] ?? WIDTH_LABEL_KEYS[MIDDLE_PRESET_INDEX]
+}
+
+/**
+ * Closest preset to a CSS-pixel width.
+ *
+ * Widths picked before the ladder changed (e.g. the old 3.45 / 5.75) are snapped instead of
+ * being reset, so an upgrade never silently changes the user's stroke width.
+ */
+function nearestWidthPreset(pixels: number): number {
+  let best = WIDTH_PRESETS[0]
+  for (const preset of WIDTH_PRESETS) {
+    if (Math.abs(preset - pixels) < Math.abs(best - pixels)) best = preset
+  }
+  return best
+}
 
 /** Pen + shapes share one preset; highlighter / eraser / text are separate. */
 export type LineWidthGroup = 'stroke' | 'highlighter' | 'eraser' | 'text'
@@ -132,24 +154,19 @@ export function createDefaultLineWidths(): ToolLineWidths {
 }
 
 export function normalizeLineWidth(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return DEFAULT_LINE_WIDTH
-  const storedIndex = WIDTH_PRESET_STORAGE.indexOf(value)
-  if (storedIndex !== -1) return WIDTH_PRESETS[storedIndex]
-  const legacyIndex = LEGACY_WIDTH_PRESETS.indexOf(value)
-  if (legacyIndex !== -1) return WIDTH_PRESETS[legacyIndex]
-  const rounded = Math.round(value * WIDTH_STORAGE_SCALE) / WIDTH_STORAGE_SCALE
-  return WIDTH_PRESETS.includes(rounded) ? rounded : DEFAULT_LINE_WIDTH
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return DEFAULT_LINE_WIDTH
+  // Persisted values are hundredths of a pixel; older builds stored 1/2/3/5/8 px directly.
+  const pixels = value < WIDTH_STORAGE_SCALE ? value : value / WIDTH_STORAGE_SCALE
+  return nearestWidthPreset(pixels)
 }
 
 /** Convert in-memory CSS-pixel widths to the persisted hundredths-of-a-pixel form. */
 export function toStoredLineWidths(widths: ToolLineWidths): ToolLineWidths {
   const store = (value: number): number => {
-    const presetIndex = WIDTH_PRESETS.indexOf(value)
-    if (presetIndex !== -1) return WIDTH_PRESET_STORAGE[presetIndex]
-    const legacyIndex = LEGACY_WIDTH_PRESETS.indexOf(value)
-    if (legacyIndex !== -1) return WIDTH_PRESET_STORAGE[legacyIndex]
-    const stored = Math.round(value * WIDTH_STORAGE_SCALE)
-    return WIDTH_PRESET_STORAGE.includes(stored) ? stored : WIDTH_PRESET_STORAGE[2]
+    if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+      return WIDTH_PRESET_STORAGE[MIDDLE_PRESET_INDEX]
+    }
+    return WIDTH_PRESET_STORAGE[WIDTH_PRESETS.indexOf(nearestWidthPreset(value))]
   }
   return {
     stroke: store(widths.stroke),

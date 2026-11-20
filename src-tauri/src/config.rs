@@ -37,35 +37,34 @@ fn default_auto_revert_to_pen() -> bool {
     false
 }
 
+/// Persisted widths are hundredths of a CSS pixel (115 = 1.15px), seven geometric steps.
+const LINE_WIDTH_PRESET_STORAGE: [u32; 7] = [115, 163, 230, 325, 460, 650, 920];
+
+/// Middle preset (3.25px) — default line width for every width group.
 fn default_line_width() -> u32 {
-    345
+    LINE_WIDTH_PRESET_STORAGE[LINE_WIDTH_PRESET_STORAGE.len() / 2]
 }
 
 /// Bumped whenever the on-disk shape changes in a way that needs migration.
 /// Older files without the field deserialize as `0` and are upgraded on load.
 pub const CONFIG_VERSION: u32 = 1;
 
-/// Persisted widths are hundredths of a CSS pixel (115 = 1.15px).
-const LINE_WIDTH_PRESET_STORAGE: [u32; 5] = [115, 230, 345, 575, 920];
-/// Older builds stored the 1/2/3/5/8 px presets directly.
-const LEGACY_LINE_WIDTH_PRESETS: [u32; 5] = [1, 2, 3, 5, 8];
-
-fn is_valid_line_width(value: u32) -> bool {
-    LINE_WIDTH_PRESET_STORAGE.contains(&value)
-}
-
+/// Snap a stored value to the nearest preset.
+///
+/// Older builds stored the 1/2/3/5/8 px presets directly, and the previous five-step ladder
+/// stored 345 / 575 hundredths; both are snapped instead of reset so an upgrade never
+/// silently changes the user's stroke width.
 fn normalize_line_width(value: u32) -> u32 {
-    if let Some(index) = LEGACY_LINE_WIDTH_PRESETS
+    let hundredths = match value {
+        1..=8 => value * 100,
+        100.. => value,
+        _ => return default_line_width(),
+    };
+    LINE_WIDTH_PRESET_STORAGE
         .iter()
-        .position(|&legacy| legacy == value)
-    {
-        return LINE_WIDTH_PRESET_STORAGE[index];
-    }
-    if is_valid_line_width(value) {
-        value
-    } else {
-        default_line_width()
-    }
+        .copied()
+        .min_by_key(|preset| preset.abs_diff(hundredths))
+        .unwrap_or_else(default_line_width)
 }
 
 /// Accept legacy integer presets, intermediate float values, and new hundredths storage.
@@ -1341,7 +1340,7 @@ mod tests {
             }
         }"#;
         let config: AppConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(config.general.line_widths.stroke, 575);
+        assert_eq!(config.general.line_widths.stroke, 650);
         assert_eq!(config.general.line_widths.highlighter, 920);
         assert_eq!(config.general.line_widths.eraser, 230);
         assert_eq!(config.general.line_widths.text, 115);
@@ -1355,7 +1354,7 @@ mod tests {
             } }
         }"#;
         let legacy: AppConfig = serde_json::from_str(legacy).unwrap();
-        assert_eq!(legacy.general.line_widths.stroke, 575);
+        assert_eq!(legacy.general.line_widths.stroke, 460);
         assert_eq!(legacy.general.line_widths.highlighter, 920);
         assert_eq!(legacy.general.line_widths.eraser, 230);
         assert_eq!(legacy.general.line_widths.text, 115);
@@ -1366,23 +1365,31 @@ mod tests {
             } }
         }"#;
         let floats: AppConfig = serde_json::from_str(floats).unwrap();
-        assert_eq!(floats.general.line_widths.stroke, 575);
+        assert_eq!(floats.general.line_widths.stroke, 650);
         assert_eq!(floats.general.line_widths.highlighter, 920);
         assert_eq!(floats.general.line_widths.eraser, 230);
         assert_eq!(floats.general.line_widths.text, 115);
     }
 
     #[test]
-    fn normalized_migrates_legacy_line_widths() {
-        let migrated = LEGACY_LINE_WIDTH_PRESETS.map(normalize_line_width);
-        assert_eq!(migrated, LINE_WIDTH_PRESET_STORAGE);
+    fn normalized_snaps_legacy_and_previous_line_widths() {
+        // Legacy CSS-pixel presets snap to the nearest step of the seven-step ladder.
+        assert_eq!(
+            [1, 2, 3, 5, 8].map(normalize_line_width),
+            [115, 230, 325, 460, 920]
+        );
+        // The previous five-step ladder stored 345 / 575; both must survive as presets.
+        assert_eq!(
+            [115, 345, 575, 920].map(normalize_line_width),
+            [115, 325, 650, 920]
+        );
     }
 
     #[test]
     fn general_config_defaults_line_widths() {
         let general = GeneralConfig::default();
         assert_eq!(general.line_widths, LineWidthsConfig::default());
-        assert_eq!(general.line_widths.stroke, 345);
+        assert_eq!(general.line_widths.stroke, 325);
     }
 
     #[test]
@@ -1397,10 +1404,10 @@ mod tests {
             ..GeneralConfig::default()
         };
         let normalized = general.normalized();
-        assert_eq!(normalized.line_widths.stroke, 345);
-        assert_eq!(normalized.line_widths.highlighter, 345);
-        assert_eq!(normalized.line_widths.eraser, 345);
-        assert_eq!(normalized.line_widths.text, 575);
+        assert_eq!(normalized.line_widths.stroke, 460);
+        assert_eq!(normalized.line_widths.highlighter, 325);
+        assert_eq!(normalized.line_widths.eraser, 325);
+        assert_eq!(normalized.line_widths.text, 460);
     }
 
     #[test]

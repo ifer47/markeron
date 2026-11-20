@@ -23,9 +23,9 @@ describe('line width helpers', () => {
     for (const value of Object.values(widths)) {
       expect(value).toBe(DEFAULT_LINE_WIDTH)
     }
-    expect(DEFAULT_LINE_WIDTH).toBe(3.45)
-    expect(WIDTH_PRESETS).toEqual([1.15, 2.3, 3.45, 5.75, 9.2])
-    expect(WIDTH_PRESET_STORAGE).toEqual([115, 230, 345, 575, 920])
+    expect(DEFAULT_LINE_WIDTH).toBe(3.25)
+    expect(WIDTH_PRESETS).toEqual([1.15, 1.63, 2.3, 3.25, 4.6, 6.5, 9.2])
+    expect(WIDTH_PRESET_STORAGE).toEqual([115, 163, 230, 325, 460, 650, 920])
   })
 
   it('maps stroke tools to shared group; others are separate', () => {
@@ -47,12 +47,15 @@ describe('line width helpers', () => {
     expect(highlighterLineWidth(3)).toBe(21)
   })
 
-  it('normalizes line width to presets and migrates legacy/storage values', () => {
-    expect([1, 2, 3, 5, 8].map(normalizeLineWidth)).toEqual(WIDTH_PRESETS)
+  it('normalizes line width to the nearest preset and migrates legacy/storage values', () => {
+    expect([1, 2, 3, 5, 8].map(normalizeLineWidth)).toEqual([1.15, 2.3, 3.25, 4.6, 9.2])
     expect(WIDTH_PRESET_STORAGE.map(normalizeLineWidth)).toEqual(WIDTH_PRESETS)
+    // The previous five-step ladder stored 3.45 / 5.75; both snap instead of resetting.
+    expect([345, 575].map(normalizeLineWidth)).toEqual([3.25, 6.5])
     expect(normalizeLineWidth(2.3000000000000003)).toBe(2.3)
-    expect(normalizeLineWidth(4)).toBe(DEFAULT_LINE_WIDTH)
+    expect(normalizeLineWidth(4)).toBe(4.6)
     expect(normalizeLineWidth('3')).toBe(DEFAULT_LINE_WIDTH)
+    expect(normalizeLineWidth(0)).toBe(DEFAULT_LINE_WIDTH)
     expect(normalizeLineWidth(Number.NaN)).toBe(DEFAULT_LINE_WIDTH)
   })
 
@@ -60,20 +63,21 @@ describe('line width helpers', () => {
     expect(toStoredLineWidths({ stroke: 1.15, highlighter: 2.3, eraser: 3.45, text: 5.75 })).toEqual({
       stroke: 115,
       highlighter: 230,
-      eraser: 345,
-      text: 575,
+      eraser: 325,
+      text: 650,
     })
     expect(toStoredLineWidths({ stroke: 9.2, highlighter: 8, eraser: 3, text: 1 })).toEqual({
       stroke: 920,
       highlighter: 920,
-      eraser: 345,
+      eraser: 325,
       text: 115,
     })
+    // Invalid widths fall back to the middle preset; valid ones snap to the nearest step.
     expect(toStoredLineWidths({ stroke: 4, highlighter: Number.NaN, eraser: 0, text: 99 })).toEqual({
-      stroke: 345,
-      highlighter: 345,
-      eraser: 345,
-      text: 345,
+      stroke: 460,
+      highlighter: 325,
+      eraser: 325,
+      text: 920,
     })
   })
 
@@ -82,13 +86,13 @@ describe('line width helpers', () => {
     expect(resolveLineWidths({ stroke: 8, eraser: 4 })).toEqual({
       stroke: 9.2,
       highlighter: DEFAULT_LINE_WIDTH,
-      eraser: DEFAULT_LINE_WIDTH,
+      eraser: 4.6,
       text: DEFAULT_LINE_WIDTH,
     })
     expect(resolveLineWidths({ stroke: 575, eraser: 345 })).toEqual({
-      stroke: 5.75,
+      stroke: 6.5,
       highlighter: DEFAULT_LINE_WIDTH,
-      eraser: 3.45,
+      eraser: 3.25,
       text: DEFAULT_LINE_WIDTH,
     })
   })

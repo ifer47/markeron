@@ -19,7 +19,7 @@ import GeneralTab from './settings/GeneralTab.vue'
 import DiagnosticsTab from './settings/DiagnosticsTab.vue'
 import AboutTab from './settings/AboutTab.vue'
 import SettingsSidebarFooter from './settings/SettingsSidebarFooter.vue'
-import HelpTruncateLabel from './settings/HelpTruncateLabel.vue'
+import HelpRow from './settings/HelpRow.vue'
 
 const { t } = useI18n()
 
@@ -61,6 +61,100 @@ const helpTools = [
   { key: 'T', name: 'tools.text', desc: 'toolDesc.text' },
   { key: 'N', name: 'tools.stamp', desc: 'toolDesc.stamp' },
 ] as const
+
+interface HelpRowData {
+  label: string
+  keys?: string
+  desc?: string
+  tip?: string
+}
+
+interface HelpSectionData {
+  title: string
+  rows: HelpRowData[]
+}
+
+// Every help row is "what it does" + "which keys"; the long explanation lives in `tip`
+// and only shows up on hover, so the panel stays scannable.
+const helpSections = computed<HelpSectionData[]>(() => {
+  const mod = helpMod.value
+  const opt = helpOpt.value
+  const shift = helpShift.value
+  const global = helpGlobalKeys.value
+
+  return [
+    {
+      title: t('help.globalShortcuts'),
+      rows: [
+        { label: t('help.toggleAnnotation'), keys: global.toggle, tip: t('help.tips.toggleAnnotation') },
+        { label: t('help.clearAll'), keys: global.clear, tip: t('help.tips.clearAll') },
+        { label: t('help.togglePenetration'), keys: global.through, tip: t('help.tips.togglePenetration') },
+      ],
+    },
+    {
+      title: t('help.inSessionShortcuts'),
+      rows: [
+        {
+          label: t('help.togglePenetrationLocal'),
+          keys: 'X',
+          tip: t('help.tips.togglePenetrationLocal'),
+        },
+        { label: t('help.settingsPanel'), keys: 'Space', tip: t('help.tips.settingsPanel') },
+        { label: t('help.copy'), keys: `${mod}+C`, tip: t('help.tips.copy') },
+        { label: t('help.paste'), keys: `${mod}+V`, tip: t('help.tips.paste') },
+        { label: t('help.undo'), keys: `${mod}+Z` },
+        { label: t('help.redo'), keys: `${mod}+${shift}+Z` },
+        { label: t('help.strokeWidth'), keys: `${mod}+${t('help.scrollWheel')}`, tip: t('help.tips.strokeWidth') },
+        { label: t('help.deleteSelection'), keys: 'Delete / Backspace', tip: t('help.tips.deleteSelection') },
+        { label: t('help.nudge'), keys: '↑↓←→', tip: t('help.tips.nudge') },
+        { label: t('help.nudgeLarge'), keys: `${shift}+↑↓←→`, tip: t('help.tips.nudgeLarge') },
+        { label: t('help.exitDrawing'), keys: 'Esc', tip: t('help.tips.exitDrawing') },
+      ],
+    },
+    {
+      title: t('help.toolSwitch'),
+      rows: helpTools.map((item) => ({ label: t(item.name), keys: item.key, tip: t(item.desc) })),
+    },
+    {
+      title: t('help.colorSection'),
+      rows: [
+        { label: t('help.prevColor'), keys: 'Q', tip: t('help.tips.prevColor') },
+        { label: t('help.nextColor'), keys: 'E', tip: t('help.tips.nextColor') },
+        { label: t('help.toggleDash'), keys: 'D', tip: t('help.tips.toggleDash') },
+        { label: t('help.reverseDash'), keys: `${shift}+D`, tip: t('help.tips.reverseDash') },
+        { label: t('help.rightClickErase'), keys: t('help.mouseRightClick'), tip: t('help.tips.rightClickErase') },
+      ],
+    },
+    {
+      title: t('help.whiteboardMode'),
+      rows: [
+        { label: t('help.toggleWhiteboard'), keys: 'W', tip: t('help.tips.toggleWhiteboard') },
+        { label: t('help.exitWhiteboard'), keys: 'Esc', tip: t('help.tips.exitWhiteboard') },
+      ],
+    },
+    {
+      title: t('help.modifierDraw'),
+      rows: [
+        { label: t('help.straightLine'), keys: `${opt}+${t('help.dragAction')}` },
+        { label: t('help.rectDraw'), keys: `${mod}+${t('help.dragAction')}` },
+        { label: t('help.square'), keys: `${mod}+${opt}+${t('help.dragAction')}`, tip: t('help.tips.square') },
+        { label: t('help.ellipseDraw'), keys: `${shift}+${t('help.dragAction')}` },
+        { label: t('help.circle'), keys: `${shift}+${opt}+${t('help.dragAction')}`, tip: t('help.tips.circle') },
+        { label: t('help.arrowDraw'), keys: `${mod}+${shift}+${t('help.dragAction')}` },
+        { label: t('help.penToLine'), desc: t('help.holdStill'), tip: t('help.tips.penToLine') },
+      ],
+    },
+    {
+      title: t('help.dragAndText'),
+      rows: [
+        { label: t('help.dragElement'), desc: t('help.dragHint'), tip: t('help.tips.dragElement') },
+        { label: t('help.selectBatch'), desc: t('help.selectHint'), tip: t('help.tips.selectBatch') },
+        { label: t('help.editText'), desc: t('help.editTextHint'), tip: t('help.tips.editText') },
+        { label: t('help.confirmText'), desc: t('help.confirmTextHint'), tip: t('help.tips.confirmText') },
+      ],
+    },
+  ]
+})
 
 const hashTab = window.location.hash.split('/')[1]
 const activeTab = ref(
@@ -563,207 +657,21 @@ onUnmounted(() => {
         <div class="flex flex-col gap-2">
           <div class="settings-card help-card">
             <div class="px-4 py-2.5 settings-text-body leading-[1.65]">
-              <p class="m-0" v-html="t('help.basicDesc')" />
+              <p class="m-0">{{ t('help.basicDesc') }}</p>
             </div>
           </div>
 
-          <div class="settings-card help-card">
-            <div class="help-card-header">{{ t('help.globalShortcuts') }}</div>
+          <div v-for="section in helpSections" :key="section.title" class="settings-card help-card">
+            <div class="help-card-header">{{ section.title }}</div>
             <div class="help-rows">
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.toggleAnnotation')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpGlobalKeys.toggle }}</kbd>
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.clearAll')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpGlobalKeys.clear }}</kbd>
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.togglePenetration')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpGlobalKeys.through }}</kbd>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-card help-card">
-            <div class="help-card-header">{{ t('help.inSessionShortcuts') }}</div>
-            <div class="help-rows">
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.togglePenetrationLocal')" />
-                <div class="help-keys"><kbd class="help-kbd">X</kbd></div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.settingsPanel')" />
-                <div class="help-keys"><kbd class="help-kbd">Space</kbd></div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.exitDrawing')" />
-                <div class="help-keys"><kbd class="help-kbd">Esc</kbd></div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.undo')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpMod }}+Z</kbd>
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.redo')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpMod }}+{{ helpShift }}+Z</kbd>
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.strokeWidth')" />
-                <div class="help-keys"><kbd class="help-kbd">Ctrl</kbd> + Scroll</div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.copyScreen')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpMod }}+C</kbd>
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.copyPasteSelection')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpMod }}+C</kbd> /
-                  <kbd class="help-kbd">{{ helpMod }}+V</kbd>
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.eraserModeHint')" />
-                <div class="help-keys"><kbd class="help-kbd">7</kbd></div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.penCursorHint')" />
-                <div class="help-keys"><kbd class="help-kbd">1</kbd></div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.crosshairCursorHint')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">3</kbd>–<kbd class="help-kbd">6</kbd>/<kbd class="help-kbd">8</kbd>
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.shapeDashHint')" />
-                <div class="help-keys"><kbd class="help-kbd">D</kbd> / <kbd class="help-kbd">Shift+D</kbd></div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.selectionNudgeHint')" />
-                <div class="help-keys"><kbd class="help-kbd">↑↓←→</kbd> / <kbd class="help-kbd">Shift</kbd></div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-card help-card">
-            <div class="help-card-header">{{ t('help.toolSwitch') }}</div>
-            <div class="help-rows">
-              <div v-for="item in helpTools" :key="item.key" class="help-row help-row--tool">
-                <span class="help-label">
-                  <kbd class="help-kbd">{{ item.key }}</kbd>
-                  <span class="ml-2">{{ t(item.name) }}</span>
-                </span>
-                <span class="help-desc">{{ t(item.desc) }}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-card help-card">
-            <div class="help-card-header">{{ t('help.modifierDraw') }}</div>
-            <div class="help-rows">
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.straightLine')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpOpt }}</kbd> + {{ t('help.dragAction') }}
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.strokeLineLockHint')" />
-                <div class="help-keys">{{ t('help.strokeLineLockGesture') }}</div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('tools.rect')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpMod }}</kbd> + {{ t('help.dragAction') }}
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.square')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpMod }}+{{ helpOpt }}</kbd> + {{ t('help.dragAction') }}
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('tools.ellipse')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpShift }}</kbd> + {{ t('help.dragAction') }}
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.circle')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpShift }}+{{ helpOpt }}</kbd> + {{ t('help.dragAction') }}
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('tools.arrow')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpMod }}+{{ helpShift }}</kbd> + {{ t('help.dragAction') }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-card help-card">
-            <div class="help-card-header">{{ t('help.colorSwitch') }} · {{ t('help.whiteboardMode') }}</div>
-            <div class="help-rows">
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.prevColor')" />
-                <div class="help-keys"><kbd class="help-kbd">Q</kbd> / <kbd class="help-kbd">E</kbd></div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.rightClickErase')" />
-                <div class="help-keys">
-                  <span class="help-keys-plain">{{ t('help.mouseRightClickHold') }}</span>
-                </div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.toggleWhiteboard')" />
-                <div class="help-keys"><kbd class="help-kbd">W</kbd></div>
-              </div>
-              <div class="help-row">
-                <HelpTruncateLabel :text="t('help.copyWhiteboard')" />
-                <div class="help-keys">
-                  <kbd class="help-kbd">{{ helpMod }}+C</kbd>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-card help-card">
-            <div class="help-card-header">{{ t('help.dragAndText') }}</div>
-            <div class="help-rows">
-              <div class="help-row help-row-block">
-                <span class="help-label">{{ t('help.dragElement') }}</span>
-                <span class="help-desc">{{ t('help.dragDesc') }}</span>
-              </div>
-              <div class="help-row help-row-block">
-                <span class="help-label">{{ t('help.selectBatch') }}</span>
-                <span class="help-desc">{{ t('help.selectToolHint') }}</span>
-              </div>
-              <div class="help-row help-row-block">
-                <span class="help-label">{{ t('help.editText') }}</span>
-                <span class="help-desc" v-html="t('help.editTextDesc')" />
-              </div>
-              <div class="help-row help-row-block">
-                <span class="help-label">{{ t('help.confirmText') }}</span>
-                <span class="help-desc" v-html="t('help.confirmTextDesc')" />
-              </div>
+              <HelpRow
+                v-for="row in section.rows"
+                :key="row.label"
+                :label="row.label"
+                :keys="row.keys"
+                :desc="row.desc"
+                :tip="row.tip"
+              />
             </div>
           </div>
         </div>
@@ -804,95 +712,5 @@ onUnmounted(() => {
 .help-scroll::-webkit-scrollbar-thumb {
   background: var(--ui-control-bg-hover);
   border-radius: 2px;
-}
-
-.help-card-header {
-  padding: 7px 14px;
-  font-size: var(--settings-fs-caption, 12.5px);
-  font-weight: 500;
-  color: var(--ui-text-faint);
-  border-bottom: 1px solid var(--ui-card-row-divider);
-  letter-spacing: 0.03em;
-}
-
-.help-rows {
-  display: flex;
-  flex-direction: column;
-}
-
-.help-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 7px 14px;
-  border-bottom: 1px solid var(--ui-bg-subtle-hover);
-  min-height: 32px;
-  gap: 14px;
-}
-
-.help-row:last-child {
-  border-bottom: none;
-}
-
-.help-row--tool {
-  justify-content: flex-start;
-  align-items: baseline;
-}
-
-.help-row-block {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 9px 14px;
-}
-
-.help-label {
-  font-size: var(--settings-fs-label, 14.5px);
-  color: var(--ui-text-label);
-  display: flex;
-  align-items: center;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.help-desc {
-  font-size: var(--settings-fs-caption, 12.5px);
-  color: var(--ui-text-footer);
-  text-align: left;
-  line-height: 1.45;
-  min-width: 0;
-}
-
-.help-row--tool .help-desc {
-  flex: 1;
-}
-
-.help-keys {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  font-size: var(--settings-fs-caption, 12.5px);
-  color: var(--ui-text-icon);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.help-keys-plain {
-  color: var(--ui-text-subtle);
-  font-size: var(--settings-fs-caption, 12.5px);
-}
-
-.help-kbd {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--ui-control-bg);
-  border: 1px solid var(--ui-kbd-border);
-  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  font-size: var(--settings-fs-kbd, 12px);
-  color: var(--ui-text-body);
-  line-height: 1.5;
-  white-space: nowrap;
 }
 </style>

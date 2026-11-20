@@ -743,6 +743,97 @@ html.settings .ui-select {
   font-size: var(--settings-fs-caption, 12.5px);
 }
 
+/* Settings → Help panel: one row per action, keys on the right, details on hover.
+   Shared by SettingsView and the HelpRow / HelpTruncateLabel children. */
+.help-card-header {
+  padding: 7px 14px;
+  font-size: var(--settings-fs-caption, 12.5px);
+  font-weight: 500;
+  color: var(--ui-text-faint);
+  border-bottom: 1px solid var(--ui-card-row-divider);
+  letter-spacing: 0.03em;
+}
+
+.help-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.help-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 14px;
+  border-bottom: 1px solid var(--ui-bg-subtle-hover);
+  min-height: 32px;
+  gap: 14px;
+}
+
+.help-row:last-child {
+  border-bottom: none;
+}
+
+.help-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--settings-fs-label, 14.5px);
+  color: var(--ui-text-label);
+}
+
+.help-label--tip {
+  text-decoration: underline dotted;
+  text-decoration-color: var(--ui-text-faint);
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.help-desc {
+  flex: 0 1 auto;
+  font-size: var(--settings-fs-caption, 12.5px);
+  color: var(--ui-text-footer);
+  text-align: right;
+  line-height: 1.45;
+  min-width: 0;
+}
+
+.help-keys {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: var(--settings-fs-caption, 12.5px);
+  color: var(--ui-text-icon);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.help-keys-combo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.help-keys-sep,
+.help-keys-plus {
+  color: var(--ui-text-faint);
+}
+
+.help-kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--ui-control-bg);
+  border: 1px solid var(--ui-kbd-border);
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: var(--settings-fs-kbd, 12px);
+  color: var(--ui-text-body);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
 .settings-text-btn {
   color: var(--ui-text-btn);
   font-size: var(--settings-fs-btn, 12.5px);

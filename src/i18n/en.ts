@@ -24,7 +24,7 @@ export default {
   },
   toolDesc: {
     select:
-      'Marquee or click to select; drag to move; drag endpoints/corners to reshape, or the top handle to rotate (Shift: aspect / angle snap; Alt: scale from center); Delete removes selection',
+      'Marquee or click to select; drag to move; drag endpoints/corners to reshape, or the top handle to rotate (Shift: aspect / angle snap; Alt: scale from center); double-press V to select all, double-press again to clear; Delete removes selection',
     pen: 'Freehand strokes; press 1 again to switch pen icon / dot cursor; D cycles solid / dashed / dotted',
     highlighter: 'Semi-transparent highlight',
     laser: 'Temporary ink that fades away; press 8 again to switch crosshair / dot cursor',
@@ -73,6 +73,9 @@ export default {
     copyFailed: 'Copy failed',
     copiedSelection: 'Copied {count} object(s)',
     pastedSelection: 'Pasted {count} object(s)',
+    selectedAll: 'Selected all {count} object(s)',
+    selectionCleared: 'Selection cleared',
+    nothingToSelect: 'Nothing to select',
     whiteboardMode: 'Whiteboard mode enabled',
     whiteboardExit: 'Exited whiteboard mode',
     whiteboardReady: 'Whiteboard is ready',

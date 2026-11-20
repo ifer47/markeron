@@ -257,6 +257,7 @@ onUnmounted(() => {
       :pointer-x="pointerX"
       :pointer-y="pointerY"
       @select-tool="emitToolbarAction({ type: 'selectTool', tool: $event })"
+      @select-all="emitToolbarAction({ type: 'selectAll' })"
       @select-color="emitToolbarAction({ type: 'selectColor', color: $event })"
       @update-line-width="emitToolbarAction({ type: 'updateLineWidth', width: $event })"
       @update-text-outline="emitToolbarAction({ type: 'updateTextOutline', textOutline: $event })"

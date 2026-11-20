@@ -63,6 +63,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   selectTool: [tool: Tool]
+  selectAll: []
   selectColor: [color: string]
   updateLineWidth: [width: number]
   updateTextOutline: [textOutline: TextOutlineStyle]
@@ -100,8 +101,14 @@ function needsWhiteCheck(color: string): boolean {
   return resolveAutoTextOutlineColor(color) === '#FFFFFF'
 }
 
-function selectTool(tool: Tool) {
+function selectTool(tool: Tool, event?: MouseEvent) {
+  // The second click of a double-click is handled by `selectAll`.
+  if (tool === 'select' && (event?.detail ?? 0) > 1) return
   emit('selectTool', tool)
+}
+
+function selectAll() {
+  emit('selectAll')
 }
 
 function selectColor(color: string) {
@@ -604,7 +611,8 @@ onUnmounted(() => {
               :title="selectToolTitle"
               :aria-label="selectToolTitle"
               :aria-pressed="currentTool === 'select'"
-              @click="selectTool('select')"
+              @click="selectTool('select', $event)"
+              @dblclick="selectAll"
             >
               <component :is="SELECT_TOOL_DEF.icon" :size="15" />
             </button>

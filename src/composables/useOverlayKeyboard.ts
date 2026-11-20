@@ -3,6 +3,7 @@ import type { Tool } from './drawingTypes'
 import { isMacOS } from '../utils/platform'
 import { usesCrosshairCursor } from '../utils/crosshairCursor'
 import { logActionEvent } from '../utils/diagnosticEvents'
+import { EMPTY_SELECT_ALL_PRESS, noteSelectAllPress, type SelectAllPressState } from '../utils/selectAllDoublePress'
 
 const TOOL_KEYS: Tool[] = ['pen', 'highlighter', 'arrow', 'rect', 'ellipse', 'line', 'eraser', 'laser']
 
@@ -15,6 +16,9 @@ let pointerGestureActive = false
  * The same guard gates Mod+V so a stray paste cannot follow pen-up either.
  */
 let modifierPhysicallyDown = false
+
+/** Plain V double-press → select every annotation. */
+let selectAllPress: SelectAllPressState = { ...EMPTY_SELECT_ALL_PRESS }
 
 export interface KeyboardContext {
   active: Ref<boolean>
@@ -53,6 +57,8 @@ export interface KeyboardActions {
   cycleShapeDash?: (direction: 1 | -1) => void
   /** Arrow-key nudge of the current selection (Shift = 10px). */
   nudgeSelected?: (dx: number, dy: number) => boolean
+  /** Double-press V: select all, or clear when everything is selected. */
+  selectAll?: () => void
   undo: () => void
   redo: () => void
   removeSelected?: () => void
@@ -111,12 +117,20 @@ export function trackCopyModifierKeyUp(e: KeyboardEvent): void {
 export function resetCopyModifierState(): void {
   modifierPhysicallyDown = false
   pointerGestureActive = false
+  selectAllPress = { ...EMPTY_SELECT_ALL_PRESS }
+}
+
+/** For tests: clear the V double-press timer. */
+export function resetSelectAllPress(): void {
+  selectAllPress = { ...EMPTY_SELECT_ALL_PRESS }
 }
 
 /** Pointer down: modifier keys are reserved for draw/drag until pointer up. */
 export function invalidateCopyModifierForPointerInteraction(): void {
   modifierPhysicallyDown = false
   pointerGestureActive = true
+  // A pointer gesture between two V presses means the user is not double-pressing.
+  selectAllPress = { ...EMPTY_SELECT_ALL_PRESS }
 }
 
 /** Pointer up: gesture ends; copy modifier must be freshly pressed (no timer). */
@@ -162,6 +176,17 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
     if (!ctx.active.value) return
 
     trackCopyModifierKeyDown(e)
+
+    // Only a plain V press can arm the double-press select-all timer. Any other
+    // key, modifier chord, auto-repeat, or active stroke disarms it.
+    const plainSelectAllKey =
+      (e.key === 'v' || e.key === 'V') &&
+      !modDown(e) &&
+      !e.repeat &&
+      !ctx.isDrawing.value &&
+      !ctx.showQuickColors.value &&
+      !ctx.textBoxPos.value
+    if (!plainSelectAllKey) selectAllPress = { ...EMPTY_SELECT_ALL_PRESS }
 
     // Prevent Alt key from triggering system menu focus
     if (e.key === 'Alt') {
@@ -238,10 +263,16 @@ export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActi
       return
     }
 
-    // Select tool
+    // Select tool — press V again quickly to select every annotation.
     if ((e.key === 'v' || e.key === 'V') && !modDown(e)) {
       e.preventDefault()
-      if (ctx.isDrawing.value) return
+      if (ctx.isDrawing.value || e.repeat) return
+      const press = noteSelectAllPress(selectAllPress, performance.now())
+      selectAllPress = press.next
+      if (press.isDouble) {
+        actions.selectAll?.()
+        return
+      }
       logActionEvent('tool selected', { reason: 'keyboard', tool: 'select' })
       ctx.currentTool.value = 'select'
       actions.showToolTip('select')

@@ -10,6 +10,7 @@ import {
   createKeyDownHandler,
   trackCopyModifierKeyUp,
   resetCopyModifierState,
+  resetSelectAllPress,
   invalidateCopyModifierForPointerInteraction,
   markPointerInteractionEnded,
 } from '../composables/useOverlayKeyboard'
@@ -374,6 +375,7 @@ const {
   selectedActions,
   clearSelection,
   setSelection,
+  toggleSelectAll,
   toggleInSelection,
   isActionSelected,
   findSelectedActionAt,
@@ -1838,6 +1840,9 @@ const onKeyDown = createKeyDownHandler(
     showCrosshairTip,
     cycleShapeDash,
     nudgeSelected,
+    selectAll: () => {
+      selectAllAnnotations('keyboard')
+    },
     undo,
     redo,
     removeSelected: () => {
@@ -2079,6 +2084,12 @@ function logToolbarAction(action: ToolbarAction) {
 async function handleToolbarAction(action: ToolbarAction) {
   logToolbarAction(action)
   switch (action.type) {
+    case 'selectAll':
+      // A live stroke, marquee, drag, or reshape owns the selection until pointer-up.
+      if (isDrawing.value || isDragging || isMarqueeSelecting) break
+      await resumeDrawingFromToolbar()
+      selectAllAnnotations('toolbar')
+      break
     case 'selectTool': {
       // Stroke locks action.tool at pointer-down; ignore UI/tool changes until release.
       const effect = resolveToolbarSelectTool({
@@ -2325,6 +2336,7 @@ onMounted(async () => {
           staleViewportKey = viewportLayoutKey()
         }
         abortActivePointerInteraction()
+        resetSelectAllPress()
         flushPersistLineWidths()
         whiteboardMode.value = false
         void syncWhiteboardMode(false)
@@ -2427,7 +2439,9 @@ onMounted(async () => {
 
   unlisteners.push(
     await listen(TOOLBAR_POINTER_UP_EVENT, () => {
-      if (isDrawing.value || isDragging || capturedPointerId !== null) {
+      // A toolbar click between two V presses is not a double-press.
+      resetSelectAllPress()
+      if (isDrawing.value || isDragging || isMarqueeSelecting || capturedPointerId !== null) {
         finishActivePointerInteraction()
       }
     }),
@@ -2495,6 +2509,29 @@ function copyFromToolbar() {
   } else {
     void copyScreen('toolbar')
   }
+}
+
+/** Toggle select-all (double-press V / double-click the Select tool). */
+function selectAllAnnotations(reason: 'keyboard' | 'toolbar'): number {
+  // A live stroke, marquee, drag, or reshape owns the selection until pointer-up.
+  if (isDrawing.value || isMarqueeSelecting || isDragging) return 0
+  // Double-press toggles: a second double-press clears the all-selected state.
+  const result = toggleSelectAll()
+  if (result.cleared) {
+    clearSelectionHover()
+    logActionEvent('selection cleared', { reason, shortcut: 'v v' })
+    showTip(t('overlay.selectionCleared'))
+    return 0
+  }
+  const count = result.count
+  if (count === 0) {
+    logActionEvent('selection all', { reason, count: 0 })
+    showTip(t('overlay.nothingToSelect'))
+    return 0
+  }
+  logActionEvent('selection all', { reason, count })
+  showTip(t('overlay.selectedAll', { count: String(count) }))
+  return count
 }
 
 /**

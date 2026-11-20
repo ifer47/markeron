@@ -24,7 +24,7 @@ export default {
   },
   toolDesc: {
     select:
-      '框选或点选后可批量拖动；拖动角点缩放、顶部圆点旋转（Shift 等比/角度吸附，Alt 从中心缩放）；Delete 删除选中',
+      '框选或点选后可批量拖动；拖动角点缩放、顶部圆点旋转（Shift 等比/角度吸附，Alt 从中心缩放）；双击 V 全选，再次双击取消全选；Delete 删除选中',
     pen: '自由绘画；再按 1 切换钢笔图标 / 圆点光标；D 循环实线 / 虚线 / 点线',
     highlighter: '半透明高亮',
     laser: '临时笔迹，逐渐淡出；再按 8 切换十字准星 / 圆点光标',
@@ -72,6 +72,9 @@ export default {
     copyFailed: '复制失败',
     copiedSelection: '已复制 {count} 个对象',
     pastedSelection: '已粘贴 {count} 个对象',
+    selectedAll: '已全选 {count} 个对象',
+    selectionCleared: '已取消全选',
+    nothingToSelect: '没有可选择的标注',
     whiteboardMode: '已进入白板模式',
     whiteboardExit: '已退出白板模式',
     whiteboardReady: '白板已就绪',

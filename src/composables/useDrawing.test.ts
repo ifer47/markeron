@@ -873,6 +873,69 @@ describe('useDrawing', () => {
       expect(drawing.selectedActions.value).toEqual([])
     })
 
+    it('selectAll selects every action and reports the count', () => {
+      addRect(10, 10, 40, 40)
+      addRect(80, 80, 120, 120)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      const b = drawing.findActionAt({ x: 80, y: 80 })!.action
+
+      expect(drawing.selectAll()).toBe(2)
+      expect(drawing.selectedActions.value).toEqual([a, b])
+      expect(drawing.areAllActionsSelected()).toBe(true)
+    })
+
+    it('areAllActionsSelected only returns true for a complete selection', () => {
+      expect(drawing.areAllActionsSelected()).toBe(false)
+
+      addRect(10, 10, 40, 40)
+      addRect(80, 80, 120, 120)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      const b = drawing.findActionAt({ x: 80, y: 80 })!.action
+
+      drawing.setSelection([a])
+      expect(drawing.areAllActionsSelected()).toBe(false)
+
+      drawing.setSelection([a, b])
+      expect(drawing.areAllActionsSelected()).toBe(true)
+
+      drawing.clearSelection()
+      expect(drawing.areAllActionsSelected()).toBe(false)
+    })
+
+    it('toggleSelectAll clears when everything is selected and re-selects next time', () => {
+      addRect(10, 10, 40, 40)
+      addRect(80, 80, 120, 120)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      const b = drawing.findActionAt({ x: 80, y: 80 })!.action
+
+      drawing.selectAll()
+      expect(drawing.toggleSelectAll()).toEqual({ count: 0, cleared: true })
+      expect(drawing.selectedActions.value).toEqual([])
+
+      expect(drawing.toggleSelectAll()).toEqual({ count: 2, cleared: false })
+      expect(drawing.selectedActions.value).toEqual([a, b])
+    })
+
+    it('selectAll on an empty canvas clears the selection and returns 0', () => {
+      addRect(10, 10, 40, 40)
+      const a = drawing.findActionAt({ x: 10, y: 10 })!.action
+      drawing.setSelection([a])
+      drawing.removeSelected()
+
+      expect(drawing.selectAll()).toBe(0)
+      expect(drawing.selectedActions.value).toEqual([])
+    })
+
+    it('selectAll is a no-op mid-stroke', () => {
+      addRect(10, 10, 40, 40)
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0 })
+
+      expect(drawing.selectAll()).toBe(0)
+      expect(drawing.selectedActions.value).toEqual([])
+      drawing.endDraw()
+    })
+
     it('removeSelected deletes all selected and is undoable', () => {
       addRect(10, 10, 40, 40)
       addRect(80, 80, 120, 120)

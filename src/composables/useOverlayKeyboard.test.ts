@@ -11,6 +11,7 @@ import {
   type KeyboardActions,
 } from './useOverlayKeyboard'
 import type { Tool } from './drawingTypes'
+import { SELECT_ALL_DOUBLE_MS } from '../utils/selectAllDoublePress'
 
 function createContext(overrides: Partial<KeyboardContext> = {}): KeyboardContext {
   return {
@@ -54,6 +55,7 @@ function createActions(): KeyboardActions & { calls: Record<string, unknown[][]>
     showCrosshairTip: make('showCrosshairTip') as KeyboardActions['showCrosshairTip'],
     cycleShapeDash: make('cycleShapeDash') as KeyboardActions['cycleShapeDash'],
     nudgeSelected: make('nudgeSelected') as KeyboardActions['nudgeSelected'],
+    selectAll: make('selectAll') as KeyboardActions['selectAll'],
     undo: make('undo') as KeyboardActions['undo'],
     redo: make('redo') as KeyboardActions['redo'],
     removeSelected: make('removeSelected') as KeyboardActions['removeSelected'],
@@ -256,6 +258,55 @@ describe('useOverlayKeyboard', () => {
       handler(key('v'))
       expect(ctx.currentTool.value).toBe('pen')
       expect(actions.calls.showToolTip).toHaveLength(0)
+    })
+
+    it('double-press V selects all annotations', () => {
+      handler(key('v'))
+      expect(actions.calls.selectAll).toHaveLength(0)
+      handler(key('v'))
+      expect(actions.calls.selectAll).toHaveLength(1)
+      expect(actions.calls.showToolTip).toHaveLength(1)
+    })
+
+    it('slow V presses do not select all', () => {
+      const now = vi
+        .spyOn(performance, 'now')
+        .mockReturnValueOnce(1000)
+        .mockReturnValueOnce(1000 + SELECT_ALL_DOUBLE_MS + 1)
+      handler(key('v'))
+      handler(key('v'))
+      now.mockRestore()
+      expect(actions.calls.selectAll).toHaveLength(0)
+    })
+
+    it('auto-repeated V does not select all', () => {
+      handler(key('v'))
+      handler(key('v', { repeat: true }))
+      expect(actions.calls.selectAll).toHaveLength(0)
+    })
+
+    it('pointer interaction disarms the V double-press timer', () => {
+      handler(key('v'))
+      invalidateCopyModifierForPointerInteraction()
+      handler(key('v'))
+      expect(actions.calls.selectAll).toHaveLength(0)
+
+      handler(key('v'))
+      expect(actions.calls.selectAll).toHaveLength(1)
+    })
+
+    it('resetCopyModifierState also clears the V double-press timer', () => {
+      handler(key('v'))
+      resetCopyModifierState()
+      handler(key('v'))
+      expect(actions.calls.selectAll).toHaveLength(0)
+    })
+
+    it('Ctrl+V pastes without selecting all', () => {
+      handler(key('Control'))
+      handler(key('v', { ctrlKey: true }))
+      expect(actions.calls.selectAll).toHaveLength(0)
+      expect(actions.calls.paste).toHaveLength(1)
     })
 
     it('key N selects stamp and shows stamp tip', () => {

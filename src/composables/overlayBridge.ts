@@ -32,6 +32,7 @@ export interface OverlayStateSync {
 
 export type ToolbarAction =
   | { type: 'selectTool'; tool: Tool }
+  | { type: 'selectAll' }
   | { type: 'selectColor'; color: string }
   | { type: 'updateLineWidth'; width: number }
   | { type: 'updateTextOutline'; textOutline: TextOutlineStyle }

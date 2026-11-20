@@ -112,7 +112,7 @@
         'Number keys and letter shortcuts switch tools. Press <kbd>V</kbd> for Select to marquee-select and batch move or delete.',
       'helpPage.tools.select': 'Select',
       'helpPage.tools.selectDesc':
-        'Marquee or click to select; drag to move as a group; <kbd>Delete</kbd> / <kbd>Backspace</kbd> removes; <kbd>Esc</kbd> clears selection',
+        'Marquee or click to select; drag to move as a group; double-press <kbd>V</kbd> to select all, double-press again to clear; <kbd>Delete</kbd> / <kbd>Backspace</kbd> removes; <kbd>Esc</kbd> clears selection',
       'helpPage.tools.pen': 'Pen',
       'helpPage.tools.penDesc':
         'Freehand drawing with smooth curves; <kbd>D</kbd> cycles solid / dashed / dotted',
@@ -200,7 +200,7 @@
       'helpPage.tips.throughBody': `Toggle from the toolbar, with ${clickThroughCombo} (global), or <kbd>X</kbd> while drawing. Marks stay visible; clicks reach the app below.`,
       'helpPage.tips.selectTitle': 'Select & batch edit',
       'helpPage.tips.selectBody':
-        'Press <kbd>V</kbd> for Select. Marquee or click to select (hold <kbd>Shift</kbd> to add). Drag the selection to move; arrow keys nudge it (1px, <kbd>Shift</kbd> 10px); <kbd>Delete</kbd> / <kbd>Backspace</kbd> to remove; <kbd>Esc</kbd> clears selection.',
+        'Press <kbd>V</kbd> for Select. Marquee or click to select (hold <kbd>Shift</kbd> to add). Double-press <kbd>V</kbd> to select all marks; double-press again to clear. Drag the selection to move; arrow keys nudge it (1px, <kbd>Shift</kbd> 10px); <kbd>Delete</kbd> / <kbd>Backspace</kbd> to remove; <kbd>Esc</kbd> clears selection.',
       'helpPage.tips.dragTitle': 'Drag elements',
       'helpPage.tips.dragBody':
         'In General settings: off, hover to drag, or hold Ctrl/Command to drag. Disabled while eraser is selected. Prefer Select (<kbd>V</kbd>) for moving several marks at once.',
@@ -379,7 +379,7 @@
         '数字键与字母快捷键切换工具。按 <kbd>V</kbd> 进入选择，可框选后批量移动或删除。',
       'helpPage.tools.select': '选择',
       'helpPage.tools.selectDesc':
-        '框选或点选；拖动整组移动；<kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除；<kbd>Esc</kbd> 清空选中',
+        '框选或点选；拖动整组移动；双击 <kbd>V</kbd> 全选所有标注，再次双击取消全选；<kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除；<kbd>Esc</kbd> 清空选中',
       'helpPage.tools.pen': '画笔',
       'helpPage.tools.penDesc': '自由绘画，贝塞尔曲线平滑；按 <kbd>D</kbd> 循环实线 / 虚线 / 点线',
       'helpPage.tools.highlighter': '荧光笔',
@@ -463,7 +463,7 @@
       'helpPage.tips.throughBody': `在工具栏切换，或按 ${clickThroughCombo}（全局）、绘制中按 <kbd>X</kbd>。标注保持可见，点击可到达下层应用。`,
       'helpPage.tips.selectTitle': '选择与批量编辑',
       'helpPage.tips.selectBody':
-        '按 <kbd>V</kbd> 进入选择。框选或点选（按住 <kbd>Shift</kbd> 追加）。拖动选中区域整组移动；方向键微移 1px（<kbd>Shift</kbd> 10px）；<kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除；<kbd>Esc</kbd> 清空选中。',
+        '按 <kbd>V</kbd> 进入选择。框选或点选（按住 <kbd>Shift</kbd> 追加）。双击 <kbd>V</kbd> 全选所有标注；再次双击取消全选。拖动选中区域整组移动；方向键微移 1px（<kbd>Shift</kbd> 10px）；<kbd>Delete</kbd> / <kbd>Backspace</kbd> 删除；<kbd>Esc</kbd> 清空选中。',
       'helpPage.tips.dragTitle': '拖拽元素',
       'helpPage.tips.dragBody':
         '「常规」中可选：关闭、悬停拖动，或按住 Ctrl/Command 拖动。选中橡皮擦时不触发。批量移动请用选择工具（<kbd>V</kbd>）。',

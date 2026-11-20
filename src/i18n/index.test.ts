@@ -74,6 +74,17 @@ describe('useI18n', () => {
       expect(result).toBe('These shortcuts conflict or are invalid: Ctrl+A')
     })
 
+    it('exposes select-all copy in both locales', () => {
+      const { locale, t } = useI18n()
+      locale.locale = 'en'
+      expect(t('overlay.selectedAll', { count: '2' })).toBe('Selected all 2 object(s)')
+      expect(t('overlay.selectionCleared')).toBe('Selection cleared')
+      expect(t('overlay.nothingToSelect')).toBe('Nothing to select')
+      locale.locale = 'zh-CN'
+      expect(t('overlay.selectedAll', { count: '2' })).toBe('已全选 2 个对象')
+      expect(t('overlay.selectionCleared')).toBe('已取消全选')
+    })
+
     it('formats soft-fail registration warning', () => {
       const { locale, t } = useI18n()
       locale.locale = 'en'

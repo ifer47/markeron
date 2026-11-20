@@ -1181,6 +1181,42 @@ export function useDrawing(
     scheduleRender()
   }
 
+  /**
+   * Select every annotation on the canvas (double-press V / double-click Select).
+   * Returns how many actions are selected — 0 means there is nothing to select.
+   */
+  function selectAll(): number {
+    if (isDrawing.value) return 0
+    marqueeRect.value = null
+    // History already holds unique action refs; Set only guards against accidental duplicates.
+    const all = [...new Set(history)]
+    selectedActions.value = all
+    previewDirty = true
+    scheduleRender()
+    return all.length
+  }
+
+  /** True when every annotation on the canvas is selected (and history is non-empty). */
+  function areAllActionsSelected(): boolean {
+    const all = new Set(history)
+    if (all.size === 0 || selectedActions.value.length !== all.size) return false
+    const selected = new Set(selectedActions.value)
+    return selected.size === all.size && [...all].every((action) => selected.has(action))
+  }
+
+  /**
+   * Toggle select-all: select every annotation, or clear the selection when
+   * everything is already selected (double-press V / double-click Select).
+   */
+  function toggleSelectAll(): { count: number; cleared: boolean } {
+    if (isDrawing.value) return { count: selectedActions.value.length, cleared: false }
+    if (areAllActionsSelected()) {
+      clearSelection()
+      return { count: 0, cleared: true }
+    }
+    return { count: selectAll(), cleared: false }
+  }
+
   function toggleInSelection(action: DrawAction) {
     if (history.indexOf(action) === -1) return
     const cur = selectedActions.value
@@ -2828,6 +2864,9 @@ export function useDrawing(
     marqueeRect,
     clearSelection,
     setSelection,
+    selectAll,
+    areAllActionsSelected,
+    toggleSelectAll,
     toggleInSelection,
     isActionSelected,
     findSelectedActionAt,

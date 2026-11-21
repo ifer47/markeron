@@ -338,10 +338,19 @@ pub fn run() {
             #[cfg(target_os = "windows")]
             tauri::WindowEvent::Focused(true) if window.label() == "settings" => {
                 theme::apply_windows_brand_icons(window.app_handle());
+                overlay::sync_preserved_escape(window.app_handle());
+            }
+            // Settings has its own Esc semantics; release the preserved-layer global Esc
+            // while it owns focus and restore it when settings goes away.
+            tauri::WindowEvent::Focused(_) if window.label() == "settings" => {
+                overlay::sync_preserved_escape(window.app_handle());
             }
             tauri::WindowEvent::Destroyed if window.label() == "settings" => {
                 #[cfg(target_os = "macos")]
                 macos::restore_accessory_policy(window.app_handle());
+                // A destroyed window may skip its final Focused(false); re-arm the
+                // preserved-layer Esc binding if the ink is still on screen.
+                overlay::sync_preserved_escape(window.app_handle());
             }
             _ => {}
         })

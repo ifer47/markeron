@@ -1,4 +1,5 @@
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
+use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tracing::{info, warn};
 
 use crate::config::{lock_or_recover, AppState, ToolbarVisibility};
@@ -16,6 +17,14 @@ static COVERED_FULLSCREEN_APP: AtomicIsize = AtomicIsize::new(0);
 #[cfg(windows)]
 static LAST_OVERLAY_SETUP_RECT: std::sync::Mutex<Option<(i32, i32, u32, u32)>> =
     std::sync::Mutex::new(None);
+
+/// Serializes preserved-layer Esc registration so stale workers cannot leak the binding.
+static PRESERVED_ESCAPE_SYNC: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Esc normally reaches the overlay webview only while it owns keyboard focus. Preserved ink
+/// is click-through, so once the user clicks another app the second Esc never arrives.
+/// Bind Esc globally for the lifetime of the preserved layer and release it on hide.
+const PRESERVED_ESCAPE_ACCEL: &str = "Esc";
 
 fn set_ignore_cursor_events(window: &WebviewWindow, ignore: bool) {
     window.set_ignore_cursor_events(ignore).ok();
@@ -621,6 +630,126 @@ fn hand_back_covered_app(app: &AppHandle, window: &WebviewWindow) {
 #[cfg(not(windows))]
 fn hand_back_covered_app(_app: &AppHandle, _window: &WebviewWindow) {}
 
+fn escape_shortcut() -> Option<tauri_plugin_global_shortcut::Shortcut> {
+    crate::shortcuts::parse_shortcut(PRESERVED_ESCAPE_ACCEL)
+}
+
+fn is_settings_focused(app: &AppHandle) -> bool {
+    app.get_webview_window("settings")
+        .map(|window| {
+            // A native modal (file dialog, etc.) disables the visible settings window while
+            // it owns Esc; keep the binding out of its way so Esc still cancels the dialog.
+            let visible = window.is_visible().unwrap_or(false);
+            window.is_focused().unwrap_or(false)
+                || (visible && !window.is_enabled().unwrap_or(true))
+        })
+        .unwrap_or(false)
+}
+
+/// Global Esc is only for the click-through layer over other apps. The settings webview has
+/// its own Esc semantics (close dialogs, leave a tab); never swallow it there.
+fn preserved_escape_should_bind(app: &AppHandle) -> bool {
+    current_mode(&app.state::<AppState>()) == OverlayMode::Preserved && !is_settings_focused(app)
+}
+
+/// Esc is also a legal user-configured shortcut; never steal or release that binding.
+fn is_escape_configured(app: &AppHandle) -> bool {
+    let Some(escape) = escape_shortcut() else {
+        return false;
+    };
+    let state = app.state::<AppState>();
+    let config = lock_or_recover(&state.config);
+    [
+        &config.shortcuts.toggle_drawing,
+        &config.shortcuts.clear_drawing,
+        &config.shortcuts.toggle_penetration,
+    ]
+    .iter()
+    .filter_map(|accel| crate::shortcuts::parse_shortcut(accel))
+    .any(|shortcut| shortcut == escape)
+}
+
+fn register_preserved_escape(app: &AppHandle) {
+    let Some(shortcut) = escape_shortcut() else {
+        return;
+    };
+    if is_escape_configured(app) {
+        return;
+    }
+    let shortcuts = app.global_shortcut();
+    if shortcuts.is_registered(shortcut) {
+        return;
+    }
+
+    let handle = app.clone();
+    if let Err(e) = shortcuts.on_shortcut(shortcut, move |_app, _shortcut, event| {
+        if event.state != ShortcutState::Pressed {
+            return;
+        }
+        // The plugin holds its shortcut-map lock while invoking this handler, so only
+        // spawn/branch from here; `sync_preserved_escape` never touches that lock inline.
+        let state = handle.state::<AppState>();
+        // A stale binding can fire just as settings takes focus; let settings keep its own
+        // Esc and reconcile the binding instead of collapsing the ink underneath it.
+        if is_settings_focused(&handle) {
+            sync_preserved_escape(&handle);
+            return;
+        }
+        if current_mode(&state) == OverlayMode::Preserved {
+            log_backend_event(
+                &state,
+                "session",
+                "preserved layer dismissed",
+                Some(serde_json::json!({ "reason": "global-shortcut", "shortcut": "escape" })),
+                "info",
+            );
+            deactivate_drawing(&handle, &state);
+            return;
+        }
+        // A stale binding can outlive the preserved layer for a few ms. Never re-implement
+        // drawing-mode Esc semantics here (cancel text box, clear selection, exit whiteboard);
+        // release the binding and let the focused webview handle the next press.
+        sync_preserved_escape(&handle);
+    }) {
+        warn!("Failed to register preserved-layer Esc shortcut: {}", e);
+    }
+}
+
+fn unregister_preserved_escape(app: &AppHandle) {
+    let Some(shortcut) = escape_shortcut() else {
+        return;
+    };
+    if is_escape_configured(app) {
+        return;
+    }
+    let shortcuts = app.global_shortcut();
+    if !shortcuts.is_registered(shortcut) {
+        return;
+    }
+    if let Err(e) = shortcuts.unregister(shortcut) {
+        warn!("Failed to unregister preserved-layer Esc shortcut: {}", e);
+    }
+}
+
+/// Reconcile the global Esc binding with the current overlay mode.
+///
+/// Global-shortcut handlers run while the plugin holds its shortcut-map lock, so mode
+/// transitions must not register/unregister synchronously. Each worker re-reads the mode,
+/// which makes stale requests harmless, and the mutex keeps registrations serialized.
+pub(crate) fn sync_preserved_escape(app: &AppHandle) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let _guard = PRESERVED_ESCAPE_SYNC
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if preserved_escape_should_bind(&app) {
+            register_preserved_escape(&app);
+        } else {
+            unregister_preserved_escape(&app);
+        }
+    });
+}
+
 /// Leave the ink on screen after annotation ends (`preserveDrawings`).
 ///
 /// The overlay stays visible above the desktop but becomes click-through, so the user can
@@ -643,6 +772,7 @@ fn preserve_drawing(app: &AppHandle, state: &AppState) {
     }
     hide_toolbar_window(app);
     emit_mode(app, OverlayMode::Preserved);
+    sync_preserved_escape(app);
 }
 
 /// Take the overlay off screen without touching the canvas.
@@ -660,6 +790,7 @@ fn hide_overlay(app: &AppHandle, state: &AppState) {
     }
     hide_toolbar_window(app);
     emit_mode(app, OverlayMode::Hidden);
+    sync_preserved_escape(app);
 }
 
 pub fn deactivate_drawing(app: &AppHandle, state: &AppState) {
@@ -731,6 +862,7 @@ pub fn activate_drawing(app: &AppHandle, state: &AppState) {
 
     monitor::remember_and_clip_drawing_monitor(app);
     emit_mode(app, OverlayMode::Drawing);
+    sync_preserved_escape(app);
     info!("Drawing mode activated");
 }
 
@@ -887,6 +1019,12 @@ pub fn clear_drawing(app: &AppHandle, state: &AppState) {
 }
 
 pub fn on_overlay_focus_lost(app: &AppHandle, state: &AppState) {
+    // Preserved ink is click-through: focus moves to whichever app the user is working in.
+    // Reconcile the global Esc binding against that new focus owner.
+    if current_mode(state) == OverlayMode::Preserved {
+        sync_preserved_escape(app);
+        return;
+    }
     if current_mode(state) != OverlayMode::Drawing {
         return;
     }

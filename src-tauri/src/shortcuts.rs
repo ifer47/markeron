@@ -44,6 +44,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_bare_escape() {
+        // The preserved-ink layer binds Esc globally; both spellings must resolve.
+        assert_eq!(parse_shortcut("Esc"), parse_shortcut("Escape"));
+        assert!(parse_shortcut("Esc").is_some());
+    }
+
+    #[test]
     fn parse_default_shortcuts_are_valid() {
         let defaults = crate::config::default_shortcuts();
         assert!(parse_shortcut(&defaults.toggle_drawing).is_some());
@@ -134,4 +141,8 @@ pub fn register_shortcuts(app: &AppHandle) {
             );
         }
     }
+
+    // `unregister_all` dropped the preserved-layer Esc binding along with the configured
+    // shortcuts; re-register it if the ink is still on screen.
+    crate::overlay::sync_preserved_escape(app);
 }

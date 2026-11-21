@@ -16,6 +16,7 @@ import { SELECT_ALL_DOUBLE_MS } from '../utils/selectAllDoublePress'
 function createContext(overrides: Partial<KeyboardContext> = {}): KeyboardContext {
   return {
     active: ref(true),
+    penetrationMode: ref(false),
     preservedMode: ref(false),
     showToolbarPopup: ref(false),
     toolbarPinned: ref(false),
@@ -380,6 +381,30 @@ describe('useOverlayKeyboard', () => {
     it('Escape exits drawing', () => {
       handler(key('Escape'))
       expect(actions.calls.exitDrawing).toHaveLength(1)
+    })
+
+    it('Escape leaves penetration mode for drawing without ending the session', () => {
+      ctx.active.value = false
+      ctx.penetrationMode.value = true
+      handler(key('Escape'))
+      expect(actions.calls.togglePenetrationMode).toHaveLength(1)
+      expect(actions.calls.exitDrawing).toHaveLength(0)
+    })
+
+    it('does not leave penetration mode on Escape auto-repeat', () => {
+      ctx.active.value = false
+      ctx.penetrationMode.value = true
+      handler(key('Escape', { repeat: true }))
+      expect(actions.calls.togglePenetrationMode).toHaveLength(0)
+    })
+
+    it('ignores keys other than Escape while click-through is active', () => {
+      ctx.active.value = false
+      ctx.penetrationMode.value = true
+      handler(key('1'))
+      handler(key('x'))
+      expect(actions.calls.showToolTip).toHaveLength(0)
+      expect(actions.calls.togglePenetrationMode).toHaveLength(0)
     })
 
     it('Escape dismisses the preserved ink layer', () => {

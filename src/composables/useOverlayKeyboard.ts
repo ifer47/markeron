@@ -22,6 +22,8 @@ let selectAllPress: SelectAllPressState = { ...EMPTY_SELECT_ALL_PRESS }
 
 export interface KeyboardContext {
   active: Ref<boolean>
+  /** Click-through sub-state of a live session (Ctrl+Shift+X). */
+  penetrationMode: Ref<boolean>
   /** Ink is kept on screen as a click-through layer (annotation already exited). */
   preservedMode: Ref<boolean>
   showToolbarPopup: Ref<boolean>
@@ -176,9 +178,16 @@ function shouldTriggerKeyboardPaste(e: KeyboardEvent, ctx: KeyboardContext): boo
 export function createKeyDownHandler(ctx: KeyboardContext, actions: KeyboardActions) {
   return function onKeyDown(e: KeyboardEvent) {
     if (!ctx.active.value) {
-      // Preserved ink is click-through, but the overlay can still own the keyboard right after
-      // exiting. Esc there tucks the whole layer away (content stays in memory for re-entry).
-      if (ctx.preservedMode.value && e.key === 'Escape' && !e.repeat) {
+      // Click-through is still part of the session, so Esc only unwinds one level:
+      // penetration → drawing (a second press then exits annotation). This runs only while
+      // MarkerOn owns the keyboard — once the user clicks an app below, Esc belongs to it.
+      if (ctx.penetrationMode.value && e.key === 'Escape' && !e.repeat) {
+        e.preventDefault()
+        logActionEvent('penetration exited', { reason: 'keyboard', shortcut: 'escape' })
+        actions.togglePenetrationMode()
+      } else if (ctx.preservedMode.value && e.key === 'Escape' && !e.repeat) {
+        // Preserved ink is click-through, but the overlay can still own the keyboard right
+        // after exiting. Esc there tucks the whole layer away (content stays in memory).
         e.preventDefault()
         logActionEvent('preserved layer dismissed', { reason: 'keyboard', shortcut: 'escape' })
         actions.exitDrawing()

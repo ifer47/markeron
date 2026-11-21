@@ -994,7 +994,11 @@ pub fn toggle_drawing(app: &AppHandle) {
         // Preserved ink resumes editing; the toggle never hides the layer — Esc (or the
         // toolbar exit) is the only "fully exit" path.
         OverlayMode::Hidden | OverlayMode::Preserved => activate_drawing(app, &state),
-        OverlayMode::Drawing | OverlayMode::Penetration => deactivate_drawing(app, &state),
+        // Click-through is a sub-state of a live session, not an exit: the "start annotating"
+        // shortcut resumes drawing on top of the ink. Ctrl+Shift+X (or the toolbar) toggles
+        // back, and Esc / the toolbar exit still end the session.
+        OverlayMode::Penetration => exit_penetration_mode(app, &state),
+        OverlayMode::Drawing => deactivate_drawing(app, &state),
     }
 }
 

@@ -1857,6 +1857,7 @@ function placeStampAt(x: number, y: number) {
 const onKeyDown = createKeyDownHandler(
   {
     active,
+    penetrationMode,
     preservedMode,
     showToolbarPopup,
     toolbarPinned,

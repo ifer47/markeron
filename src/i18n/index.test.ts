@@ -136,4 +136,21 @@ describe('useI18n', () => {
       expect(result).toContain('{keys}')
     })
   })
+
+  describe('width preset labels', () => {
+    it('labels every stroke-width and text-size step in both locales', async () => {
+      const { WIDTH_LABEL_KEYS, WIDTH_PRESETS } = await import('../constants/tools')
+      const zh = (await import('./zh-CN')).default
+      const en = (await import('./en')).default
+
+      expect(WIDTH_LABEL_KEYS).toHaveLength(WIDTH_PRESETS.length)
+      expect(new Set(WIDTH_LABEL_KEYS).size).toBe(WIDTH_LABEL_KEYS.length)
+      for (const key of WIDTH_LABEL_KEYS) {
+        expect(zh.widths[key]).toBeTruthy()
+        expect(en.widths[key]).toBeTruthy()
+        expect(zh.textSizes[key]).toBeTruthy()
+        expect(en.textSizes[key]).toBeTruthy()
+      }
+    })
+  })
 })

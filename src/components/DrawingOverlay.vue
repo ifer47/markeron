@@ -32,6 +32,7 @@ import TextBox from './TextBox.vue'
 import {
   TOOL_ICON_MAP,
   WIDTH_PRESETS,
+  textSizeForLineWidth,
   widthPresetLabelKey,
   eraserLineWidth,
   toStoredLineWidths,
@@ -409,7 +410,7 @@ const {
   destroy,
 } = useDrawing(historyCanvasRef, previewCanvasRef)
 
-const textFontSize = computed(() => Math.max(16, lineWidth.value * 6))
+const textFontSize = computed(() => textSizeForLineWidth(lineWidth.value))
 const eraserCursorDiameter = computed(() => Math.min(80, eraserLineWidth(lineWidth.value)))
 /** Smallest eraser glyph that still reads as an eraser; below this the icon is a speck. */
 const eraserCursorSize = computed(() => Math.max(16, eraserCursorDiameter.value))

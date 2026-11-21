@@ -108,11 +108,11 @@ describe('useDrawing', () => {
     it('applies persisted line widths per group', () => {
       drawing.setLineWidths({ stroke: 8, highlighter: 5, eraser: 2, text: 1 })
       drawing.currentTool.value = 'pen'
-      expect(drawing.lineWidth.value).toBe(9.2)
+      expect(drawing.lineWidth.value).toBe(7.09)
       drawing.currentTool.value = 'highlighter'
-      expect(drawing.lineWidth.value).toBe(4.6)
+      expect(drawing.lineWidth.value).toBe(5.47)
       drawing.currentTool.value = 'eraser'
-      expect(drawing.lineWidth.value).toBe(2.3)
+      expect(drawing.lineWidth.value).toBe(1.93)
       drawing.currentTool.value = 'text'
       expect(drawing.lineWidth.value).toBe(1.15)
     })
@@ -128,11 +128,11 @@ describe('useDrawing', () => {
       expect(drawing.lineWidth.value).toBe(3.25)
       drawing.currentTool.value = 'eraser'
       expect(drawing.lineWidth.value).toBe(3.25)
-      drawing.lineWidth.value = 2.3
+      drawing.lineWidth.value = 2.51
       drawing.currentTool.value = 'pen'
       expect(drawing.lineWidth.value).toBe(9.2)
       drawing.currentTool.value = 'eraser'
-      expect(drawing.lineWidth.value).toBe(2.3)
+      expect(drawing.lineWidth.value).toBe(2.51)
     })
 
     it('starts not drawing', () => {
@@ -639,9 +639,9 @@ describe('useDrawing', () => {
   describe('eraser', () => {
     it('updates in-progress eraser stroke width when lineWidth changes mid-gesture', () => {
       drawing.currentTool.value = 'eraser'
-      drawing.lineWidth.value = 3.45
+      drawing.lineWidth.value = 3.25
       drawing.startDraw({ x: 10, y: 10 })
-      expect(drawing.getActiveStrokeLineWidth()).toBeCloseTo(27.6, 10)
+      expect(drawing.getActiveStrokeLineWidth()).toBeCloseTo(26, 10)
 
       drawing.lineWidth.value = 9.2
       expect(drawing.getActiveStrokeLineWidth()).toBeCloseTo(73.6, 10)
@@ -653,9 +653,9 @@ describe('useDrawing', () => {
 
     it('updates in-progress pen stroke width when lineWidth changes mid-gesture', () => {
       drawing.currentTool.value = 'pen'
-      drawing.lineWidth.value = 3.45
+      drawing.lineWidth.value = 3.25
       drawing.startDraw({ x: 10, y: 10, pointerType: 'mouse' })
-      expect(drawing.getActiveStrokeLineWidth()).toBe(3.45)
+      expect(drawing.getActiveStrokeLineWidth()).toBe(3.25)
 
       drawing.lineWidth.value = 9.2
       expect(drawing.getActiveStrokeLineWidth()).toBe(9.2)
@@ -667,7 +667,7 @@ describe('useDrawing', () => {
 
     it('splits eraser stroke at tip so resize does not re-erase the old path', () => {
       drawing.currentTool.value = 'eraser'
-      drawing.lineWidth.value = 3.45
+      drawing.lineWidth.value = 3.25
       drawing.startDraw({ x: 10, y: 10 })
       drawing.draw({ x: 50, y: 50 })
       drawing.setLineWidth(9.2, { x: 200, y: 200 })
@@ -1577,7 +1577,7 @@ describe('useDrawing', () => {
     }
 
     it('returns false without a selection', () => {
-      expect(drawing.setSelectedLineWidth(5.75)).toBe(false)
+      expect(drawing.setSelectedLineWidth(5.47)).toBe(false)
     })
 
     it('applies a preset to the selected shapes and is undoable', () => {
@@ -1585,14 +1585,14 @@ describe('useDrawing', () => {
       expect(rect.lineWidth).toBe(3.25)
 
       drawing.setSelection([rect])
-      expect(drawing.setSelectedLineWidth(5.75)).toBe(true)
-      expect(rect.lineWidth).toBe(5.75)
-      expect(drawing.lineWidths.value.stroke).toBe(5.75)
+      expect(drawing.setSelectedLineWidth(5.47)).toBe(true)
+      expect(rect.lineWidth).toBe(5.47)
+      expect(drawing.lineWidths.value.stroke).toBe(5.47)
 
       drawing.undo()
       expect(rect.lineWidth).toBe(3.25)
       drawing.redo()
-      expect(rect.lineWidth).toBe(5.75)
+      expect(rect.lineWidth).toBe(5.47)
     })
 
     it('maps the preset for highlighter strokes', () => {
@@ -1604,9 +1604,9 @@ describe('useDrawing', () => {
       expect(ink.lineWidth).toBeCloseTo(22.75, 10)
 
       drawing.setSelection([ink])
-      drawing.setSelectedLineWidth(5.75)
-      expect(ink.lineWidth).toBeCloseTo(40.25, 10)
-      expect(drawing.lineWidths.value.highlighter).toBe(5.75)
+      drawing.setSelectedLineWidth(5.47)
+      expect(ink.lineWidth).toBeCloseTo(38.29, 10)
+      expect(drawing.lineWidths.value.highlighter).toBe(5.47)
     })
 
     it('resizes selected text and restores its measured width on undo', () => {
@@ -1633,9 +1633,9 @@ describe('useDrawing', () => {
       const text = drawing.findActionAt({ x: 180, y: 120 })!.action
 
       drawing.setSelection([rect, text])
-      drawing.setSelectedLineWidth(5.75)
-      expect(rect.lineWidth).toBe(5.75)
-      expect(text.fontSize).toBeCloseTo(34.5, 10)
+      drawing.setSelectedLineWidth(5.47)
+      expect(rect.lineWidth).toBe(5.47)
+      expect(text.fontSize).toBeCloseTo(40.5, 10)
     })
 
     it('resizes selected stamps and updates their bbox', () => {

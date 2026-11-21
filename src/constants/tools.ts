@@ -47,17 +47,33 @@ export const TOOL_ICON_MAP: Record<Tool, Component> = Object.fromEntries(
 ) as Record<Tool, Component>
 
 /**
- * Seven stroke-width presets in CSS pixels: geometric steps (×√2) between the same 1.15–9.2
- * bounds, so each step is a similar perceived change instead of a linear jump.
+ * Nine stroke-width presets in CSS pixels: geometric steps (×2^(3/8) ≈ 1.3) between the same
+ * 1.15–9.2 bounds, so each step is a similar perceived change instead of a linear jump.
  */
-export const WIDTH_PRESETS: number[] = [1.15, 1.63, 2.3, 3.25, 4.6, 6.5, 9.2]
+export const WIDTH_PRESETS: number[] = [1.15, 1.49, 1.93, 2.51, 3.25, 4.22, 5.47, 7.09, 9.2]
 
 /** Persisted line widths are hundredths of a CSS pixel (115 = 1.15px). */
-export const WIDTH_PRESET_STORAGE: number[] = [115, 163, 230, 325, 460, 650, 920]
+export const WIDTH_PRESET_STORAGE: number[] = [115, 149, 193, 251, 325, 422, 547, 709, 920]
 export const WIDTH_STORAGE_SCALE = 100
 
-/** Stable i18n label keys for the seven width presets (no decimal path segments). */
-export const WIDTH_LABEL_KEYS = ['xxs', 'xs', 's', 'm', 'l', 'xl', 'xxl'] as const
+/** Stable i18n label keys for the nine width presets (no decimal path segments). */
+export const WIDTH_LABEL_KEYS = ['xxs', 'xs', 's', 'sm', 'm', 'ml', 'l', 'xl', 'xxl'] as const
+
+/**
+ * Nine text / stamp font sizes in CSS pixels, index-aligned with WIDTH_PRESETS: geometric steps
+ * (~1.17 per step) between the same 16–55.2 bounds, so every width preset owns its own font
+ * size instead of collapsing onto the 16px floor.
+ */
+export const TEXT_SIZE_PRESETS: number[] = [16, 18.7, 21.8, 25.5, 29.7, 34.7, 40.5, 47.3, 55.2]
+
+/**
+ * Toolbar preview bar heights (CSS px) for the nine width presets.
+ *
+ * Linear, not proportional, on purpose: at 1.2 x width the first steps differ by ~0.3px,
+ * which the browser snaps onto the same device pixel, so two presets looked identical. A
+ * constant 1.1px step keeps all nine dots distinguishable.
+ */
+export const WIDTH_PREVIEW_HEIGHTS: number[] = [2, 3.1, 4.2, 5.3, 6.4, 7.5, 8.6, 9.7, 10.8]
 
 /** Index of the middle preset — the default line width for every width group. */
 const MIDDLE_PRESET_INDEX = Math.floor(WIDTH_PRESETS.length / 2)
@@ -73,8 +89,9 @@ export function widthPresetLabelKey(index: number): string {
 /**
  * Closest preset to a CSS-pixel width.
  *
- * Widths picked before the ladder changed (e.g. the old 3.45 / 5.75) are snapped instead of
- * being reset, so an upgrade never silently changes the user's stroke width.
+ * Widths picked before the ladder changed (e.g. the old seven-step 1.63 / 4.6 / 6.5 values)
+ * are snapped instead of being reset, so an upgrade never silently changes the user's stroke
+ * width.
  */
 function nearestWidthPreset(pixels: number): number {
   let best = WIDTH_PRESETS[0]
@@ -82,6 +99,19 @@ function nearestWidthPreset(pixels: number): number {
     if (Math.abs(preset - pixels) < Math.abs(best - pixels)) best = preset
   }
   return best
+}
+
+/**
+ * Text / stamp font size for a line width (CSS pixels).
+ *
+ * The width snaps to the nearest preset exactly like the toolbar, so text and stamps stay
+ * index-aligned with the width ladder and no two presets share a font size.
+ */
+export function textSizeForLineWidth(lineWidth: number): number {
+  if (typeof lineWidth !== 'number' || !Number.isFinite(lineWidth) || lineWidth <= 0) {
+    return TEXT_SIZE_PRESETS[MIDDLE_PRESET_INDEX]
+  }
+  return TEXT_SIZE_PRESETS[WIDTH_PRESETS.indexOf(nearestWidthPreset(lineWidth))]
 }
 
 /** Pen + shapes share one preset; highlighter / eraser / text are separate. */

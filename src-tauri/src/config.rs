@@ -37,8 +37,8 @@ fn default_auto_revert_to_pen() -> bool {
     false
 }
 
-/// Persisted widths are hundredths of a CSS pixel (115 = 1.15px), seven geometric steps.
-const LINE_WIDTH_PRESET_STORAGE: [u32; 7] = [115, 163, 230, 325, 460, 650, 920];
+/// Persisted widths are hundredths of a CSS pixel (115 = 1.15px), nine geometric steps.
+const LINE_WIDTH_PRESET_STORAGE: [u32; 9] = [115, 149, 193, 251, 325, 422, 547, 709, 920];
 
 /// Middle preset (3.25px) — default line width for every width group.
 fn default_line_width() -> u32 {
@@ -51,9 +51,9 @@ pub const CONFIG_VERSION: u32 = 1;
 
 /// Snap a stored value to the nearest preset.
 ///
-/// Older builds stored the 1/2/3/5/8 px presets directly, and the previous five-step ladder
-/// stored 345 / 575 hundredths; both are snapped instead of reset so an upgrade never
-/// silently changes the user's stroke width.
+/// Older builds stored the 1/2/3/5/8 px presets directly, and the previous five-step and
+/// seven-step ladders stored 345 / 575 and 163 / 460 / 650 hundredths; all of them are
+/// snapped instead of reset so an upgrade never silently changes the user's stroke width.
 fn normalize_line_width(value: u32) -> u32 {
     let hundredths = match value {
         1..=8 => value * 100,
@@ -1340,9 +1340,9 @@ mod tests {
             }
         }"#;
         let config: AppConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(config.general.line_widths.stroke, 650);
+        assert_eq!(config.general.line_widths.stroke, 547);
         assert_eq!(config.general.line_widths.highlighter, 920);
-        assert_eq!(config.general.line_widths.eraser, 230);
+        assert_eq!(config.general.line_widths.eraser, 251);
         assert_eq!(config.general.line_widths.text, 115);
     }
 
@@ -1354,9 +1354,9 @@ mod tests {
             } }
         }"#;
         let legacy: AppConfig = serde_json::from_str(legacy).unwrap();
-        assert_eq!(legacy.general.line_widths.stroke, 460);
-        assert_eq!(legacy.general.line_widths.highlighter, 920);
-        assert_eq!(legacy.general.line_widths.eraser, 230);
+        assert_eq!(legacy.general.line_widths.stroke, 547);
+        assert_eq!(legacy.general.line_widths.highlighter, 709);
+        assert_eq!(legacy.general.line_widths.eraser, 193);
         assert_eq!(legacy.general.line_widths.text, 115);
 
         let floats = r#"{
@@ -1365,23 +1365,23 @@ mod tests {
             } }
         }"#;
         let floats: AppConfig = serde_json::from_str(floats).unwrap();
-        assert_eq!(floats.general.line_widths.stroke, 650);
+        assert_eq!(floats.general.line_widths.stroke, 547);
         assert_eq!(floats.general.line_widths.highlighter, 920);
-        assert_eq!(floats.general.line_widths.eraser, 230);
+        assert_eq!(floats.general.line_widths.eraser, 251);
         assert_eq!(floats.general.line_widths.text, 115);
     }
 
     #[test]
     fn normalized_snaps_legacy_and_previous_line_widths() {
-        // Legacy CSS-pixel presets snap to the nearest step of the seven-step ladder.
+        // Legacy CSS-pixel presets snap to the nearest step of the nine-step ladder.
         assert_eq!(
             [1, 2, 3, 5, 8].map(normalize_line_width),
-            [115, 230, 325, 460, 920]
+            [115, 193, 325, 547, 709]
         );
-        // The previous five-step ladder stored 345 / 575; both must survive as presets.
+        // The previous five-step (345 / 575) and seven-step (163 / 460 / 650) ladders must survive.
         assert_eq!(
-            [115, 345, 575, 920].map(normalize_line_width),
-            [115, 325, 650, 920]
+            [115, 163, 230, 345, 460, 575, 650, 920].map(normalize_line_width),
+            [115, 149, 251, 325, 422, 547, 709, 920]
         );
     }
 
@@ -1404,10 +1404,10 @@ mod tests {
             ..GeneralConfig::default()
         };
         let normalized = general.normalized();
-        assert_eq!(normalized.line_widths.stroke, 460);
+        assert_eq!(normalized.line_widths.stroke, 422);
         assert_eq!(normalized.line_widths.highlighter, 325);
         assert_eq!(normalized.line_widths.eraser, 325);
-        assert_eq!(normalized.line_widths.text, 460);
+        assert_eq!(normalized.line_widths.text, 547);
     }
 
     #[test]

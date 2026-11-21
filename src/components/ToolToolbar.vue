@@ -4,7 +4,13 @@ import { Undo2, Redo2, Trash2, Layout, Copy, MoreHorizontal, ChevronUp, MousePoi
 import type { Tool } from '../composables/useDrawing'
 import { isMacOS } from '../utils/platform'
 import { useI18n } from '../i18n'
-import { DRAWING_TOOL_DEFS, SELECT_TOOL_DEF, WIDTH_PRESETS, widthPresetLabelKey } from '../constants/tools'
+import {
+  DRAWING_TOOL_DEFS,
+  SELECT_TOOL_DEF,
+  WIDTH_PRESETS,
+  WIDTH_PREVIEW_HEIGHTS,
+  widthPresetLabelKey,
+} from '../constants/tools'
 import { COLOR_ROWS } from '../constants/colors'
 import {
   TEXT_OUTLINE_WIDTH_LABEL_KEYS,
@@ -94,7 +100,13 @@ function outlineWidthLabel(index: number): string {
   return t(`widths.${TEXT_OUTLINE_WIDTH_LABEL_KEYS[index] ?? TEXT_OUTLINE_WIDTH_LABEL_KEYS[2]}`)
 }
 
-const widths = computed(() => WIDTH_PRESETS.map((value, index) => ({ value, label: widthLabel(index) })))
+const widths = computed(() =>
+  WIDTH_PRESETS.map((value, index) => ({
+    value,
+    label: widthLabel(index),
+    previewHeight: WIDTH_PREVIEW_HEIGHTS[index] ?? WIDTH_PREVIEW_HEIGHTS[WIDTH_PREVIEW_HEIGHTS.length - 1],
+  })),
+)
 const outlineWidths = computed(() =>
   TEXT_OUTLINE_WIDTH_PRESETS.map((value, index) => ({ value, label: outlineWidthLabel(index) })),
 )
@@ -902,9 +914,7 @@ onUnmounted(() => {
               <span
                 class="w-[70%] rounded-full transition-transform duration-120 group-hover:scale-x-110"
                 :class="lineWidth === w.value ? 'overlay-width-line--active' : 'overlay-width-line'"
-                :style="{
-                  height: Math.max(1.5, w.value * 1.2) + 'px',
-                }"
+                :style="{ height: w.previewHeight + 'px' }"
               />
             </button>
           </div>

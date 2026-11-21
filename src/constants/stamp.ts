@@ -1,4 +1,5 @@
 import { resolveAutoTextOutlineColor } from './textOutline'
+import { textSizeForLineWidth } from './tools'
 
 export type StampKind = 'number' | 'letter'
 
@@ -82,9 +83,9 @@ export function resetActiveStampCounter(): string {
   return peekStampLabel()
 }
 
-/** Same scale as text tool font size. */
+/** Same ladder as the text tool font size (16–55.2px, one size per width preset). */
 export function stampFontSizeFromWidth(lineWidth: number): number {
-  return Math.max(16, lineWidth * 6)
+  return textSizeForLineWidth(lineWidth)
 }
 
 export function stampContrastColor(fillColor: string): string {

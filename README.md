@@ -18,7 +18,7 @@
 
 
 <p align="center">
-  <img src="assets/MarkerOn_en.png" width="720" alt="MarkerOn" />
+  <img src="docs/assets/hero.png" width="720" alt="MarkerOn" />
 </p>
 
 **Contents:** [Download](#download) · [Quick Start](#quick-start) · [Features](#features) · [Shortcuts](#keyboard-shortcuts) · [Feedback](#feedback--issues) · [Development](#development)
@@ -70,10 +70,10 @@ winget install --id 9N6623X973JV --source msstore
 <table>
 <tr>
 <td width="50%">
-<img src="assets/annotation-tools.png" alt="MarkerOn annotation tools" />
+<img src="docs/assets/tools.png" alt="MarkerOn annotation tools" />
 </td>
 <td width="50%">
-<img src="assets/settings-panel.png" alt="Settings panel" />
+<img src="docs/assets/settings.png" alt="Settings panel" />
 </td>
 </tr>
 </table>

@@ -14,7 +14,8 @@ const scenes = path.join(root, 'assets', 'store-screenshots')
 const jobs = [
   {
     html: 'scene2-tools-en.html',
-    outs: ['assets/annotation-tools.png', 'docs/assets/tools.png'],
+    // English shots are shared by README and the website: one copy, in docs/assets/.
+    outs: ['docs/assets/tools.png'],
   },
   {
     html: 'scene2-tools.html',
@@ -30,7 +31,7 @@ const jobs = [
   },
   {
     html: 'scene3-panel-en.html',
-    outs: ['assets/settings-panel.png', 'docs/assets/settings.png'],
+    outs: ['docs/assets/settings.png'],
   },
   {
     html: 'scene3-panel.html',
@@ -38,7 +39,7 @@ const jobs = [
   },
   {
     html: 'scene4-shortcuts-en.html',
-    outs: ['assets/shortcuts-overview.png', 'docs/assets/shortcuts.png'],
+    outs: ['docs/assets/shortcuts.png'],
   },
   {
     html: 'scene4-shortcuts.html',
@@ -46,7 +47,7 @@ const jobs = [
   },
   {
     html: 'scene0-hero-en.html',
-    outs: ['assets/MarkerOn_en.png', 'docs/assets/hero.png'],
+    outs: ['docs/assets/hero.png'],
   },
   {
     html: 'scene0-hero.html',

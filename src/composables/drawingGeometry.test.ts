@@ -926,6 +926,38 @@ describe('hitTestAction', () => {
       })
       expect(hitTestAction(action, { x: 160, y: 100 })).toBe(false)
     })
+
+    it('follows the stretched disc when a stamp becomes an ellipse', () => {
+      const action = makeAction({
+        tool: 'stamp',
+        lineWidth: 3,
+        points: [{ x: 100, y: 100 }],
+        text: '1',
+        fontSize: 24,
+        stretchX: 3,
+        bbox: { x1: 40, y1: 82, x2: 160, y2: 118 },
+      })
+      // stampRadius(24, '1') = 19.68 → rx = 59.04, ry stays 19.68.
+      expect(hitTestAction(action, { x: 155, y: 100 })).toBe(true)
+      expect(hitTestAction(action, { x: 100, y: 155 })).toBe(false)
+    })
+
+    it('rotates the stamp hit disc with the shape', () => {
+      const action = makeAction({
+        tool: 'stamp',
+        lineWidth: 3,
+        points: [{ x: 100, y: 100 }],
+        text: '1',
+        fontSize: 24,
+        stretchX: 3,
+        rotation: Math.PI / 2,
+        // Rotated AABB: rx = 59.04 runs vertically, ry = 19.68 horizontally.
+        bbox: { x1: 80.32, y1: 40.96, x2: 119.68, y2: 159.04 },
+      })
+      // Quarter turn swaps the axes: the long radius now runs vertically.
+      expect(hitTestAction(action, { x: 100, y: 155 })).toBe(true)
+      expect(hitTestAction(action, { x: 155, y: 100 })).toBe(false)
+    })
   })
 })
 
@@ -1364,6 +1396,36 @@ describe('hitTestActionWithFootprint', () => {
       // stampRadius(24, '1') = 24 × 0.82 = 19.68, so a 5px half-square touches at 24.68.
       expect(hitTestActionWithFootprint(action, squareProbe(124.66, 100, 5))).toBe(true)
       expect(hitTestActionWithFootprint(action, squareProbe(124.7, 100, 5))).toBe(false)
+    })
+
+    it('erases a stamp from inside its filled disc', () => {
+      const action = makeAction({
+        tool: 'stamp',
+        points: [{ x: 100, y: 100 }],
+        text: '1',
+        fontSize: 24,
+        bbox: { x1: 80, y1: 80, x2: 120, y2: 120 },
+      })
+      // Parked in the middle: no rim contact, but the disc is painted there.
+      expect(hitTestActionWithFootprint(action, squareProbe(100, 100, 5))).toBe(true)
+      // A footprint large enough to swallow the disc still erases it.
+      expect(hitTestActionWithFootprint(action, squareProbe(100, 100, 40))).toBe(true)
+    })
+
+    it('follows a rotated text glyph box', () => {
+      const action = makeAction({
+        tool: 'text',
+        points: [{ x: 100, y: 100 }],
+        text: 'hi',
+        fontSize: 24,
+        textWidth: 60,
+        rotation: Math.PI / 2,
+        // Padded local box 90…180 × 74.5…125.5 rotated a quarter turn about (132, 100).
+        bbox: { x1: 106.5, y1: 58, x2: 157.5, y2: 148 },
+      })
+      // Ink box 102…162 × 84.5…115.5, centre (132, 100); a quarter turn makes it tall.
+      expect(hitTestAction(action, { x: 132, y: 120 })).toBe(true)
+      expect(hitTestAction(action, { x: 160, y: 100 })).toBe(false)
     })
   })
 

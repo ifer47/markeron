@@ -83,7 +83,7 @@ export function resetActiveStampCounter(): string {
   return peekStampLabel()
 }
 
-/** Same ladder as the text tool font size (16–55.2px, one size per width preset). */
+/** Same ladder as the text tool font size (8.6–29.7px, default 16px, one size per width preset). */
 export function stampFontSizeFromWidth(lineWidth: number): number {
   return textSizeForLineWidth(lineWidth)
 }

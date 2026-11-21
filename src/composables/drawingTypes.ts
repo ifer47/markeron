@@ -70,6 +70,11 @@ export interface DrawAction {
   text?: string
   fontSize?: number
   textWidth?: number
+  /**
+   * Horizontal stretch for text / stamps (1 = natural). Corner handles resize the box
+   * freely; the glyphs / disc are stretched to fill it.
+   */
+  stretchX?: number
   textOutline?: TextOutlineStyle
   bbox?: { x1: number; y1: number; x2: number; y2: number }
   rectHit?: { x0: number; y0: number; x1: number; y1: number }

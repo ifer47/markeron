@@ -5,6 +5,7 @@ import {
   aspectLockedFreePoint,
   boundsAfterCenterScale,
   boundsAfterCornerDrag,
+  getActionReshapeBounds,
   getPointsBounds,
   getReshapeHandles,
   hitTestReshapeHandle,
@@ -34,7 +35,8 @@ describe('drawingReshape', () => {
     expect(isReshapeableTool('ellipse')).toBe(true)
     expect(isReshapeableTool('pen')).toBe(true)
     expect(isReshapeableTool('highlighter')).toBe(true)
-    expect(isReshapeableTool('text')).toBe(false)
+    expect(isReshapeableTool('text')).toBe(true)
+    expect(isReshapeableTool('stamp')).toBe(true)
     expect(isReshapeableTool('select')).toBe(false)
   })
 
@@ -175,7 +177,30 @@ describe('drawingReshape', () => {
     }
     expect(selectionFrameBounds(pen)).toEqual({ x0: 10, y0: 50, x1: 80, y1: 90 })
     expect(selectionFrameBounds(shape('line', 10, 20, 100, 80))).toBeNull()
-    expect(selectionFrameBounds(shape('text', 10, 20, 100, 80))).toBeNull()
+    // Text / stamps frame their glyph / disc extents so the handles sit on the frame.
+    const text: DrawAction = {
+      tool: 'text',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 10, y: 50 }],
+      text: 'A',
+      fontSize: 20,
+      textWidth: 10,
+    }
+    expect(selectionFrameBounds(text)).toEqual({ x0: 12, y0: 37, x1: 22, y1: 63 })
+    const stamp: DrawAction = {
+      tool: 'stamp',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 100, y: 100 }],
+      text: '1',
+      fontSize: 20,
+    }
+    const stampFrame = selectionFrameBounds(stamp)!
+    expect(stampFrame.x0).toBeCloseTo(83.6, 5)
+    expect(stampFrame.x1).toBeCloseTo(116.4, 5)
   })
 
   it('getReshapeHandles returns corners and rotate for rect/ellipse', () => {
@@ -415,6 +440,224 @@ describe('drawingReshape', () => {
     expect(to.y1).toBe(10)
     expect(to.x0).toBe(-20)
     expect(to.y0).toBe(-30)
+  })
+
+  it('text and stamps expose four corners plus a rotate handle', () => {
+    const text: DrawAction = {
+      tool: 'text',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 10, y: 50 }],
+      text: 'A',
+      fontSize: 20,
+      textWidth: 10,
+    }
+    const handles = getReshapeHandles(text)
+    expect(handles.map((h) => h.id)).toEqual(['tl', 'tr', 'br', 'bl', 'rotate'])
+    expect(handles[0]).toMatchObject({ x: 12, y: 37 })
+    expect(handles[2]).toMatchObject({ x: 22, y: 63 })
+
+    const stamp: DrawAction = {
+      tool: 'stamp',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 100, y: 100 }],
+      text: '1',
+      fontSize: 20,
+    }
+    const stampHandles = getReshapeHandles(stamp)
+    expect(stampHandles.map((h) => h.id)).toEqual(['tl', 'tr', 'br', 'bl', 'rotate'])
+    expect(stampHandles[0].x).toBeCloseTo(83.6, 5)
+    expect(stampHandles[2].y).toBeCloseTo(116.4, 5)
+  })
+
+  it('scales text uniformly from the anchored corner', () => {
+    const text: DrawAction = {
+      tool: 'text',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 10, y: 50 }],
+      text: 'A',
+      fontSize: 20,
+      textWidth: 10,
+    }
+    const origin = getActionReshapeBounds(text)!
+    // 10x26 box, drag BR to 3x → 30x78 anchored at TL (12, 37).
+    applyReshapeHandle(text, 'br', { x: 42, y: 115 }, { originBounds: origin, originFontSize: 20, originTextWidth: 10 })
+    expect(text.fontSize).toBeCloseTo(60, 5)
+    expect(text.textWidth).toBeCloseTo(30, 5)
+    expect(text.points[0].x).toBeCloseTo(10, 5)
+    expect(text.points[0].y).toBeCloseTo(76, 5)
+  })
+
+  it('scales stamps uniformly from the anchored corner', () => {
+    const stamp: DrawAction = {
+      tool: 'stamp',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 100, y: 100 }],
+      text: '1',
+      fontSize: 20,
+    }
+    const origin = getActionReshapeBounds(stamp)!
+    applyReshapeHandle(stamp, 'br', { x: 149.2, y: 149.2 }, { originBounds: origin, originFontSize: 20 })
+    expect(stamp.fontSize).toBeCloseTo(40, 5)
+    expect(stamp.points[0].x).toBeCloseTo(116.4, 5)
+    expect(stamp.points[0].y).toBeCloseTo(116.4, 5)
+  })
+
+  it('stretches text freely so the dragged corner tracks the pointer', () => {
+    const text: DrawAction = {
+      tool: 'text',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 10, y: 50 }],
+      text: 'A',
+      fontSize: 20,
+      textWidth: 10,
+    }
+    const origin = getActionReshapeBounds(text)!
+    // 10x26 box → drag BR to 40x13 (sx=4, sy=0.5), anchored at TL (12, 37).
+    applyReshapeHandle(
+      text,
+      'br',
+      { x: 52, y: 50 },
+      { originBounds: origin, originFontSize: 20, originTextWidth: 10, originStretchX: 1 },
+    )
+    expect(text.textWidth).toBeCloseTo(40, 5)
+    expect(text.fontSize).toBeCloseTo(10, 5)
+    expect(text.stretchX).toBeCloseTo(8, 5)
+    expect(text.points[0].x).toBeCloseTo(10, 5)
+    expect(text.points[0].y).toBeCloseTo(43.5, 5)
+  })
+
+  it('turns a stamp into an ellipse when dragged non-uniformly', () => {
+    const stamp: DrawAction = {
+      tool: 'stamp',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 100, y: 100 }],
+      text: '1',
+      fontSize: 20,
+    }
+    const origin = getActionReshapeBounds(stamp)!
+    // 32.8 square → 65.6 x 16.4 (sx=2, sy=0.5), anchored at TL (83.6, 83.6).
+    applyReshapeHandle(
+      stamp,
+      'br',
+      { x: 149.2, y: 100 },
+      { originBounds: origin, originFontSize: 20, originStretchX: 1 },
+    )
+    expect(stamp.fontSize).toBeCloseTo(10, 5)
+    expect(stamp.stretchX).toBeCloseTo(4, 5)
+    const box = getActionReshapeBounds(stamp)!
+    expect(box.x1 - box.x0).toBeCloseTo(65.6, 5)
+    expect(box.y1 - box.y0).toBeCloseTo(16.4, 5)
+  })
+
+  it('keeps the glyph aspect when Shift locks text scaling', () => {
+    const text: DrawAction = {
+      tool: 'text',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 10, y: 50 }],
+      text: 'A',
+      fontSize: 20,
+      textWidth: 10,
+    }
+    const origin = getActionReshapeBounds(text)!
+    // 10x26 box → Shift takes the larger axis demand (sx=4), so sy follows it too.
+    applyReshapeHandle(
+      text,
+      'br',
+      { x: 52, y: 50 },
+      { originBounds: origin, originFontSize: 20, originTextWidth: 10, originStretchX: 1, constrain: true },
+    )
+    expect(text.textWidth).toBeCloseTo(40, 5)
+    expect(text.fontSize).toBeCloseTo(80, 5)
+    expect(text.stretchX).toBeUndefined()
+    expect(text.points[0].x).toBeCloseTo(10, 5)
+    expect(text.points[0].y).toBeCloseTo(89, 5)
+  })
+
+  it('keeps an existing text stretch when Shift locks scaling', () => {
+    const text: DrawAction = {
+      tool: 'text',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 10, y: 50 }],
+      text: 'A',
+      fontSize: 20,
+      textWidth: 10,
+      stretchX: 2,
+    }
+    const origin = getActionReshapeBounds(text)!
+    applyReshapeHandle(
+      text,
+      'br',
+      { x: 52, y: 50 },
+      { originBounds: origin, originFontSize: 20, originTextWidth: 10, originStretchX: 2, constrain: true },
+    )
+    expect(text.stretchX).toBeCloseTo(2, 5)
+    const box = getActionReshapeBounds(text)!
+    expect(box.x1 - box.x0).toBeCloseTo(40, 5)
+    expect(box.y1 - box.y0).toBeCloseTo(104, 5)
+  })
+
+  it('keeps a stamp circular when Shift and Alt scale it from the centre', () => {
+    const stamp: DrawAction = {
+      tool: 'stamp',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 100, y: 100 }],
+      text: '1',
+      fontSize: 20,
+    }
+    const origin = getActionReshapeBounds(stamp)!
+    // 32.8 square, centre (100, 100) → drag BR to 149.2 → 3x on both axes.
+    applyReshapeHandle(
+      stamp,
+      'br',
+      { x: 149.2, y: 100 },
+      { originBounds: origin, originFontSize: 20, originStretchX: 1, constrain: true, fromCenter: true },
+    )
+    expect(stamp.fontSize).toBeCloseTo(60, 5)
+    expect(stamp.stretchX).toBeUndefined()
+    expect(stamp.points[0]).toMatchObject({ x: 100, y: 100 })
+    const box = getActionReshapeBounds(stamp)!
+    expect(box.x1 - box.x0).toBeCloseTo(98.4, 5)
+    expect(box.y1 - box.y0).toBeCloseTo(98.4, 5)
+  })
+
+  it('rotate handle sets rotation on text and stamps', () => {
+    const text: DrawAction = {
+      tool: 'text',
+      color: '#f00',
+      lineWidth: 3,
+      opacity: 1,
+      points: [{ x: 10, y: 50 }],
+      text: 'A',
+      fontSize: 20,
+      textWidth: 10,
+    }
+    const origin = { x0: 0, y0: 0, x1: 100, y1: 100 }
+    // Pointer straight below the centre, start angle 0 (pointing right) → quarter turn.
+    applyReshapeHandle(
+      text,
+      'rotate',
+      { x: 50, y: 100 },
+      { originBounds: origin, originRotation: 0, rotateStartAngle: 0 },
+    )
+    expect(text.rotation).toBeCloseTo(Math.PI / 2, 5)
   })
 
   it('applyReshapeHandle no-ops when corner bounds are unchanged', () => {

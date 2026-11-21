@@ -4,6 +4,7 @@ import { isMacOS } from '../utils/platform'
 import { useI18n } from '../i18n'
 import type { TextOutlineStyle } from '../composables/drawingTypes'
 import { getActiveTextOutline, hexColorToRgba, resolveAutoTextOutlineColor } from '../constants/textOutline'
+import { TEXT_SIZE_PRESETS } from '../constants/tools'
 
 const { t } = useI18n()
 
@@ -14,6 +15,12 @@ const props = defineProps<{
   fontSize: number
   initialText?: string
   textOutline?: TextOutlineStyle
+  /** Radians; keeps a rotated text editable in place. */
+  rotation?: number
+  /** Horizontal stretch (1 = natural) applied by corner handles. */
+  stretchX?: number
+  /** Frame width in CSS px (action.textWidth) — pivot for rotation / stretch. */
+  boxWidthPx?: number
 }>()
 
 const emit = defineEmits<{
@@ -28,7 +35,30 @@ const draftText = ref(props.initialText ?? '')
 const boxWidth = ref('auto')
 const boxHeight = ref('auto')
 const lineHeight = computed(() => Math.round(fs.value * 1.3))
-const textBoxTransform = computed(() => `translate(${props.x}px, ${props.y - lineHeight.value / 2}px)`)
+const textBoxTransform = computed(() => {
+  const lh = lineHeight.value
+  const base = `translate(${props.x}px, ${props.y - lh / 2}px)`
+  const rot = props.rotation ?? 0
+  const stretch = props.stretchX ?? 1
+  if (rot === 0 && stretch === 1) return base
+  // Rotate about the frame centre, then stretch horizontally about its left edge (2px padding).
+  const lines = Math.max(1, draftText.value.split('\n').length)
+  const width = Math.max(0, props.boxWidthPx ?? 0)
+  const height = lines * lh
+  const left = 2
+  const cx = 2 + width / 2
+  const cy = height / 2
+  const cos = Math.cos(rot)
+  const sin = Math.sin(rot)
+  const dx = left * (1 - stretch) - cx
+  const a = cos * stretch
+  const b = sin * stretch
+  const c = -sin
+  const d = cos
+  const e = cx + cos * dx + sin * cy
+  const f = cy + sin * dx - cos * cy
+  return `${base} matrix(${a}, ${b}, ${c}, ${d}, ${e}, ${f})`
+})
 const activeTextOutline = computed(() =>
   draftText.value.length > 0 ? getActiveTextOutline(props.textOutline, props.color) : null,
 )
@@ -48,6 +78,7 @@ const isEmpty = computed(() => draftText.value.length === 0)
 const placeholderHintStyle = computed(() => ({
   ...inputChromeStyle.value,
   transform: textBoxTransform.value,
+  transformOrigin: '0 0',
   fontSize: fs.value + 'px',
   lineHeight: lineHeight.value + 'px',
   minHeight: lineHeight.value + 'px',
@@ -134,7 +165,8 @@ function onWheel(e: WheelEvent) {
   e.preventDefault()
   e.stopPropagation()
   const step = e.deltaY < 0 ? 2 : -2
-  fs.value = Math.max(12, Math.min(120, fs.value + step))
+  // Floor matches the smallest toolbar preset, otherwise a small preset jumps up to 12px here.
+  fs.value = Math.max(TEXT_SIZE_PRESETS[0], Math.min(120, fs.value + step))
   nextTick(autoResize)
 }
 
@@ -152,6 +184,7 @@ defineExpose({ commitText, getText, getFontSize })
     class="fixed left-0 top-0 z-100001 px-0.5 py-0 pointer-events-none select-none font-text overflow-visible whitespace-pre min-w-1 max-w-[80vw]"
     :style="{
       transform: textBoxTransform,
+      transformOrigin: '0 0',
       width: boxWidth,
       height: boxHeight,
       color: 'transparent',
@@ -179,6 +212,7 @@ defineExpose({ commitText, getText, getFontSize })
     :style="{
       ...inputChromeStyle,
       transform: textBoxTransform,
+      transformOrigin: '0 0',
       color: color,
       fontSize: fs + 'px',
       lineHeight: lineHeight + 'px',

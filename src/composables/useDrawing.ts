@@ -448,6 +448,10 @@ export function useDrawing(
     rectHit: DrawAction['rectHit']
     ellipseHit: DrawAction['ellipseHit']
     rotation?: number
+    /** Text / stamp corner scaling changes the font size and measured width. */
+    fontSize?: number
+    textWidth?: number
+    stretchX?: number
   }
 
   /** Snapshot of the size-related fields a width preset can change. */
@@ -508,6 +512,9 @@ export function useDrawing(
       rectHit: action.rectHit ? { ...action.rectHit } : undefined,
       ellipseHit: action.ellipseHit ? { ...action.ellipseHit } : undefined,
       rotation: action.rotation,
+      fontSize: action.fontSize,
+      textWidth: action.textWidth,
+      stretchX: action.stretchX,
     }
   }
 
@@ -519,6 +526,12 @@ export function useDrawing(
     action.ellipseHit = snap.ellipseHit ? { ...snap.ellipseHit } : undefined
     if (snap.rotation != null) action.rotation = snap.rotation
     else delete action.rotation
+    if (snap.fontSize != null) action.fontSize = snap.fontSize
+    else delete action.fontSize
+    if (snap.textWidth != null) action.textWidth = snap.textWidth
+    else delete action.textWidth
+    if (snap.stretchX != null) action.stretchX = snap.stretchX
+    else delete action.stretchX
     pathCache.delete(action)
   }
 
@@ -785,6 +798,9 @@ export function useDrawing(
   let reshapeOriginBounds: ReshapeBounds | null = null
   let reshapeOriginAspect = 1
   let reshapeOriginRotation = 0
+  let reshapeOriginFontSize: number | null = null
+  let reshapeOriginTextWidth: number | null = null
+  let reshapeOriginStretchX: number | null = null
   let reshapeRotateStartAngle = 0
   /** Pointer-down point for the active shape stroke (center for perfect circles). */
   let drawGestureOrigin: Point | null = null
@@ -1595,8 +1611,11 @@ export function useDrawing(
     fontSize: number,
     color?: string,
     textOutline?: TextOutlineStyle,
+    rotation?: number,
+    stretchX?: number,
   ) {
     const normalizedOutline = normalizeTextOutline(textOutline)
+    const stretch = typeof stretchX === 'number' && Number.isFinite(stretchX) && stretchX > 0 ? stretchX : 1
     const action: DrawAction = {
       tool: 'text',
       color: color ?? currentColor.value,
@@ -1606,6 +1625,7 @@ export function useDrawing(
       text,
       fontSize,
     }
+    if (typeof rotation === 'number' && Number.isFinite(rotation) && rotation !== 0) action.rotation = rotation
     if (normalizedOutline.enabled) {
       action.textOutline = normalizedOutline
     }
@@ -1619,7 +1639,8 @@ export function useDrawing(
         const w = ctx.measureText(line).width
         if (w > maxWidth) maxWidth = w
       }
-      action.textWidth = maxWidth
+      action.textWidth = Math.max(1, maxWidth * stretch)
+      if (Math.abs(stretch - 1) >= 1e-6) action.stretchX = stretch
       action.bbox = computeTextBbox(action)
     }
 
@@ -2323,6 +2344,9 @@ export function useDrawing(
     reshapeOriginBounds = null
     reshapeOriginAspect = 1
     reshapeOriginRotation = 0
+    reshapeOriginFontSize = null
+    reshapeOriginTextWidth = null
+    reshapeOriginStretchX = null
     reshapeRotateStartAngle = 0
   }
 
@@ -2349,10 +2373,14 @@ export function useDrawing(
         }
       }
     }
-    if (action.tool === 'rect' || action.tool === 'ellipse') {
+    if (action.tool === 'rect' || action.tool === 'ellipse' || action.tool === 'text' || action.tool === 'stamp') {
       if (Math.abs(reshapeOriginRotation) < 1e-10) delete action.rotation
       else action.rotation = reshapeOriginRotation
     }
+    if (reshapeOriginFontSize != null) action.fontSize = reshapeOriginFontSize
+    if (reshapeOriginTextWidth != null) action.textWidth = reshapeOriginTextWidth
+    if (reshapeOriginStretchX != null) action.stretchX = reshapeOriginStretchX
+    else delete action.stretchX
   }
 
   /** Abandon an in-progress drag / reshape without committing (e.g. Delete mid-gesture). */
@@ -2377,7 +2405,9 @@ export function useDrawing(
   function beginReshape(action: DrawAction, handleId: ReshapeHandleId, pointer?: Point) {
     if (history.indexOf(action) === -1) return
     if (!isReshapeableTool(action.tool)) return
-    if (action.points.length < 2) return
+    if (action.points.length === 0) return
+    // Text / stamps anchor on a single point and only expose corner + rotate handles.
+    if (action.points.length < 2 && action.tool !== 'text' && action.tool !== 'stamp') return
 
     // Snapshot before promotion so undo/cancel restore the straight two-point arrow.
     const beforeSnap = takeDragSnapshot(action, history.indexOf(action))
@@ -2409,6 +2439,9 @@ export function useDrawing(
     reshapeOriginBounds = getActionReshapeBounds(action)
     reshapeOriginAspect = reshapeOriginBounds ? aspectRatioOfBounds(reshapeOriginBounds) : 1
     reshapeOriginRotation = getShapeRotation(action)
+    reshapeOriginFontSize = action.fontSize ?? null
+    reshapeOriginTextWidth = action.textWidth ?? null
+    reshapeOriginStretchX = action.stretchX ?? null
     if (handleId === 'rotate' && reshapeOriginBounds) {
       const cx = (reshapeOriginBounds.x0 + reshapeOriginBounds.x1) / 2
       const cy = (reshapeOriginBounds.y0 + reshapeOriginBounds.y1) / 2
@@ -2440,6 +2473,9 @@ export function useDrawing(
       angleSnapStep: angleSnapStep.value,
       originRotation: reshapeOriginRotation,
       rotateStartAngle: reshapeRotateStartAngle,
+      originFontSize: reshapeOriginFontSize ?? undefined,
+      originTextWidth: reshapeOriginTextWidth ?? undefined,
+      originStretchX: reshapeOriginStretchX ?? undefined,
     })
     pathCache.delete(reshapingAction)
     if (reshapingAction.attachedErasers) {
@@ -2483,7 +2519,10 @@ export function useDrawing(
     const changed =
       before.points.length !== action.points.length ||
       before.points.some((pt, i) => pt.x !== action.points[i].x || pt.y !== action.points[i].y) ||
-      (before.rotation ?? 0) !== (action.rotation ?? 0)
+      (before.rotation ?? 0) !== (action.rotation ?? 0) ||
+      (before.fontSize ?? null) !== (action.fontSize ?? null) ||
+      (before.textWidth ?? null) !== (action.textWidth ?? null) ||
+      (before.stretchX ?? null) !== (action.stretchX ?? null)
 
     // Geometric shapes: attachments no longer match after a real corner rewrite.
     // Only clear when geometry actually changed — a zero-move handle click must not drop erasers.

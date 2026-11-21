@@ -928,12 +928,18 @@ onUnmounted(() => {
             }}</span>
             <button
               type="button"
-              class="px-2.5 py-1 rounded-md ui-segment text-[10.5px] leading-none transition-colors duration-120"
-              :class="{ 'ui-segment--active': textOutline.enabled }"
-              :aria-pressed="textOutline.enabled"
+              role="switch"
+              :aria-checked="textOutline.enabled"
+              :aria-label="t('panel.textOutline')"
+              :title="textOutline.enabled ? t('panel.textOutlineDisable') : t('panel.textOutlineEnable')"
+              class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none overlay-switch"
+              :class="{ 'overlay-switch--on': textOutline.enabled }"
               @click="updateTextOutline({ enabled: !textOutline.enabled })"
             >
-              {{ textOutline.enabled ? t('panel.textOutlineOn') : t('panel.textOutlineOff') }}
+              <span
+                class="absolute top-0.5 left-0.5 size-3.5 rounded-full bg-white shadow-md transition-transform duration-200"
+                :class="textOutline.enabled ? 'translate-x-3.5' : 'translate-x-0'"
+              />
             </button>
           </div>
           <div class="flex items-center gap-1.5 mb-2">

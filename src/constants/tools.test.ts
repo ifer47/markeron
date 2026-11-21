@@ -44,17 +44,19 @@ describe('line width helpers', () => {
   })
 
   it('maps every width preset to its own text / stamp font size', () => {
-    // Same 16–55.2px bounds as the old 6x-with-floor formula, but all nine steps differ.
-    expect(TEXT_SIZE_PRESETS).toEqual([16, 18.7, 21.8, 25.5, 29.7, 34.7, 40.5, 47.3, 55.2])
+    // Same ~1.17 geometric step as before, recentred so the middle (default) step is 16px.
+    expect(TEXT_SIZE_PRESETS).toEqual([8.6, 10.1, 11.7, 13.7, 16, 18.7, 21.8, 25.5, 29.7])
     expect(TEXT_SIZE_PRESETS).toHaveLength(WIDTH_PRESETS.length)
     expect(WIDTH_PRESETS.map(textSizeForLineWidth)).toEqual(TEXT_SIZE_PRESETS)
     expect(new Set(TEXT_SIZE_PRESETS).size).toBe(TEXT_SIZE_PRESETS.length)
-    expect(TEXT_SIZE_PRESETS[0]).toBe(16)
-    expect(TEXT_SIZE_PRESETS[TEXT_SIZE_PRESETS.length - 1]).toBe(55.2)
+    expect(TEXT_SIZE_PRESETS[0]).toBe(8.6)
+    expect(TEXT_SIZE_PRESETS[TEXT_SIZE_PRESETS.length - 1]).toBe(29.7)
+    // The default (middle) line width maps to the previous smallest text size.
+    expect(textSizeForLineWidth(DEFAULT_LINE_WIDTH)).toBe(16)
     // Non-preset / invalid widths snap to the nearest step instead of throwing.
-    expect(textSizeForLineWidth(4)).toBe(34.7)
-    expect(textSizeForLineWidth(0)).toBe(29.7)
-    expect(textSizeForLineWidth(Number.NaN)).toBe(29.7)
+    expect(textSizeForLineWidth(4)).toBe(18.7)
+    expect(textSizeForLineWidth(0)).toBe(16)
+    expect(textSizeForLineWidth(Number.NaN)).toBe(16)
   })
 
   it('spaces toolbar preview bars evenly so every step reads apart', () => {

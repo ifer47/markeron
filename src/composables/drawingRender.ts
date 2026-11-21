@@ -1,5 +1,13 @@
 import type { DrawAction, Point } from './drawingTypes'
-import { CURVED_INK_STYLE, curvedInkPoints, isCurvedLinearAction, sampleQuadratic } from './drawingGeometry'
+import {
+  actionStretchX,
+  CURVED_INK_STYLE,
+  curvedInkPoints,
+  getShapeRotation,
+  isCurvedLinearAction,
+  sampleQuadratic,
+  textInkBox,
+} from './drawingGeometry'
 import { isDashableTool, isNonSolidDashStyle, shapeDashPattern } from '../constants/tools'
 import { getActiveTextOutline } from '../constants/textOutline'
 import {
@@ -285,6 +293,27 @@ export function drawEllipse(
 }
 
 export function drawText(ctx: CanvasRenderingContext2D, action: DrawAction) {
+  // Rotate around the glyph-frame centre, then stretch horizontally about the left edge so
+  // the glyphs fill the free-form selection box (corner handles track the pointer exactly).
+  const rot = getShapeRotation(action)
+  const stretch = actionStretchX(action)
+  const transformed = rot !== 0 || stretch !== 1
+  if (transformed) {
+    const box = textInkBox(action)
+    const cx = (box.x1 + box.x2) / 2
+    const cy = (box.y1 + box.y2) / 2
+    ctx.save()
+    if (rot !== 0) {
+      ctx.translate(cx, cy)
+      ctx.rotate(rot)
+      ctx.translate(-cx, -cy)
+    }
+    if (stretch !== 1) {
+      ctx.translate(box.x1, 0)
+      ctx.scale(stretch, 1)
+      ctx.translate(-box.x1, 0)
+    }
+  }
   const fs = action.fontSize ?? 24
   ctx.font = `${fs}px "Microsoft YaHei", "PingFang SC", system-ui, sans-serif`
   ctx.globalAlpha = 1
@@ -320,6 +349,7 @@ export function drawText(ctx: CanvasRenderingContext2D, action: DrawAction) {
     if (outline) ctx.strokeText(lines[i], x, baselineY)
     ctx.fillText(lines[i], x, baselineY)
   }
+  if (transformed) ctx.restore()
 }
 
 export function drawStamp(ctx: CanvasRenderingContext2D, action: DrawAction) {
@@ -328,6 +358,18 @@ export function drawStamp(ctx: CanvasRenderingContext2D, action: DrawAction) {
 
   const fs = action.fontSize ?? 24
   const { x, y } = action.points[0]
+  // The disc is rotation-invariant; only the label needs the transform. The stretch turns
+  // the disc into an ellipse so the free-form selection box stays glued to the pointer.
+  const rot = getShapeRotation(action)
+  const stretch = actionStretchX(action)
+  const transformed = rot !== 0 || stretch !== 1
+  if (transformed) {
+    ctx.save()
+    ctx.translate(x, y)
+    if (rot !== 0) ctx.rotate(rot)
+    if (stretch !== 1) ctx.scale(stretch, 1)
+    ctx.translate(-x, -y)
+  }
   const outerR = stampRadius(fs, label)
   const ringW = stampStrokeWidth(outerR)
   const innerR = Math.max(1, outerR - ringW)
@@ -368,6 +410,7 @@ export function drawStamp(ctx: CanvasRenderingContext2D, action: DrawAction) {
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText(label, x, y + labelFs * 0.04)
+  if (transformed) ctx.restore()
 }
 
 /**

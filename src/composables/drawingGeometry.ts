@@ -34,9 +34,16 @@ export function rotatePointsInPlace(pts: Point[], cx: number, cy: number, angle:
 }
 
 export function getShapeRotation(action: DrawAction): number {
-  if (action.tool !== 'rect' && action.tool !== 'ellipse') return 0
+  // Text and stamps rotate around their own frame centre, so they honor `rotation` too.
+  if (action.tool !== 'rect' && action.tool !== 'ellipse' && action.tool !== 'text' && action.tool !== 'stamp') return 0
   const r = action.rotation
   return typeof r === 'number' && Number.isFinite(r) ? r : 0
+}
+
+/** Horizontal stretch of text / stamps (1 = natural aspect). */
+export function actionStretchX(action: DrawAction): number {
+  const s = action.stretchX
+  return typeof s === 'number' && Number.isFinite(s) && s > 0 ? s : 1
 }
 
 /** Pen / highlighter stroke straightened by holding still (0.5s). */
@@ -177,12 +184,36 @@ export function computeBbox(action: DrawAction, pad: number): DrawAction['bbox']
   return { x1: x1 - pad, y1: y1 - pad, x2: x2 + pad, y2: y2 + pad }
 }
 
-export function computeTextBbox(action: DrawAction): DrawAction['bbox'] {
-  if (action.tool !== 'text' || action.points.length === 0) return undefined
+type BoxBounds = { x1: number; y1: number; x2: number; y2: number }
+
+/** World AABB of `box` after rotating it about (cx, cy) — picking must cover the paint. */
+function rotatedBounds(box: BoxBounds, cx: number, cy: number, rot: number): BoxBounds {
+  if (rot === 0) return box
+  const corners = [
+    rotatePointAround({ x: box.x1, y: box.y1 }, cx, cy, rot),
+    rotatePointAround({ x: box.x2, y: box.y1 }, cx, cy, rot),
+    rotatePointAround({ x: box.x2, y: box.y2 }, cx, cy, rot),
+    rotatePointAround({ x: box.x1, y: box.y2 }, cx, cy, rot),
+  ]
+  let x1 = corners[0].x
+  let y1 = corners[0].y
+  let x2 = corners[0].x
+  let y2 = corners[0].y
+  for (let i = 1; i < corners.length; i++) {
+    const c = corners[i]
+    if (c.x < x1) x1 = c.x
+    if (c.y < y1) y1 = c.y
+    if (c.x > x2) x2 = c.x
+    if (c.y > y2) y2 = c.y
+  }
+  return { x1, y1, x2, y2 }
+}
+
+/** Padded selection box in the text's local (unrotated) frame. */
+function textPaddedBox(action: DrawAction): BoxBounds {
   const fs = action.fontSize ?? 24
   const lh = Math.round(fs * 1.3)
-  const lines = (action.text ?? '').split('\n')
-  const lineCount = Math.max(1, lines.length)
+  const lineCount = Math.max(1, (action.text ?? '').split('\n').length)
   const outlinePad = textOutlinePadding(action.textOutline)
   const x = action.points[0].x
   const y = action.points[0].y
@@ -201,14 +232,26 @@ export function computeTextBbox(action: DrawAction): DrawAction['bbox'] {
   }
 }
 
+export function computeTextBbox(action: DrawAction): DrawAction['bbox'] {
+  if (action.tool !== 'text' || action.points.length === 0) return undefined
+  const ink = textInkBox(action)
+  return rotatedBounds(textPaddedBox(action), (ink.x1 + ink.x2) / 2, (ink.y1 + ink.y2) / 2, getShapeRotation(action))
+}
+
+/** Padded selection box in the stamp's local (unrotated) frame. */
+function stampPaddedBox(action: DrawAction): BoxBounds {
+  const fs = action.fontSize ?? 24
+  const r = stampRadius(fs, action.text ?? '')
+  const pad = stampBboxPad(r)
+  const rx = r * actionStretchX(action)
+  const { x, y } = action.points[0]
+  return { x1: x - rx - pad, y1: y - r - pad, x2: x + rx + pad, y2: y + r + pad }
+}
+
 export function computeStampBbox(action: DrawAction): DrawAction['bbox'] {
   if (action.tool !== 'stamp' || action.points.length === 0) return undefined
-  const fs = action.fontSize ?? 24
-  const label = action.text ?? ''
-  const r = stampRadius(fs, label)
-  const pad = stampBboxPad(r)
   const { x, y } = action.points[0]
-  return { x1: x - r - pad, y1: y - r - pad, x2: x + r + pad, y2: y + r + pad }
+  return rotatedBounds(stampPaddedBox(action), x, y, getShapeRotation(action))
 }
 
 export function bboxesIntersect(a: NonNullable<DrawAction['bbox']>, b: NonNullable<DrawAction['bbox']>) {
@@ -341,14 +384,26 @@ export function hitTestAction(action: DrawAction, p: Point, extraMargin = 0): bo
   const threshold = Math.max(10, (action.lineWidth || 2) / 2 + 5) + extraMargin
 
   if (action.tool === 'text' && action.text) {
-    const textBox = computeTextBbox(action)
-    return !!textBox && p.x >= textBox.x1 && p.x <= textBox.x2 && p.y >= textBox.y1 && p.y <= textBox.y2
+    if (action.points.length === 0) return false
+    const textBox = textPaddedBox(action)
+    const rot = getShapeRotation(action)
+    // Rotate the probe into the text's local frame (the frame centre is the render pivot).
+    const ink = textInkBox(action)
+    const probe = rot !== 0 ? rotatePointAround(p, (ink.x1 + ink.x2) / 2, (ink.y1 + ink.y2) / 2, -rot) : p
+    return probe.x >= textBox.x1 && probe.x <= textBox.x2 && probe.y >= textBox.y1 && probe.y <= textBox.y2
   }
 
   if (action.tool === 'stamp' && action.text) {
     const fs = action.fontSize ?? 24
-    const r = stampRadius(fs, action.text) + extraMargin
-    return Math.hypot(p.x - pts[0].x, p.y - pts[0].y) <= r
+    const r = stampRadius(fs, action.text)
+    const rot = getShapeRotation(action)
+    const { x, y } = pts[0]
+    const local = rot !== 0 ? rotatePointAround(p, x, y, -rot) : p
+    const rx = r * actionStretchX(action) + extraMargin
+    const ry = r + extraMargin
+    const dx = local.x - x
+    const dy = local.y - y
+    return (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry) <= 1
   }
 
   if (action.tool === 'pen' || action.tool === 'highlighter') {
@@ -587,6 +642,15 @@ export function inkHalfWidth(action: DrawAction): number {
 }
 
 /**
+ * Outline sample count for a disc / ellipse, dense enough to keep the chord error under ~0.1px
+ * (large radii need more segments than small ones for the same accuracy).
+ */
+function ellipseRingSegments(rx: number, ry: number): number {
+  const perimeter = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)))
+  return Math.min(256, Math.max(48, Math.ceil(perimeter / 6)))
+}
+
+/**
  * Quadratic Bézier sample count that keeps the chord error under ~0.1px
  * (long curves need more segments than short ones for the same accuracy).
  */
@@ -688,7 +752,7 @@ export function distanceConvexPolygons(a: readonly Point[], b: readonly Point[])
 }
 
 /** Glyph extents of a text action — the selection frame pads 10–20px more. */
-function textInkBox(action: DrawAction): { x1: number; y1: number; x2: number; y2: number } {
+export function textInkBox(action: DrawAction): { x1: number; y1: number; x2: number; y2: number } {
   const pts = action.points
   const fs = action.fontSize ?? 24
   const lineHeight = Math.round(fs * 1.3)
@@ -696,6 +760,14 @@ function textInkBox(action: DrawAction): { x1: number; y1: number; x2: number; y
   const left = pts[0].x + 2 // drawText starts the glyphs 2px right of the anchor
   const top = pts[0].y - lineHeight / 2
   return { x1: left, y1: top, x2: left + (action.textWidth ?? 200), y2: top + lines * lineHeight }
+}
+
+/** Outer disc extents of a stamp action (ring included, no shadow padding). */
+export function stampInkBox(action: DrawAction): { x1: number; y1: number; x2: number; y2: number } {
+  const { x, y } = action.points[0] ?? { x: 0, y: 0 }
+  const r = stampRadius(action.fontSize ?? 24, action.text ?? '')
+  const rx = r * actionStretchX(action)
+  return { x1: x - rx, y1: y - r, x2: x + rx, y2: y + r }
 }
 
 /**
@@ -732,17 +804,44 @@ export function hitTestActionWithFootprint(action: DrawAction, footprint: Eraser
   switch (action.tool) {
     case 'text': {
       const box = textInkBox(action)
+      const rot = getShapeRotation(action)
+      const cx = (box.x1 + box.x2) / 2
+      const cy = (box.y1 + box.y2) / 2
+      const local = rot !== 0 ? polygon.map((v) => rotatePointAround(v, cx, cy, -rot)) : polygon
       const corners = [
         { x: box.x1, y: box.y1 },
         { x: box.x2, y: box.y1 },
         { x: box.x2, y: box.y2 },
         { x: box.x1, y: box.y2 },
       ]
-      return distanceConvexPolygons(polygon, corners) <= footprint.expand
+      return distanceConvexPolygons(local, corners) <= footprint.expand
     }
     case 'stamp': {
       const fs = action.fontSize ?? 24
-      return distancePointToConvexPolygon(pts[0], polygon) <= footprint.expand + stampRadius(fs, action.text ?? '')
+      const r = stampRadius(fs, action.text ?? '')
+      const rx = r * actionStretchX(action)
+      const ry = r
+      const rot = getShapeRotation(action)
+      const { x, y } = pts[0]
+      const local = rot !== 0 ? polygon.map((v) => rotatePointAround(v, x, y, -rot)) : polygon
+      if (rx < 1e-6 || ry < 1e-6) return distancePointToConvexPolygon({ x, y }, local) <= footprint.expand
+      // The disc is filled: a footprint parked inside it erases even without touching the rim.
+      const inside = (p: Point) => {
+        const ex = (p.x - x) / rx
+        const ey = (p.y - y) / ry
+        return ex * ex + ey * ey <= 1
+      }
+      if (local.some(inside)) return true
+      // Ellipse is not a polygon: sample its outline, then compare with the footprint.
+      const segments = ellipseRingSegments(rx, ry)
+      let previous = { x: x + rx, y }
+      for (let i = 1; i <= segments; i++) {
+        const angle = (i / segments) * Math.PI * 2
+        const next = { x: x + rx * Math.cos(angle), y: y + ry * Math.sin(angle) }
+        if (distanceSegmentToConvexPolygon(previous, next, local) <= footprint.expand) return true
+        previous = next
+      }
+      return false
     }
     case 'pen':
     case 'highlighter': {
@@ -858,8 +957,7 @@ export function hitTestActionWithFootprint(action: DrawAction, footprint: Eraser
       // Dense outline sampling: an eraser cannot tolerate the few-pixel chord error a
       // fixed 32-segment ring produces on a large ellipse.
       const { rx, ry } = ellipse
-      const perimeter = Math.PI * (3 * (rx + ry) - Math.sqrt((3 * rx + ry) * (rx + 3 * ry)))
-      const segments = Math.min(256, Math.max(48, Math.ceil(perimeter / 6)))
+      const segments = ellipseRingSegments(rx, ry)
       let previous = { x: ellipse.cx + rx, y: ellipse.cy }
       for (let i = 1; i <= segments; i++) {
         const angle = (i / segments) * Math.PI * 2

@@ -648,6 +648,24 @@ html.settings .ui-select {
   box-shadow: inset 0 0 0 1px var(--ui-accent-border);
 }
 
+/* On/off switch (text outline) — track only; the knob stays white in both themes */
+.overlay-switch {
+  background: var(--ui-toggle-off);
+}
+
+.overlay-switch:hover {
+  background: var(--ui-toggle-off-hover);
+}
+
+.overlay-switch--on,
+.overlay-switch--on:hover {
+  background: var(--ui-toggle-on);
+}
+
+.overlay-switch:focus-visible {
+  box-shadow: 0 0 0 2px var(--ui-accent-ring);
+}
+
 .overlay-panel .ui-kbd {
   color: var(--ui-kbd-text);
   background: var(--ui-kbd-bg);

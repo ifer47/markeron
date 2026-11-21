@@ -421,6 +421,11 @@ const textOutline = ref<TextOutlineStyle>(createDefaultTextOutline())
 
 const activeTextBoxColor = ref('#FF0000')
 const activeTextBoxFontSize = ref(24)
+/** Radians — keeps a rotated text editable in place. */
+const activeTextBoxRotation = ref(0)
+/** Free-form horizontal stretch and frame width of the text being edited. */
+const activeTextBoxStretchX = ref(1)
+const activeTextBoxWidth = ref(0)
 const activeTextBoxInitialText = ref('')
 const activeTextBoxOutline = ref<TextOutlineStyle>(createDefaultTextOutline())
 const editingOriginalAction = shallowRef<DrawAction | null>(null)
@@ -1121,7 +1126,17 @@ function commitCurrentTextBox(cancel = false) {
     if (cancel && editingOriginalAction.value) {
       // Cancel edit: restore the original text action
       const a = editingOriginalAction.value
-      addTextAction(a.text!, a.points[0].x, a.points[0].y, 0, a.fontSize!, a.color, normalizeTextOutline(a.textOutline))
+      addTextAction(
+        a.text!,
+        a.points[0].x,
+        a.points[0].y,
+        0,
+        a.fontSize!,
+        a.color,
+        normalizeTextOutline(a.textOutline),
+        a.rotation,
+        a.stretchX,
+      )
     } else if (!cancel) {
       const text = textBoxRef.value.getText()
       const actualFs = textBoxRef.value.getFontSize()
@@ -1134,10 +1149,15 @@ function commitCurrentTextBox(cancel = false) {
           actualFs,
           activeTextBoxColor.value,
           activeTextBoxOutline.value,
+          activeTextBoxRotation.value,
+          activeTextBoxStretchX.value,
         )
       }
     }
     textBoxPos.value = null
+    activeTextBoxRotation.value = 0
+    activeTextBoxStretchX.value = 1
+    activeTextBoxWidth.value = 0
     editingOriginalAction.value = null
     resetTextRmbDoubleClick()
   }
@@ -1210,6 +1230,9 @@ function onDoubleClick(e: MouseEvent) {
 
     activeTextBoxColor.value = action.color
     activeTextBoxFontSize.value = action.fontSize ?? 24
+    activeTextBoxRotation.value = action.rotation ?? 0
+    activeTextBoxStretchX.value = action.stretchX ?? 1
+    activeTextBoxWidth.value = action.textWidth ?? 0
     activeTextBoxInitialText.value = action.text ?? ''
     activeTextBoxOutline.value = normalizeTextOutline(action.textOutline)
     textOutline.value = normalizeTextOutline(action.textOutline)
@@ -1227,6 +1250,9 @@ function onDoubleClick(e: MouseEvent) {
     }
     activeTextBoxColor.value = currentColor.value
     activeTextBoxFontSize.value = textFontSize.value
+    activeTextBoxRotation.value = 0
+    activeTextBoxStretchX.value = 1
+    activeTextBoxWidth.value = 0
     activeTextBoxInitialText.value = ''
     activeTextBoxOutline.value = normalizeTextOutline(textOutline.value)
     nextTick(() => {
@@ -2895,6 +2921,9 @@ function exitDrawing(reason: 'keyboard' | 'toolbar' | 'unknown' = 'unknown') {
       :y="textBoxPos.y"
       :color="activeTextBoxColor"
       :font-size="activeTextBoxFontSize"
+      :rotation="activeTextBoxRotation"
+      :stretch-x="activeTextBoxStretchX"
+      :box-width-px="activeTextBoxWidth"
       :initial-text="activeTextBoxInitialText"
       :text-outline="activeTextBoxOutline"
       @commit="onTextCommit"

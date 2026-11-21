@@ -1,5 +1,6 @@
 import type { DrawAction, Point, Tool } from './drawingTypes'
 import {
+  actionStretchX,
   curveBendPoint,
   getShapeRotation,
   isLockedInkAction,
@@ -8,6 +9,8 @@ import {
   rotatePointAround,
   rotatePointsInPlace,
   snapPointToAngle,
+  stampInkBox,
+  textInkBox,
 } from './drawingGeometry'
 
 export type ReshapeHandleId = 'p0' | 'p1' | 'bend' | 'tl' | 'tr' | 'br' | 'bl' | 'rotate'
@@ -33,10 +36,16 @@ export interface ReshapeApplyOptions {
   originBounds?: ReshapeBounds
   /** Degrees; used when constraining line/arrow endpoints or rotation. */
   angleSnapStep?: number
-  /** Rotation (radians) at gesture start — rect/ellipse rotate handle. */
+  /** Rotation (radians) at gesture start — rect/ellipse/text/stamp rotate handle. */
   originRotation?: number
   /** atan2 from center to pointer at gesture start — rotate handle. */
   rotateStartAngle?: number
+  /** Text / stamp font size at gesture start — corner scale is relative to it. */
+  originFontSize?: number
+  /** Text measured width at gesture start (scales with the font size). */
+  originTextWidth?: number
+  /** Horizontal stretch at gesture start (1 = natural). */
+  originStretchX?: number
 }
 
 /** Hit radius in CSS pixels — larger than typical stroke hit so handles win over move. */
@@ -56,7 +65,23 @@ export function isInkReshapeTool(tool: Tool): boolean {
 }
 
 export function isReshapeableTool(tool: Tool): boolean {
-  return tool === 'line' || tool === 'arrow' || tool === 'rect' || tool === 'ellipse' || isInkReshapeTool(tool)
+  return (
+    tool === 'line' ||
+    tool === 'arrow' ||
+    tool === 'rect' ||
+    tool === 'ellipse' ||
+    tool === 'text' ||
+    tool === 'stamp' ||
+    isInkReshapeTool(tool)
+  )
+}
+
+/**
+ * Text / stamps anchor on a single point and own their own frame size (font size + measured
+ * width + horizontal stretch) instead of a pair of end points.
+ */
+export function isUniformScaleTool(tool: Tool): boolean {
+  return tool === 'text' || tool === 'stamp'
 }
 
 export function isCornerHandleId(id: ReshapeHandleId): boolean {
@@ -84,13 +109,30 @@ export function getPointsBounds(pts: Point[]): ReshapeBounds | null {
  * Line and arrow use endpoint handles, so they keep the padded hit bbox.
  */
 export function selectionFrameBounds(action: DrawAction): ReshapeBounds | null {
-  if (action.tool !== 'rect' && action.tool !== 'ellipse' && !isInkReshapeTool(action.tool)) return null
+  if (
+    action.tool !== 'rect' &&
+    action.tool !== 'ellipse' &&
+    action.tool !== 'text' &&
+    action.tool !== 'stamp' &&
+    !isInkReshapeTool(action.tool)
+  )
+    return null
   return getActionReshapeBounds(action)
 }
 
 /** Axis-aligned bounds used for corner handles / aspect lock (local space for rotated shapes). */
 export function getActionReshapeBounds(action: DrawAction): ReshapeBounds | null {
   const pts = action.points
+  if (pts.length === 0) return null
+  // Text / stamps anchor on a single point; their frame comes from the glyph / disc extents.
+  if (action.tool === 'text') {
+    const box = textInkBox(action)
+    return { x0: box.x1, y0: box.y1, x1: box.x2, y1: box.y2 }
+  }
+  if (action.tool === 'stamp') {
+    const box = stampInkBox(action)
+    return { x0: box.x1, y0: box.y1, x1: box.x2, y1: box.y2 }
+  }
   if (pts.length < 2) return null
   if (action.tool === 'line' || action.tool === 'arrow' || isLockedInkAction(action)) {
     if (pts.length >= 3) {
@@ -258,6 +300,17 @@ export function scalePointsToBounds(pts: Point[], from: ReshapeBounds, to: Resha
 export function getReshapeHandles(action: DrawAction): ReshapeHandle[] {
   if (!isReshapeableTool(action.tool)) return []
   const pts = action.points
+  if (pts.length === 0) return []
+
+  // Text / stamps have no endpoints — four corners plus the rotate handle.
+  if (isUniformScaleTool(action.tool)) {
+    const b = getActionReshapeBounds(action)
+    if (!b) return []
+    const rot = getShapeRotation(action)
+    const handles = [...cornerHandles(b.x0, b.y0, b.x1, b.y1), rotateHandleForBounds(b, rot)]
+    return mapHandlesToWorld(handles, b, rot)
+  }
+
   if (pts.length < 2) return []
 
   if (action.tool === 'line' || action.tool === 'arrow' || isLockedInkAction(action)) {
@@ -325,6 +378,78 @@ function snapRotationDelta(
   return snapped - originRotation
 }
 
+function scaleTextStampHandle(
+  action: DrawAction,
+  handleId: ReshapeHandleId,
+  localPointer: Point,
+  originBounds: ReshapeBounds,
+  options?: ReshapeApplyOptions,
+): void {
+  if (!isCornerHandleId(handleId)) return
+  const w0 = Math.max(RESHAPE_MIN_SIZE, originBounds.x1 - originBounds.x0)
+  const h0 = Math.max(RESHAPE_MIN_SIZE, originBounds.y1 - originBounds.y0)
+  const minScale = RESHAPE_MIN_SIZE / Math.min(w0, h0)
+  const fromCenter = options?.fromCenter === true
+
+  // Anchor: the opposite corner, or the box centre when Alt is held.
+  const cx = (originBounds.x0 + originBounds.x1) / 2
+  const cy = (originBounds.y0 + originBounds.y1) / 2
+  const fixed = fromCenter ? { x: cx, y: cy } : oppositeCorner(originBounds, handleId)
+  const halfX = fromCenter ? w0 / 2 : w0
+  const halfY = fromCenter ? h0 / 2 : h0
+  const scaleX = Math.max(minScale, Math.abs(localPointer.x - fixed.x) / halfX)
+  const scaleY = Math.max(minScale, Math.abs(localPointer.y - fixed.y) / halfY)
+
+  // Free-form: each axis follows the pointer on its own, so the dragged corner stays under
+  // the cursor. Shift locks the aspect instead — both axes share the larger scale, so text
+  // keeps its stretch and a stamp stays a circle.
+  let sx: number
+  let sy: number
+  if (options?.constrain) {
+    const uniform = Math.max(scaleX, scaleY)
+    sx = uniform
+    sy = uniform
+  } else {
+    sx = scaleX
+    sy = scaleY
+  }
+
+  const w = w0 * sx
+  const h = h0 * sy
+  let box: ReshapeBounds
+  if (fromCenter) {
+    box = { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 }
+  } else {
+    const growsRight = handleId === 'tr' || handleId === 'br'
+    const growsDown = handleId === 'bl' || handleId === 'br'
+    box = { x0: fixed.x, y0: fixed.y, x1: fixed.x, y1: fixed.y }
+    if (growsRight) box.x1 = fixed.x + w
+    else box.x0 = fixed.x - w
+    if (growsDown) box.y1 = fixed.y + h
+    else box.y0 = fixed.y - h
+  }
+
+  // Line height drives the font size; the horizontal ratio becomes the glyph stretch.
+  const originFs = options?.originFontSize ?? action.fontSize ?? 24
+  const fontSize = Math.max(1, originFs * sy)
+  action.fontSize = fontSize
+  const stretch = Math.max(0.02, (options?.originStretchX ?? actionStretchX(action)) * (sx / sy))
+  if (Math.abs(stretch - 1) < 1e-6) delete action.stretchX
+  else action.stretchX = stretch
+
+  if (action.tool === 'text') {
+    action.textWidth = Math.max(1, w0 * sx)
+    // Ink box starts 2px right of the anchor and is centred on the first line.
+    const lineHeight = Math.round(fontSize * 1.3)
+    action.points[0].x = box.x0 - 2
+    action.points[0].y = box.y0 + lineHeight / 2
+    return
+  }
+
+  action.points[0].x = (box.x0 + box.x1) / 2
+  action.points[0].y = (box.y0 + box.y1) / 2
+}
+
 /**
  * Mutate `action.points` / `rotation` (and ink `attachedErasers`) for the given handle drag.
  * For corner/ink/rotate transforms, pass `originBounds` and restore geometry to the gesture-start
@@ -337,7 +462,9 @@ export function applyReshapeHandle(
   options?: ReshapeApplyOptions,
 ): void {
   const pts = action.points
-  if (pts.length < 2) return
+  if (pts.length === 0) return
+  // Every other tool needs two end points; only text / stamps resize from a single anchor.
+  if (pts.length < 2 && !isUniformScaleTool(action.tool)) return
 
   if (handleId === 'rotate') {
     const originBounds = options?.originBounds ?? getActionReshapeBounds(action)
@@ -354,7 +481,7 @@ export function applyReshapeHandle(
       options?.angleSnapStep,
     )
 
-    if (action.tool === 'rect' || action.tool === 'ellipse') {
+    if (action.tool === 'rect' || action.tool === 'ellipse' || isUniformScaleTool(action.tool)) {
       const next = originRotation + delta
       if (Math.abs(next) < 1e-10) delete action.rotation
       else action.rotation = next
@@ -403,10 +530,16 @@ export function applyReshapeHandle(
 
   const rot = options?.originRotation ?? getShapeRotation(action)
   let localPointer = p
-  if (rot !== 0 && (action.tool === 'rect' || action.tool === 'ellipse')) {
+  if (rot !== 0 && (action.tool === 'rect' || action.tool === 'ellipse' || isUniformScaleTool(action.tool))) {
     const cx = (originBounds.x0 + originBounds.x1) / 2
     const cy = (originBounds.y0 + originBounds.y1) / 2
     localPointer = rotatePointAround(p, cx, cy, -rot)
+  }
+
+  // Text / stamps keep their glyph aspect: the corner drag scales the font size uniformly.
+  if (isUniformScaleTool(action.tool)) {
+    scaleTextStampHandle(action, handleId, localPointer, originBounds, options)
+    return
   }
 
   const to = options?.fromCenter

@@ -61,10 +61,11 @@ export const WIDTH_LABEL_KEYS = ['xxs', 'xs', 's', 'sm', 'm', 'ml', 'l', 'xl', '
 
 /**
  * Nine text / stamp font sizes in CSS pixels, index-aligned with WIDTH_PRESETS: geometric steps
- * (~1.17 per step) between the same 16–55.2 bounds, so every width preset owns its own font
- * size instead of collapsing onto the 16px floor.
+ * (~1.17 per step) centred on the middle preset, so the default (middle) text / stamp size is
+ * 16px — the smallest size of the previous ladder — and the other eight steps grow / shrink
+ * from it (8.6–29.7px). Every width preset still owns its own font size.
  */
-export const TEXT_SIZE_PRESETS: number[] = [16, 18.7, 21.8, 25.5, 29.7, 34.7, 40.5, 47.3, 55.2]
+export const TEXT_SIZE_PRESETS: number[] = [8.6, 10.1, 11.7, 13.7, 16, 18.7, 21.8, 25.5, 29.7]
 
 /**
  * Toolbar preview bar heights (CSS px) for the nine width presets.
@@ -105,7 +106,8 @@ function nearestWidthPreset(pixels: number): number {
  * Text / stamp font size for a line width (CSS pixels).
  *
  * The width snaps to the nearest preset exactly like the toolbar, so text and stamps stay
- * index-aligned with the width ladder and no two presets share a font size.
+ * index-aligned with the width ladder and no two presets share a font size. The middle preset
+ * (the default for every width group) maps to 16px.
  */
 export function textSizeForLineWidth(lineWidth: number): number {
   if (typeof lineWidth !== 'number' || !Number.isFinite(lineWidth) || lineWidth <= 0) {

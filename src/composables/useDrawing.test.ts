@@ -1776,8 +1776,8 @@ describe('useDrawing', () => {
 
       drawing.setSelection([text])
       drawing.setSelectedLineWidth(9.2)
-      expect(text.fontSize).toBeCloseTo(55.2, 10)
-      expect(text.textWidth).toBeCloseTo(widthBefore * 2.3, 5)
+      expect(text.fontSize).toBeCloseTo(29.7, 10)
+      expect(text.textWidth).toBeCloseTo(widthBefore * (29.7 / 24), 5)
       expect(text.bbox!.y2 - text.bbox!.y1).toBeGreaterThan(heightBefore)
 
       drawing.undo()
@@ -1794,7 +1794,7 @@ describe('useDrawing', () => {
       drawing.setSelection([rect, text])
       drawing.setSelectedLineWidth(5.47)
       expect(rect.lineWidth).toBe(5.47)
-      expect(text.fontSize).toBeCloseTo(40.5, 10)
+      expect(text.fontSize).toBeCloseTo(21.8, 10)
     })
 
     it('resizes selected stamps and updates their bbox', () => {
@@ -1804,12 +1804,114 @@ describe('useDrawing', () => {
 
       drawing.setSelection([stamp])
       drawing.setSelectedLineWidth(9.2)
-      expect(stamp.fontSize).toBeCloseTo(55.2, 10)
+      expect(stamp.fontSize).toBeCloseTo(29.7, 10)
       expect(stamp.bbox!.x2 - stamp.bbox!.x1).toBeGreaterThan(sizeBefore)
 
       drawing.undo()
       expect(stamp.fontSize).toBe(18)
       expect(stamp.bbox!.x2 - stamp.bbox!.x1).toBeCloseTo(sizeBefore, 5)
+    })
+
+    it('scales selected text from a corner handle and restores it on undo', () => {
+      drawing.addTextAction('T', 100, 100, 0, 20, '#000000')
+      const text = drawing.findActionAt({ x: 110, y: 100 })!.action
+      expect(text.tool).toBe('text')
+      drawing.setSelection([text])
+
+      // 20px font → 26px line height, 50px measured width → ink box (102, 87)–(152, 113).
+      expect(drawing.findReshapeHandleAt({ x: 152, y: 113 })?.id).toBe('br')
+      drawing.beginReshape(text, 'br', { x: 152, y: 113 })
+      // Drag the BR corner to twice the box size, anchored at the TL corner.
+      drawing.updateReshape({ x: 202, y: 139 })
+      drawing.endReshape()
+
+      expect(text.fontSize).toBeCloseTo(40, 5)
+      expect(text.textWidth).toBeCloseTo(100, 5)
+      expect(text.points[0].x).toBeCloseTo(100, 5)
+      expect(text.points[0].y).toBeCloseTo(113, 5)
+
+      drawing.undo()
+      expect(text.fontSize).toBeCloseTo(20, 5)
+      expect(text.textWidth).toBeCloseTo(50, 5)
+      expect(text.points[0]).toMatchObject({ x: 100, y: 100 })
+    })
+
+    it('keeps free-form text stretch and restores it on undo', () => {
+      drawing.addTextAction('T', 100, 100, 0, 20, '#000000')
+      const text = drawing.findActionAt({ x: 110, y: 100 })!.action
+      drawing.setSelection([text])
+
+      // 50 x 26 ink box → drag BR to 2x wide, 0.5x tall.
+      drawing.beginReshape(text, 'br', { x: 152, y: 113 })
+      drawing.updateReshape({ x: 202, y: 100 })
+      drawing.endReshape()
+
+      expect(text.textWidth).toBeCloseTo(100, 5)
+      expect(text.fontSize).toBeCloseTo(10, 5)
+      expect(text.stretchX).toBeCloseTo(4, 5)
+      expect(text.points[0].x).toBeCloseTo(100, 5)
+      expect(text.points[0].y).toBeCloseTo(93.5, 5)
+
+      drawing.undo()
+      expect(text.textWidth).toBeCloseTo(50, 5)
+      expect(text.fontSize).toBeCloseTo(20, 5)
+      expect(text.stretchX ?? 1).toBe(1)
+    })
+
+    it('keeps text proportions when Shift locks the corner drag', () => {
+      drawing.addTextAction('T', 100, 100, 0, 20, '#000000')
+      const text = drawing.findActionAt({ x: 110, y: 100 })!.action
+      drawing.setSelection([text])
+
+      // Shift: the larger axis demand (2x wide) wins, so the height follows it.
+      drawing.beginReshape(text, 'br', { x: 152, y: 113 })
+      drawing.updateReshape({ x: 202, y: 100 }, true)
+      drawing.endReshape()
+
+      expect(text.textWidth).toBeCloseTo(100, 5)
+      expect(text.fontSize).toBeCloseTo(40, 5)
+      expect(text.stretchX).toBeUndefined()
+      expect(text.points[0].x).toBeCloseTo(100, 5)
+      expect(text.points[0].y).toBeCloseTo(113, 5)
+
+      drawing.undo()
+      expect(text.textWidth).toBeCloseTo(50, 5)
+      expect(text.fontSize).toBeCloseTo(20, 5)
+      expect(text.stretchX ?? 1).toBe(1)
+    })
+
+    it('rotates selected text and undoes the angle', () => {
+      drawing.addTextAction('T', 100, 100, 0, 20, '#000000')
+      const text = drawing.findActionAt({ x: 110, y: 100 })!.action
+      drawing.setSelection([text])
+
+      // Rotate handle sits 28px above the top edge midpoint (127, 59).
+      expect(drawing.findReshapeHandleAt({ x: 127, y: 59 })?.id).toBe('rotate')
+      drawing.beginReshape(text, 'rotate', { x: 127, y: 59 })
+      // Pointer to the right of the frame centre → quarter turn.
+      drawing.updateReshape({ x: 152, y: 100 }, false)
+      drawing.endReshape()
+
+      expect(text.rotation).toBeCloseTo(Math.PI / 2, 5)
+
+      drawing.undo()
+      expect(text.rotation ?? 0).toBe(0)
+    })
+
+    it('scales selected stamps uniformly from a corner handle', () => {
+      drawing.addStampAction('1', 100, 100, 20, '#FF0000')
+      const stamp = drawing.findActionAt({ x: 100, y: 100 })!.action
+      drawing.setSelection([stamp])
+
+      // Single-char radius = 20 × 0.82 = 16.4 → frame (83.6, 83.6)–(116.4, 116.4).
+      expect(drawing.findReshapeHandleAt({ x: 116.4, y: 116.4 })?.id).toBe('br')
+      drawing.beginReshape(stamp, 'br', { x: 116.4, y: 116.4 })
+      drawing.updateReshape({ x: 149.2, y: 149.2 })
+      drawing.endReshape()
+
+      expect(stamp.fontSize).toBeCloseTo(40, 5)
+      expect(stamp.points[0].x).toBeCloseTo(116.4, 5)
+      expect(stamp.points[0].y).toBeCloseTo(116.4, 5)
     })
   })
 

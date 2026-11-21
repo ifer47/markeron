@@ -74,11 +74,11 @@ describe('stamp', () => {
 
   describe('sizing', () => {
     it('scales font from line width like text', () => {
-      expect(stampFontSizeFromWidth(3.25)).toBe(29.7)
-      expect(stampFontSizeFromWidth(9.2)).toBe(55.2)
+      expect(stampFontSizeFromWidth(3.25)).toBe(16)
+      expect(stampFontSizeFromWidth(9.2)).toBe(29.7)
       // Legacy pixel widths snap to the nearest preset instead of resetting.
-      expect(stampFontSizeFromWidth(3)).toBe(29.7)
-      expect(stampFontSizeFromWidth(1)).toBe(16)
+      expect(stampFontSizeFromWidth(3)).toBe(16)
+      expect(stampFontSizeFromWidth(1)).toBe(8.6)
     })
 
     it('keeps two-digit stamps compact with stronger type', () => {

@@ -17,7 +17,21 @@ import {
   snapPointToAngle,
   perfectCircleCornersFromCenter,
   hitTestAction,
+  actionInkNodes,
+  hitTestActionWithFootprint,
+  inkHalfWidth,
+  pointInConvexPolygon,
+  distancePointToConvexPolygon,
+  distanceSegmentToConvexPolygon,
+  convexPolygonsOverlap,
+  rotatePointAround,
 } from './drawingGeometry'
+import {
+  buildEraserFootprint,
+  ERASER_FOOTPRINT_TOLERANCE_PX,
+  ERASER_GLYPH_HALF_STROKE,
+  type EraserFootprint,
+} from '../utils/eraserFootprint'
 
 function makeAction(overrides: Partial<DrawAction> = {}): DrawAction {
   return {
@@ -911,6 +925,476 @@ describe('hitTestAction', () => {
         bbox: { x1: 82, y1: 82, x2: 118, y2: 118 },
       })
       expect(hitTestAction(action, { x: 160, y: 100 })).toBe(false)
+    })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// inkHalfWidth — how far the paint reaches beside the centreline
+// ---------------------------------------------------------------------------
+describe('inkHalfWidth', () => {
+  it('is half the stroke width for uniform ink', () => {
+    expect(inkHalfWidth(makeAction({ tool: 'pen', lineWidth: 6 }))).toBe(3)
+    expect(inkHalfWidth(makeAction({ tool: 'highlighter', lineWidth: 21 }))).toBe(10.5)
+    expect(inkHalfWidth(makeAction({ tool: 'rect', lineWidth: 4 }))).toBe(2)
+    expect(inkHalfWidth(makeAction({ tool: 'arrow', lineWidth: 1.15 }))).toBeCloseTo(0.575, 10)
+  })
+
+  it('uses the widest pressure radius for solid pressure ink', () => {
+    // pressureFloor + pressureRange = 0.55 + 0.9 = 1.45 → 6 / 2 × 1.45
+    expect(inkHalfWidth(makeAction({ tool: 'pen', lineWidth: 6, pointerType: 'pen' }))).toBeCloseTo(4.35, 10)
+    expect(inkHalfWidth(makeAction({ tool: 'pen', lineWidth: 6, pointerType: 'touch' }))).toBeCloseTo(4.35, 10)
+    expect(inkHalfWidth(makeAction({ tool: 'pen', lineWidth: 6, pointerType: 'mouse' }))).toBe(3)
+  })
+
+  it('keeps the constant width for dashed pen ink (stroked, not swept)', () => {
+    expect(inkHalfWidth(makeAction({ tool: 'pen', lineWidth: 6, pointerType: 'pen', dashStyle: 'dashed' }))).toBe(3)
+    expect(inkHalfWidth(makeAction({ tool: 'pen', lineWidth: 6, pointerType: 'pen', dashStyle: 'dotted' }))).toBe(3)
+  })
+
+  it('never reports a zero-width band for a degenerate action', () => {
+    expect(inkHalfWidth(makeAction({ tool: 'pen', lineWidth: 0 }))).toBe(0.5)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Convex polygon probe helpers (the eraser footprint)
+// ---------------------------------------------------------------------------
+/** Axis-aligned square probe, `half` px around (cx, cy). */
+function squareProbe(cx: number, cy: number, half: number, expand = 0): EraserFootprint {
+  return {
+    polygon: [
+      { x: cx - half, y: cy - half },
+      { x: cx + half, y: cy - half },
+      { x: cx + half, y: cy + half },
+      { x: cx - half, y: cy + half },
+    ],
+    expand,
+    bounds: { x1: cx - half - expand, y1: cy - half - expand, x2: cx + half + expand, y2: cy + half + expand },
+  }
+}
+
+describe('pointInConvexPolygon', () => {
+  const square = squareProbe(0, 0, 5).polygon
+
+  it('accepts interior and boundary points', () => {
+    expect(pointInConvexPolygon({ x: 0, y: 0 }, square)).toBe(true)
+    expect(pointInConvexPolygon({ x: 4.9, y: -4.9 }, square)).toBe(true)
+    expect(pointInConvexPolygon({ x: 5, y: 0 }, square)).toBe(true)
+  })
+
+  it('rejects points outside any edge', () => {
+    expect(pointInConvexPolygon({ x: 5.1, y: 0 }, square)).toBe(false)
+    expect(pointInConvexPolygon({ x: 0, y: -5.1 }, square)).toBe(false)
+    expect(pointInConvexPolygon({ x: 99, y: 99 }, square)).toBe(false)
+  })
+
+  it('works for either winding', () => {
+    expect(pointInConvexPolygon({ x: 0, y: 0 }, [...square].reverse())).toBe(true)
+    expect(pointInConvexPolygon({ x: 99, y: 0 }, [...square].reverse())).toBe(false)
+  })
+})
+
+describe('distancePointToConvexPolygon', () => {
+  const square = squareProbe(0, 0, 5).polygon
+
+  it('is zero inside', () => {
+    expect(distancePointToConvexPolygon({ x: 0, y: 0 }, square)).toBe(0)
+    expect(distancePointToConvexPolygon({ x: 5, y: 5 }, square)).toBe(0)
+  })
+
+  it('measures perpendicular distance beside an edge', () => {
+    expect(distancePointToConvexPolygon({ x: 8, y: 0 }, square)).toBeCloseTo(3, 10)
+    expect(distancePointToConvexPolygon({ x: 0, y: -9 }, square)).toBeCloseTo(4, 10)
+  })
+
+  it('measures corner distance on the diagonal', () => {
+    expect(distancePointToConvexPolygon({ x: 8, y: 8 }, square)).toBeCloseTo(Math.hypot(3, 3), 10)
+  })
+})
+
+describe('distanceSegmentToConvexPolygon', () => {
+  const square = squareProbe(0, 0, 5).polygon
+
+  it('is zero when either endpoint is inside', () => {
+    expect(distanceSegmentToConvexPolygon({ x: 0, y: 0 }, { x: 50, y: 50 }, square)).toBe(0)
+  })
+
+  it('is zero when the segment crosses with both endpoints outside', () => {
+    expect(distanceSegmentToConvexPolygon({ x: -20, y: 0 }, { x: 20, y: 0 }, square)).toBe(0)
+    expect(distanceSegmentToConvexPolygon({ x: 20, y: -20 }, { x: -20, y: 20 }, square)).toBe(0)
+  })
+
+  it('measures the gap of a parallel segment', () => {
+    expect(distanceSegmentToConvexPolygon({ x: -20, y: 8 }, { x: 20, y: 8 }, square)).toBeCloseTo(3, 10)
+  })
+
+  it('measures corner distance for a segment that misses the corner', () => {
+    // x + y = 11 passes 0.7071px outside the (5, 5) corner and never enters the square.
+    const gap = distanceSegmentToConvexPolygon({ x: 9, y: 2 }, { x: 2, y: 9 }, square)
+    expect(gap).toBeCloseTo(Math.SQRT1_2, 10)
+  })
+})
+
+describe('convexPolygonsOverlap', () => {
+  const square = squareProbe(0, 0, 5).polygon
+
+  it('overlaps itself and neighbours', () => {
+    expect(convexPolygonsOverlap(square, square)).toBe(true)
+    expect(convexPolygonsOverlap(square, squareProbe(9, 9, 5).polygon)).toBe(true)
+  })
+
+  it('treats touching edges as overlapping', () => {
+    expect(convexPolygonsOverlap(square, squareProbe(10, 0, 5).polygon)).toBe(true)
+  })
+
+  it('detects containment in both directions', () => {
+    expect(convexPolygonsOverlap(square, squareProbe(0, 0, 1).polygon)).toBe(true)
+    expect(convexPolygonsOverlap(squareProbe(0, 0, 1).polygon, square)).toBe(true)
+  })
+
+  it('rejects separated boxes', () => {
+    expect(convexPolygonsOverlap(square, squareProbe(10.1, 0, 5).polygon)).toBe(false)
+  })
+
+  it('detects a cross with no vertex inside either shape', () => {
+    const horizontal = [
+      { x: -10, y: -1 },
+      { x: 10, y: -1 },
+      { x: 10, y: 1 },
+      { x: -10, y: 1 },
+    ]
+    const vertical = [
+      { x: -1, y: -10 },
+      { x: 1, y: -10 },
+      { x: 1, y: 10 },
+      { x: -1, y: 10 },
+    ]
+    expect(convexPolygonsOverlap(horizontal, vertical)).toBe(true)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// hitTestActionWithFootprint — what the object eraser uses
+// ---------------------------------------------------------------------------
+describe('hitTestActionWithFootprint', () => {
+  function stroke(overrides: Partial<DrawAction> = {}): DrawAction {
+    return makeAction({
+      tool: 'pen',
+      lineWidth: 6,
+      pointerType: 'mouse',
+      points: [
+        { x: 50, y: 0 },
+        { x: 50, y: 100 },
+      ],
+      bbox: { x1: 40, y1: -10, x2: 60, y2: 110 },
+      ...overrides,
+    })
+  }
+
+  describe('general', () => {
+    it('returns false for an action without points', () => {
+      expect(hitTestActionWithFootprint(makeAction({ points: [] }), squareProbe(0, 0, 5))).toBe(false)
+    })
+
+    it('rejects early when the probe is outside the padded bbox', () => {
+      expect(hitTestActionWithFootprint(stroke(), squareProbe(200, 200, 5))).toBe(false)
+    })
+
+    it('touches as soon as the probe reaches the paint, not before', () => {
+      // Ink reaches 3px beside the centreline; a 5px half-square touches at 8px.
+      expect(hitTestActionWithFootprint(stroke(), squareProbe(58 - 0.01, 50, 5))).toBe(true)
+      expect(hitTestActionWithFootprint(stroke(), squareProbe(58 + 0.01, 50, 5))).toBe(false)
+    })
+
+    it('counts the painted expansion of the probe', () => {
+      expect(hitTestActionWithFootprint(stroke(), squareProbe(60 - 0.01, 50, 5, 2))).toBe(true)
+      expect(hitTestActionWithFootprint(stroke(), squareProbe(60 + 0.01, 50, 5, 2))).toBe(false)
+    })
+
+    it('accounts for the wider pressure ribbon', () => {
+      const action = stroke({
+        pointerType: 'pen',
+        points: [
+          { x: 50, y: 0, pressure: 1 },
+          { x: 50, y: 100, pressure: 1 },
+        ],
+      })
+      // Full pressure: 6 / 2 × 1.45 = 4.35px at the raw tip.
+      const tipR = Math.max(...actionInkNodes(action)!.map((n) => n.r))
+      expect(tipR).toBeCloseTo(4.35, 10)
+      expect(hitTestActionWithFootprint(action, squareProbe(50 + tipR + 5 - 0.01, 100, 5))).toBe(true)
+      expect(hitTestActionWithFootprint(action, squareProbe(50 + tipR + 5 + 0.01, 100, 5))).toBe(false)
+    })
+
+    it('reaches single-point dots', () => {
+      const dot = makeAction({
+        tool: 'pen',
+        lineWidth: 6,
+        points: [{ x: 50, y: 50 }],
+        bbox: { x1: 40, y1: 40, x2: 60, y2: 60 },
+      })
+      expect(hitTestActionWithFootprint(dot, squareProbe(58 - 0.01, 50, 5))).toBe(true)
+      expect(hitTestActionWithFootprint(dot, squareProbe(58 + 0.01, 50, 5))).toBe(false)
+    })
+
+    it('reaches a bent line through its curve, not its control polygon', () => {
+      const bent = makeAction({
+        tool: 'line',
+        lineWidth: 2,
+        points: [
+          { x: 0, y: 0 },
+          { x: 50, y: 80 },
+          { x: 100, y: 0 },
+        ],
+        bbox: { x1: -20, y1: -20, x2: 120, y2: 100 },
+      })
+      // Curve apex is at (50, 40); ink reaches 1px beside it, square half is 5px.
+      expect(hitTestActionWithFootprint(bent, squareProbe(50, 46 - 0.01, 5))).toBe(true)
+      expect(hitTestActionWithFootprint(bent, squareProbe(50, 46 + 0.01, 5))).toBe(false)
+    })
+  })
+
+  describe('curved ink', () => {
+    const cx = 100
+    const cy = 100
+    const radius = 14
+    const lineWidth = 3.25
+
+    /**
+     * A fast, tight arc — the loop of a hand-drawn "6": 3.9px between samples, i.e.
+     * 16° per sample. The renderer low-passes the samples, so the painted ribbon sits
+     * ~2px inside the stored polyline.
+     */
+    function tightLoop(): DrawAction {
+      const steps = 18
+      const points: Point[] = []
+      for (let i = 0; i <= steps; i++) {
+        const angle = (i / steps) * Math.PI * 1.6
+        points.push({ x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) })
+      }
+      return makeAction({
+        tool: 'pen',
+        lineWidth,
+        pointerType: 'mouse',
+        points,
+        bbox: { x1: cx - 60, y1: cy - 60, x2: cx + 60, y2: cy + 60 },
+      })
+    }
+
+    /** Smallest footprint radius, centred on the arc centre, that touches the ink. */
+    function eraserBoundary(action: DrawAction): number {
+      let lo = 0
+      let hi = 60
+      for (let i = 0; i < 40; i++) {
+        const mid = (lo + hi) / 2
+        if (hitTestActionWithFootprint(action, squareProbe(cx, cy, 0.01, mid))) hi = mid
+        else lo = mid
+      }
+      return hi
+    }
+
+    it('paints inside the stored polyline, so the raw samples would be wrong', () => {
+      const ink = actionInkNodes(tightLoop())!
+      // Closest approach of the *paint* to the arc centre.
+      const inkRadius = Math.min(...ink.map((n) => Math.hypot(n.x - cx, n.y - cy) - n.r))
+      const rawBoundary = radius - lineWidth / 2
+      expect(rawBoundary - inkRadius).toBeGreaterThan(1.5)
+    })
+
+    it('erases when the footprint reaches the painted ribbon, not the samples', () => {
+      const action = tightLoop()
+      const ink = actionInkNodes(action)!
+      const inkRadius = Math.min(...ink.map((n) => Math.hypot(n.x - cx, n.y - cy) - n.r))
+      const rawBoundary = radius - lineWidth / 2
+      const boundary = eraserBoundary(action)
+
+      // The eraser starts where the ink is, i.e. ~2px inside where the raw samples are.
+      expect(boundary).toBeCloseTo(inkRadius, 1)
+      expect(boundary).toBeLessThan(rawBoundary - 1.5)
+    })
+
+    it('follows the curve of a bent dashed pen, not its control polygon', () => {
+      // Control (50, 220) is 60px below the curve apex (50, 160); a dashed stroke is
+      // stroked along the quadratic (`drawCurvedLine`), so only the curve is paint.
+      const bent = makeAction({
+        tool: 'pen',
+        lineWidth: 3.25,
+        pointerType: 'mouse',
+        dashStyle: 'dashed',
+        lockedLine: true,
+        points: [
+          { x: 0, y: 100 },
+          { x: 50, y: 220 },
+          { x: 100, y: 100 },
+        ],
+        bbox: { x1: -40, y1: 60, x2: 140, y2: 280 },
+      })
+      expect(hitTestActionWithFootprint(bent, squareProbe(50, 160, 0.01))).toBe(true)
+      expect(hitTestActionWithFootprint(bent, squareProbe(50, 220, 0.01))).toBe(false)
+    })
+  })
+
+  describe('ink node cache', () => {
+    it('rebuilds the ribbon after a width edit', () => {
+      const action = makeAction({
+        tool: 'pen',
+        lineWidth: 3.25,
+        pointerType: 'mouse',
+        points: [
+          { x: 0, y: 0 },
+          { x: 0, y: 100 },
+        ],
+        bbox: { x1: -40, y1: -40, x2: 40, y2: 140 },
+      })
+      // Prime the cache with the 3.25px ribbon (r = 1.625).
+      expect(hitTestActionWithFootprint(action, squareProbe(5, 50, 0.01))).toBe(false)
+      action.lineWidth = 20
+      // The repainted ribbon reaches 10px beside the centreline; a stale radius would
+      // still report 1.625 and leave the ink under the glyph unerased.
+      expect(hitTestActionWithFootprint(action, squareProbe(5, 50, 0.01))).toBe(true)
+    })
+
+    it('rebuilds bent ink after the bend handle moves', () => {
+      const action = makeAction({
+        tool: 'pen',
+        lineWidth: 3.25,
+        pointerType: 'mouse',
+        lockedLine: true,
+        points: [
+          { x: 0, y: 0 },
+          { x: 50, y: 20 },
+          { x: 100, y: 0 },
+        ],
+        bbox: { x1: -40, y1: -40, x2: 140, y2: 260 },
+      })
+      // Apex B(0.5) = (p0 + 2c + p1) / 4 = (50, 10).
+      expect(hitTestActionWithFootprint(action, squareProbe(50, 10, 0.01))).toBe(true)
+      // The bend handle mutates the control point in place; the painted apex moves to (50, 110).
+      action.points[1].y = 220
+      expect(hitTestActionWithFootprint(action, squareProbe(50, 10, 0.01))).toBe(false)
+      expect(hitTestActionWithFootprint(action, squareProbe(50, 110, 0.01))).toBe(true)
+    })
+  })
+
+  describe('shapes', () => {
+    it('tests the rect outline, not its interior', () => {
+      const rect = makeAction({
+        tool: 'rect',
+        lineWidth: 4,
+        points: [
+          { x: 0, y: 0 },
+          { x: 100, y: 100 },
+        ],
+        bbox: { x1: -20, y1: -20, x2: 120, y2: 120 },
+      })
+      expect(hitTestActionWithFootprint(rect, squareProbe(106 - 0.01, 50, 4))).toBe(true)
+      expect(hitTestActionWithFootprint(rect, squareProbe(106 + 0.01, 50, 4))).toBe(false)
+      expect(hitTestActionWithFootprint(rect, squareProbe(50, 50, 4))).toBe(false)
+    })
+
+    it('follows a rotated rect edge', () => {
+      const rect = makeAction({
+        tool: 'rect',
+        lineWidth: 4,
+        rotation: Math.PI / 4,
+        points: [
+          { x: 50, y: 50 },
+          { x: 150, y: 150 },
+        ],
+        bbox: { x1: -50, y1: -50, x2: 250, y2: 250 },
+      })
+      updateShapeHitCache(rect)
+      // Top edge midpoint (100, 50) rotates around (100, 100) by +45°; ink reaches 2px
+      // beside the edge, so a 4px half-square touches at 6px.
+      const mid = rotatePointAround({ x: 100, y: 50 }, 100, 100, Math.PI / 4)
+      const normal = { x: Math.SQRT1_2, y: -Math.SQRT1_2 }
+      const at = (distance: number) => ({ x: mid.x + normal.x * distance, y: mid.y + normal.y * distance })
+      // Rotated into the shape's frame the square becomes a diamond, so it reaches
+      // 4√2 along the edge normal; ink reaches 2 → touch at 4√2 + 2.
+      const boundary = 4 * Math.SQRT2 + 2
+      expect(hitTestActionWithFootprint(rect, squareProbe(at(boundary - 0.01).x, at(boundary - 0.01).y, 4))).toBe(true)
+      expect(hitTestActionWithFootprint(rect, squareProbe(at(boundary + 0.01).x, at(boundary + 0.01).y, 4))).toBe(false)
+      expect(hitTestActionWithFootprint(rect, squareProbe(100, 100, 4))).toBe(false)
+    })
+
+    it('tests the ellipse outline with a dense ring', () => {
+      const ellipse = makeAction({
+        tool: 'ellipse',
+        lineWidth: 2,
+        points: [
+          { x: 0, y: 0 },
+          { x: 200, y: 100 },
+        ],
+        bbox: { x1: -20, y1: -20, x2: 220, y2: 120 },
+      })
+      // Rightmost point is (200, 50); ink reaches 1px beside it, square half is 4px.
+      expect(hitTestActionWithFootprint(ellipse, squareProbe(205 - 0.01, 50, 4))).toBe(true)
+      expect(hitTestActionWithFootprint(ellipse, squareProbe(205 + 0.01, 50, 4))).toBe(false)
+      expect(hitTestActionWithFootprint(ellipse, squareProbe(100, 50, 4))).toBe(false)
+    })
+  })
+
+  describe('text and stamps', () => {
+    it('touches the glyphs, not the padded selection frame', () => {
+      const action = makeAction({
+        tool: 'text',
+        points: [{ x: 100, y: 100 }],
+        text: 'hi',
+        fontSize: 24,
+        textWidth: 60,
+      })
+      // Glyphs span x = 102…162 and y = 84.5…115.5 (24px font, one 31px line).
+      expect(hitTestActionWithFootprint(action, squareProbe(167 - 0.01, 100, 5))).toBe(true)
+      expect(hitTestActionWithFootprint(action, squareProbe(167 + 0.01, 100, 5))).toBe(false)
+      // The selection frame reaches 20px further right.
+      expect(hitTestActionWithFootprint(action, squareProbe(167.5, 100, 0.01))).toBe(false)
+      // Corners are round, not square: a diagonal miss is not a touch.
+      expect(hitTestActionWithFootprint(action, squareProbe(166, 120.5, 0.01))).toBe(false)
+    })
+
+    it('touches the stamp disc', () => {
+      const action = makeAction({
+        tool: 'stamp',
+        points: [{ x: 100, y: 100 }],
+        text: '1',
+        fontSize: 24,
+        bbox: { x1: 80, y1: 80, x2: 120, y2: 120 },
+      })
+      // stampRadius(24, '1') = 24 × 0.82 = 19.68, so a 5px half-square touches at 24.68.
+      expect(hitTestActionWithFootprint(action, squareProbe(124.66, 100, 5))).toBe(true)
+      expect(hitTestActionWithFootprint(action, squareProbe(124.7, 100, 5))).toBe(false)
+    })
+  })
+
+  describe('real eraser glyph', () => {
+    it('erases exactly when the visible glyph edge reaches a vertical stroke', () => {
+      // 26px cursor: the glyph's leftmost arc sits (12 − 2) / 24 × 26 = 10.833px from
+      // the pointer, its visible edge — the 2-unit stroke (1.083px) plus the fixed
+      // AA/shadow tolerance (1.2px) — 2.283px further.
+      const glyphEdge = ((12 - 2) / 24) * 26
+      const visible = (ERASER_GLYPH_HALF_STROKE / 24) * 26 + ERASER_FOOTPRINT_TOLERANCE_PX
+      const inkHalf = 1.625
+      const boundary = 50 + glyphEdge + visible + inkHalf
+      expect(
+        hitTestActionWithFootprint(stroke({ lineWidth: 3.25 }), buildEraserFootprint(boundary - 0.01, 50, 26)),
+      ).toBe(true)
+      expect(
+        hitTestActionWithFootprint(stroke({ lineWidth: 3.25 }), buildEraserFootprint(boundary + 0.01, 50, 26)),
+      ).toBe(false)
+    })
+
+    it('clips the bottom-right chamfer, so ink outside the icon is not erased', () => {
+      // ViewBox (20, 21) sits in the empty wedge beyond the chamfer. The old chord
+      // polygon (which dropped `L12.834 21`) included it and erased ink several pixels
+      // outside the icon; the real outline must not.
+      const dot = makeAction({
+        tool: 'pen',
+        lineWidth: 3.25,
+        points: [{ x: 50 + ((20 - 12) / 24) * 26, y: 50 + ((21 - 12) / 24) * 26 }],
+        bbox: { x1: 40, y1: 40, x2: 80, y2: 80 },
+      })
+      expect(hitTestActionWithFootprint(dot, buildEraserFootprint(50, 50, 26))).toBe(false)
     })
   })
 })

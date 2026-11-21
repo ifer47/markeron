@@ -225,9 +225,32 @@ export function highlighterLineWidth(lineWidth: number): number {
   return lineWidth * HIGHLIGHTER_WIDTH_SCALE
 }
 
-/** Eraser stroke width = lineWidth × scale (default 3 → 24px, close to legacy 25px). */
+/** Eraser stroke width = lineWidth × scale (default 3.25 → 26px, close to legacy 25px). */
 export const ERASER_WIDTH_SCALE = 8
 
 export function eraserLineWidth(lineWidth: number): number {
   return lineWidth * ERASER_WIDTH_SCALE
+}
+
+/** Smallest eraser glyph that still reads as an eraser; below this the icon is a speck. */
+export const ERASER_CURSOR_MIN_SIZE = 16
+
+/** Cap on the eraser glyph so a huge eraser does not swallow the screen. */
+export const ERASER_CURSOR_MAX_SIZE = 80
+
+/**
+ * Rendered size of the eraser glyph (CSS px) for a drawn eraser band.
+ *
+ * The object eraser erases exactly where this glyph's body is, so the cursor and the
+ * footprint must be built from the same number — otherwise the icon would cover ink
+ * before erasing it (or erase ink it never covered).
+ */
+export function eraserGlyphSize(eraserWidth: number): number {
+  const width = Number.isFinite(eraserWidth) ? eraserWidth : ERASER_CURSOR_MIN_SIZE
+  return Math.max(ERASER_CURSOR_MIN_SIZE, Math.min(ERASER_CURSOR_MAX_SIZE, width))
+}
+
+/** Eraser line-width preset → rendered glyph size. */
+export function eraserCursorDiameter(lineWidth: number): number {
+  return eraserGlyphSize(eraserLineWidth(lineWidth))
 }

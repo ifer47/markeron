@@ -34,7 +34,7 @@ import {
   WIDTH_PRESETS,
   textSizeForLineWidth,
   widthPresetLabelKey,
-  eraserLineWidth,
+  eraserCursorDiameter,
   toStoredLineWidths,
   isDashableTool,
   nextStrokeDashStyle,
@@ -286,6 +286,11 @@ function finishRmbErasePointerUp(e: PointerEvent): boolean {
   const wasDrawing = isDrawing.value
   releaseCapturedPointer()
   if (wasDrawing) {
+    // The release point is the last place the eraser actually touched (same as the
+    // left-button path).
+    if (currentTool.value === 'eraser' && eraserMode.value === 'object') {
+      ingestDrawingPointer(e)
+    }
     endDraw()
   }
   if (end.restoreTool !== null) {
@@ -411,9 +416,7 @@ const {
 } = useDrawing(historyCanvasRef, previewCanvasRef)
 
 const textFontSize = computed(() => textSizeForLineWidth(lineWidth.value))
-const eraserCursorDiameter = computed(() => Math.min(80, eraserLineWidth(lineWidth.value)))
-/** Smallest eraser glyph that still reads as an eraser; below this the icon is a speck. */
-const eraserCursorSize = computed(() => Math.max(16, eraserCursorDiameter.value))
+const eraserCursorSize = computed(() => eraserCursorDiameter(lineWidth.value))
 const textOutline = ref<TextOutlineStyle>(createDefaultTextOutline())
 
 const activeTextBoxColor = ref('#FF0000')
@@ -1613,6 +1616,11 @@ function onPointerUp(e: PointerEvent) {
     return
   }
 
+  // The eraser only sees the samples above; the release point is the last place it
+  // actually touched, so feed it before the gesture commits.
+  if (isDrawing.value && currentTool.value === 'eraser' && eraserMode.value === 'object') {
+    ingestDrawingPointer(e)
+  }
   endDraw()
   if (wasDrawing && sampling) {
     const effectiveDpr = getEffectiveDpr()
@@ -1984,7 +1992,7 @@ watch([currentTool, currentColor, penCursorStyle, crosshairCursorStyle], () => {
 })
 
 // Eraser glyph grows with Ctrl+wheel; keep it centered on the pointer.
-watch(eraserCursorDiameter, () => {
+watch(eraserCursorSize, () => {
   if (currentTool.value === 'eraser' && showCustomCursor.value) {
     updateCursorEl(lastPointerX, lastPointerY)
   }

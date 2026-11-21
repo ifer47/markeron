@@ -91,6 +91,23 @@ async function pointerUp(options: MouseEventInit) {
   await settle()
 }
 
+async function pointerMove(options: MouseEventInit) {
+  const event = new MouseEvent('pointermove', {
+    bubbles: true,
+    buttons: 1,
+    clientX: 50,
+    clientY: 50,
+    ...options,
+  })
+  Object.defineProperties(event, {
+    pointerId: { value: 1 },
+    pointerType: { value: 'mouse' },
+    pressure: { value: 0.5 },
+  })
+  host.querySelectorAll('canvas')[1].dispatchEvent(event)
+  await settle()
+}
+
 /** Draw one pen stroke so the canvas reports `canClear`. */
 async function drawStroke() {
   await pointerDown({})
@@ -327,5 +344,44 @@ describe('overlay tool selection across sessions', () => {
     await sendEvent('overlay-mode-changed', 'hidden')
     await sendEvent('overlay-mode-changed', 'drawing')
     expect(native.state?.currentTool).toBe('highlighter')
+  })
+})
+
+describe('object eraser pointer coverage', () => {
+  it('erases on release when only the release point reaches the ink', async () => {
+    native.config.general.eraserMode = 'object'
+    await mountOverlay()
+    await sendEvent('overlay-mode-changed', 'drawing')
+
+    await pointerDown({ clientX: 300, clientY: 100 })
+    await pointerMove({ clientX: 300, clientY: 200 })
+    await pointerMove({ clientX: 300, clientY: 300 })
+    await pointerUp({ clientX: 300, clientY: 300 })
+    expect(native.state?.canClear).toBe(true)
+
+    await sendEvent(TOOLBAR_ACTION_EVENT, { type: 'selectTool', tool: 'eraser' })
+    // Stop 14.5px beside the stroke — just outside the visible glyph — then release
+    // 0.5px further in, i.e. below the 2px sampling step. Only the ingested release
+    // point can see the ink, so without it the stroke would survive the gesture.
+    await pointerDown({ clientX: 300 + 14.5, clientY: 200 })
+    await pointerUp({ clientX: 300 + 14, clientY: 200 })
+    expect(native.state?.canClear).toBe(false)
+  })
+
+  it('erases on release when right-button erasing ends on the ink', async () => {
+    native.config.general.eraserMode = 'object'
+    await mountOverlay()
+    await sendEvent('overlay-mode-changed', 'drawing')
+
+    await pointerDown({ clientX: 300, clientY: 100 })
+    await pointerMove({ clientX: 300, clientY: 200 })
+    await pointerMove({ clientX: 300, clientY: 300 })
+    await pointerUp({ clientX: 300, clientY: 300 })
+    expect(native.state?.canClear).toBe(true)
+
+    // Hold the right button to erase, then release 0.5px inside the contact boundary.
+    await pointerDown({ button: 2, buttons: 2, clientX: 300 + 14.5, clientY: 200 })
+    await pointerUp({ button: 2, buttons: 2, clientX: 300 + 14, clientY: 200 })
+    expect(native.state?.canClear).toBe(false)
   })
 })

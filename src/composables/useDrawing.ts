@@ -12,6 +12,7 @@ import {
   rotatePointAround,
   updateShapeHitCache,
   hitTestAction,
+  hitTestActionWithFootprint,
   isLockedInkAction,
   perfectCircleCornersFromCenter,
   snapPointToAngle,
@@ -47,6 +48,7 @@ import {
   SweptSampleCache,
 } from '../constants/sweptStylus'
 import { collapseStrokeToLine, STROKE_LINE_LOCK_HOLD_MS, strokeLineLockStillDistSq } from '../utils/strokeLineLock'
+import { buildEraserFootprint, type EraserFootprint } from '../utils/eraserFootprint'
 
 export type { Tool, Point, DrawAction } from './drawingTypes'
 export type { InputPointLike } from './drawingTypes'
@@ -71,6 +73,7 @@ function normalizeSelectionRect(r: SelectionRect): SelectionRect {
 import type { Tool, Point, DrawAction, InputPointLike, TextOutlineStyle } from './drawingTypes'
 import {
   createDefaultLineWidths,
+  eraserGlyphSize,
   eraserLineWidth,
   highlighterLineWidth,
   isDashableTool,
@@ -87,6 +90,8 @@ import { COLOR_PALETTE } from '../constants/colors'
 
 const HIT_GRID_SIZE = 192
 const HIT_GRID_MAX_CELLS = 64
+/** Max distance between two object-eraser footprint samples along the pointer path (CSS px). */
+const OBJECT_ERASER_MAX_STEP_PX = 4
 
 // Adaptive point sampling in device-pixel space so density stays consistent across
 // DPR and large CSS viewports (see computeMinDistSq).
@@ -420,6 +425,16 @@ export function useDrawing(
   let objectEraserBatch: { action: DrawAction; index: number }[] = []
   let objectEraserRemovedSet = new Set<DrawAction>()
   let objectEraserLastProcessedPt = 0
+  /**
+   * Index every action had when the eraser gesture began.
+   *
+   * `removeObjectEraserTarget` splices in sweep order, so `history.indexOf` returns
+   * a live index that already shifted for every earlier removal. Undo re-inserts by
+   * ascending index, which only restores z-order when the indices are the originals
+   * (as `removeSelected` guarantees by deleting high → low). Recording the gesture-
+   * start index keeps undo correct no matter which direction the eraser sweeps.
+   */
+  let objectEraserIndexSnapshot: Map<DrawAction, number> | null = null
 
   function setAngleSnapStep(step: number) {
     angleSnapStep.value = Number.isFinite(step) ? Math.min(90, Math.max(1, step)) : 15
@@ -1647,22 +1662,90 @@ export function useDrawing(
     flushRender()
   }
 
+  /**
+   * Every action whose paint overlaps the eraser footprint, topmost first.
+   *
+   * The hit grid is bucketed per action bbox, so the footprint bounds have to widen
+   * the cell query: an action whose bbox sits in a neighbouring cell is still within
+   * reach of a large eraser.
+   */
+  function collectActionsTouchingFootprint(footprint: EraserFootprint, out: DrawAction[]) {
+    ensureHitGrid()
+    const { x1, y1, x2, y2 } = footprint.bounds
+    const minCellX = Math.floor(x1 / HIT_GRID_SIZE)
+    const maxCellX = Math.floor(x2 / HIT_GRID_SIZE)
+    const minCellY = Math.floor(y1 / HIT_GRID_SIZE)
+    const maxCellY = Math.floor(y2 / HIT_GRID_SIZE)
+
+    const seen = new Set<DrawAction>()
+    const consider = (candidate: DrawAction) => {
+      if (seen.has(candidate)) return
+      seen.add(candidate)
+      if (hitTestActionWithFootprint(candidate, footprint)) out.push(candidate)
+    }
+
+    for (let cy = minCellY; cy <= maxCellY; cy++) {
+      for (let cx = minCellX; cx <= maxCellX; cx++) {
+        const bucket = hitGrid.get(`${cx},${cy}`)
+        if (!bucket) continue
+        for (let i = 0; i < bucket.length; i++) consider(bucket[i])
+      }
+    }
+    for (let i = 0; i < hitGridOverflow.length; i++) consider(hitGridOverflow[i])
+
+    out.sort((a, b) => (hitGridOrder.get(b) ?? 0) - (hitGridOrder.get(a) ?? 0))
+  }
+
+  /** Remove one action because the object eraser touched it; returns true when it was live. */
+  function removeObjectEraserTarget(target: DrawAction): boolean {
+    if (objectEraserRemovedSet.has(target)) return false
+    objectEraserRemovedSet.add(target)
+    const liveIdx = history.indexOf(target)
+    if (liveIdx === -1) return false
+    // Undo re-inserts by ascending index, so the batch must carry the gesture-start
+    // index — the live index shifts for every earlier removal in the same sweep.
+    objectEraserBatch.push({ action: target, index: objectEraserIndexSnapshot?.get(target) ?? liveIdx })
+    history.splice(liveIdx, 1)
+    historyIndexDirty = true
+    deleteActionFromHitGrid(target)
+    pruneSelection([target])
+    return true
+  }
+
+  /**
+   * Object eraser: drop every element the eraser footprint touches.
+   *
+   * The footprint is swept along the eraser path — a slow drag stores sub-pixel steps
+   * and a fast drag stores whole 20–30px jumps, so testing the stored points alone
+   * would let the eraser jump across a stroke without touching it. Sub-stepping the
+   * segments keeps the swept footprints overlapping, so "the eraser graphic touches the
+   * ink" and "the ink is erased" stay the same instant.
+   */
   function processObjectEraserHits(action: DrawAction) {
     const pts = action.points
+    if (pts.length === 0) return
+    // The footprint is the glyph the cursor draws, so the ink can never disappear
+    // outside the eraser icon.
+    const cursorSize = eraserGlyphSize(action.lineWidth)
     let removedAny = false
+    const hits: DrawAction[] = []
+
     for (let i = objectEraserLastProcessedPt; i < pts.length; i++) {
-      const hit = findActionAt(pts[i], action.lineWidth / 2)
-      if (!hit || objectEraserRemovedSet.has(hit.action)) continue
-      objectEraserRemovedSet.add(hit.action)
-      const idx = history.indexOf(hit.action)
-      if (idx === -1) continue
-      objectEraserBatch.push({ action: hit.action, index: idx })
-      history.splice(idx, 1)
-      historyIndexDirty = true
-      deleteActionFromHitGrid(hit.action)
-      pruneSelection([hit.action])
-      removedAny = true
+      const from = i > 0 ? pts[i - 1] : pts[i]
+      const to = pts[i]
+      const dx = to.x - from.x
+      const dy = to.y - from.y
+      const steps = Math.max(1, Math.ceil(Math.hypot(dx, dy) / OBJECT_ERASER_MAX_STEP_PX))
+      for (let s = 1; s <= steps; s++) {
+        const t = s / steps
+        hits.length = 0
+        collectActionsTouchingFootprint(buildEraserFootprint(from.x + dx * t, from.y + dy * t, cursorSize), hits)
+        for (let h = 0; h < hits.length; h++) {
+          if (removeObjectEraserTarget(hits[h])) removedAny = true
+        }
+      }
     }
+
     objectEraserLastProcessedPt = pts.length
     if (removedAny) {
       markHistoryStacksChanged()
@@ -1725,6 +1808,7 @@ export function useDrawing(
       if (eraserMode.value === 'object') {
         objectEraserBatch = []
         objectEraserRemovedSet = new Set()
+        objectEraserIndexSnapshot = new Map(history.map((action, index) => [action, index]))
         objectEraserLastProcessedPt = 0
       } else {
         historyDirty = true
@@ -1760,7 +1844,15 @@ export function useDrawing(
       // dense nodes for a smooth tangent hull, and raw points let the renderer
       // smooth without shortening the stroke. Other freehand tools keep the
       // adaptive thinning.
-      const minDist = isInkTool(action.tool) || action.tool === 'laser' ? INK_MIN_DIST_SQ : getMinDistSq()
+      // The object eraser tests the live pointer through a swept footprint, so it must
+      // not thin its samples: a thinned path can lag the cursor by a couple of pixels,
+      // and ink under the glyph would survive the gesture.
+      const objectEraser = action.tool === 'eraser' && eraserMode.value === 'object'
+      const minDist = objectEraser
+        ? 0
+        : isInkTool(action.tool) || action.tool === 'laser'
+          ? INK_MIN_DIST_SQ
+          : getMinDistSq()
 
       for (let i = 0; i < points.length; i++) {
         const point = points[i]
@@ -1891,6 +1983,7 @@ export function useDrawing(
       }
       objectEraserBatch = []
       objectEraserRemovedSet = new Set()
+      objectEraserIndexSnapshot = null
       objectEraserLastProcessedPt = 0
       flushRender()
       return
@@ -1949,6 +2042,7 @@ export function useDrawing(
     clearStrokeCanvas()
     objectEraserBatch = []
     objectEraserRemovedSet = new Set()
+    objectEraserIndexSnapshot = null
     objectEraserLastProcessedPt = 0
     previewDirty = true
     flushRender()
@@ -2508,8 +2602,11 @@ export function useDrawing(
       const sorted = [...entry.removed].sort((a, b) => a.index - b.index)
       for (const item of sorted) {
         history.splice(item.index, 0, item.action)
-        appendActionToHitGrid(item.action)
       }
+      // Re-appending would hand the restored actions the highest hit order, so
+      // `findActionAt` would pick them over the shapes drawn above them. Rebuild the
+      // grid instead so hit order follows z-order again.
+      hitGridDirty = true
       historyIndexDirty = true
     } else if (entry.type === 'paste') {
       const sorted = [...entry.items].sort((a, b) => b.index - a.index)
@@ -2715,6 +2812,10 @@ export function useDrawing(
     clearLaserStrokes()
     clearHitGridState()
     hitGridDirty = false
+    objectEraserBatch = []
+    objectEraserRemovedSet = new Set()
+    objectEraserIndexSnapshot = null
+    objectEraserLastProcessedPt = 0
     selectedActions.value = []
     marqueeRect.value = null
     draggingActions = []
@@ -2812,6 +2913,10 @@ export function useDrawing(
     dragCtx = null
     tempCanvas = null
     tempCtx = null
+    objectEraserBatch = []
+    objectEraserRemovedSet = new Set()
+    objectEraserIndexSnapshot = null
+    objectEraserLastProcessedPt = 0
   }
 
   return {

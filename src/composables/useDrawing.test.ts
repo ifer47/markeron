@@ -694,6 +694,92 @@ describe('useDrawing', () => {
       drawing.undo()
     })
 
+    describe('object eraser footprint', () => {
+      /** Pen stroke down x = 50, y = 0…100 (default 3.25px mouse ink → 1.625px per side). */
+      function drawPenStroke(x = 50) {
+        drawing.currentTool.value = 'pen'
+        drawing.startDraw({ x, y: 0, pointerType: 'mouse' })
+        drawing.draw({ x, y: 100 })
+        drawing.endDraw()
+      }
+
+      function tap(x: number, y: number) {
+        drawing.currentTool.value = 'eraser'
+        drawing.startDraw({ x, y })
+        drawing.endDraw()
+      }
+
+      beforeEach(() => {
+        drawing.setEraserMode('object')
+      })
+
+      it('erases only once the eraser glyph reaches the ink', () => {
+        drawPenStroke()
+        // 26px cursor: the leftmost arc of the glyph body sits (12 − 2) / 24 × 26 =
+        // 10.83px from the pointer, its visible edge (stroke 1.08px + 0.5px AA/shadow
+        // tolerance) 1.58px further, so it touches at 12.42 + 1.625 = 14.04px.
+        // The old disc probe erased from 23px away, i.e. 8px outside the icon.
+        tap(50 + 14.1, 50)
+        expect(drawing.canClear.value).toBe(true)
+
+        tap(50 + 14, 50)
+        expect(drawing.canClear.value).toBe(false)
+      })
+
+      it('sees the live pointer, not just the thinned samples', () => {
+        drawPenStroke()
+        drawing.currentTool.value = 'eraser'
+        // Creep in by 0.5px — far below the 2px sampling step, so no new sample is
+        // stored. The live pointer is what touches the ink, and it must erase.
+        drawing.startDraw({ x: 50 + 14.5, y: 50 })
+        drawing.draw({ x: 50 + 14, y: 50 })
+        drawing.endDraw()
+        expect(drawing.canClear.value).toBe(false)
+      })
+
+      it('does not creep into the stroke over a long parallel drag', () => {
+        drawPenStroke()
+        drawing.currentTool.value = 'eraser'
+        drawing.startDraw({ x: 50 + 18, y: 0 })
+        for (let y = 10; y <= 100; y += 10) drawing.draw({ x: 50 + 18, y })
+        drawing.endDraw()
+        expect(drawing.canClear.value).toBe(true)
+      })
+
+      it('sweeps the footprint between two pointer samples', () => {
+        drawPenStroke()
+        drawing.currentTool.value = 'eraser'
+        drawing.startDraw({ x: 0, y: 50 })
+        // One 100px jump: the stored samples never touch x = 50, the swept footprint does.
+        drawing.draw({ x: 100, y: 50 })
+        drawing.endDraw()
+        expect(drawing.canClear.value).toBe(false)
+      })
+
+      it('removes every element the footprint covers, not one per sample', () => {
+        drawPenStroke(60)
+        drawPenStroke(90)
+        drawing.setLineWidths({ eraser: 9.2 })
+        // 9.2 × 8 = 73.6px cursor: both strokes run through the glyph body.
+        tap(75, 50)
+        expect(drawing.canClear.value).toBe(false)
+      })
+
+      it('weighs thick ink like a highlighter, not the selection padding', () => {
+        drawing.currentTool.value = 'highlighter'
+        drawing.startDraw({ x: 50, y: 0, pointerType: 'mouse' })
+        drawing.draw({ x: 50, y: 100 })
+        drawing.endDraw()
+        // 3.25 × 7 = 22.75px highlighter ink reaches 11.375px beside the centreline,
+        // so the visible glyph touches at 12.42 + 11.375 = 23.79px — the selection
+        // padding would not erase until 31.6px.
+        tap(50 + 23.85, 50)
+        expect(drawing.canClear.value).toBe(true)
+        tap(50 + 23.75, 50)
+        expect(drawing.canClear.value).toBe(false)
+      })
+    })
+
     it('object eraser removes whole elements in one stroke', () => {
       drawing.setEraserMode('object')
       drawing.currentTool.value = 'pen'
@@ -713,6 +799,79 @@ describe('useDrawing', () => {
       drawing.undo()
       expect(drawing.canClear.value).toBe(true)
       drawing.setEraserMode('stroke')
+    })
+
+    describe('object eraser undo z-order', () => {
+      const ALL = { x1: -1000, y1: -1000, x2: 1000, y2: 1000 }
+
+      function drawLine(x0: number, y0: number, x1: number, y1: number, color: string) {
+        drawing.currentTool.value = 'line'
+        drawing.currentColor.value = color
+        drawing.startDraw({ x: x0, y: y0 })
+        drawing.draw({ x: x1, y: y1 })
+        drawing.endDraw()
+      }
+
+      /**
+       * A red horizontal, B green vertical and C blue horizontal — every pair overlaps,
+       * so `findActionsInRect` order and `findActionAt` on the crossings both expose z-order.
+       */
+      function drawCrossingTriple() {
+        drawLine(0, 100, 200, 100, '#ff0000')
+        drawLine(100, 0, 100, 400, '#00ff00')
+        drawLine(0, 300, 200, 300, '#0000ff')
+      }
+
+      beforeEach(() => {
+        drawing.setEraserMode('object')
+      })
+
+      it('restores z-order when the eraser sweeps bottom to top', () => {
+        drawCrossingTriple()
+        expect(drawing.findActionsInRect(ALL).map((a) => a.color)).toEqual(['#ff0000', '#00ff00', '#0000ff'])
+
+        drawing.currentTool.value = 'eraser'
+        drawing.startDraw({ x: 50, y: 100 })
+        drawing.draw({ x: 50, y: 300 })
+        drawing.endDraw()
+        expect(drawing.findActionsInRect(ALL).map((a) => a.color)).toEqual(['#00ff00'])
+
+        drawing.undo()
+
+        // A and C return to their original slots (undo re-inserts by gesture-start index).
+        expect(drawing.findActionsInRect(ALL).map((a) => a.color)).toEqual(['#ff0000', '#00ff00', '#0000ff'])
+        // Hit order follows z-order again, not the order the elements were restored.
+        expect(drawing.findActionAt({ x: 100, y: 100 })?.action.color).toBe('#00ff00')
+        expect(drawing.findActionAt({ x: 100, y: 300 })?.action.color).toBe('#0000ff')
+      })
+
+      it('restores z-order when the eraser sweeps top to bottom', () => {
+        drawCrossingTriple()
+
+        drawing.currentTool.value = 'eraser'
+        drawing.startDraw({ x: 50, y: 300 })
+        drawing.draw({ x: 50, y: 100 })
+        drawing.endDraw()
+        expect(drawing.findActionsInRect(ALL).map((a) => a.color)).toEqual(['#00ff00'])
+
+        drawing.undo()
+        expect(drawing.findActionsInRect(ALL).map((a) => a.color)).toEqual(['#ff0000', '#00ff00', '#0000ff'])
+      })
+
+      it('restores z-order when every element is erased in one sweep', () => {
+        drawLine(0, 100, 200, 100, '#ff0000')
+        drawLine(0, 200, 200, 200, '#00ff00')
+        drawLine(0, 300, 200, 300, '#0000ff')
+
+        drawing.currentTool.value = 'eraser'
+        drawing.startDraw({ x: 100, y: 100 })
+        drawing.draw({ x: 100, y: 300 })
+        drawing.endDraw()
+        expect(drawing.findActionsInRect(ALL)).toEqual([])
+
+        drawing.undo()
+        expect(drawing.findActionsInRect(ALL).map((a) => a.color)).toEqual(['#ff0000', '#00ff00', '#0000ff'])
+      })
     })
   })
 

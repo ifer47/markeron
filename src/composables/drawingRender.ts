@@ -1,5 +1,5 @@
 import type { DrawAction, Point } from './drawingTypes'
-import { isCurvedLinearAction, sampleQuadratic } from './drawingGeometry'
+import { CURVED_INK_STYLE, curvedInkPoints, isCurvedLinearAction, sampleQuadratic } from './drawingGeometry'
 import { isDashableTool, isNonSolidDashStyle, shapeDashPattern } from '../constants/tools'
 import { getActiveTextOutline } from '../constants/textOutline'
 import {
@@ -37,27 +37,6 @@ export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
 export function buildInkPath(points: Point[], size: number, pointerType?: string | null): Path2D {
   const nodes = nodesFromSmoothedPoints(points, size, SWEPT_STYLE, pointerType)
   return buildSweptPath(nodes, pruneNodes(nodes, SWEPT_STYLE))
-}
-
-/**
- * Bent ink is already a mathematically smooth curve. Position smoothing would
- * lag it behind the bend handle, so only the pressure EMA stays enabled.
- */
-const CURVED_INK_STYLE = { ...SWEPT_STYLE, positionStreamline: 0 }
-
-/**
- * Sample a bent hold-locked ink stroke into a polyline for the swept ribbon.
- * Every sample keeps the stroke's frozen pressure so the width stays uniform.
- */
-function curvedInkPoints(action: DrawAction): Point[] {
-  const pts = action.points
-  const p0 = pts[0]
-  const c = pts[1]
-  const p1 = pts[pts.length - 1]
-  const chord = Math.hypot(c.x - p0.x, c.y - p0.y) + Math.hypot(p1.x - c.x, p1.y - c.y)
-  const segments = Math.max(16, Math.min(64, Math.ceil(chord / 4)))
-  const pressure = p0.pressure
-  return sampleQuadratic(p0, c, p1, segments).map((p) => (pressure != null ? { ...p, pressure } : p))
 }
 
 function buildCurvedInkPath(action: DrawAction): Path2D {

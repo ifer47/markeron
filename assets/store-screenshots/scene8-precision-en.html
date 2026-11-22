@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>MarkerOn - Edit &amp; Refine</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html {
+  overflow: hidden; height: 100vh;
+  background:
+    radial-gradient(ellipse 80% 60% at 30% 70%, rgba(20, 60, 120, 0.7) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 70% 40%, rgba(40, 80, 160, 0.5) 0%, transparent 60%),
+    radial-gradient(ellipse 90% 80% at 50% 50%, rgba(10, 30, 80, 0.8) 0%, transparent 80%),
+    linear-gradient(135deg, #0a0e1a 0%, #0d1528 30%, #111d3a 60%, #0a1020 100%);
+}
+body {
+  width: 1920px;
+  height: 1080px;
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  background: transparent;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 100px 40px;
+}
+.desktop-bg {
+  display: none;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+.header .accent-line {
+  width: 40px;
+  height: 4px;
+  background: #FF3B30;
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+.header h1 {
+  font-size: 44px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+.header .subtitle {
+  font-size: 16px;
+  color: rgba(255,255,255,0.45);
+}
+.header .subtitle kbd {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: rgba(255,255,255,0.6);
+}
+
+/* Windows 11 Taskbar */
+.taskbar {
+  position: absolute;
+  bottom: calc(-1 * var(--oy, 0px));
+  left: calc(-1 * var(--ox, 0px));
+  right: calc(-1 * var(--ox, 0px));
+  height: 48px;
+  background: rgba(32, 32, 32, 0.85);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  z-index: 1;
+}
+.taskbar-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.9);
+  position: relative;
+}
+.taskbar-icon.active { background: rgba(255,255,255,0.08); }
+.taskbar-icon.active::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: #60cdff;
+}
+.taskbar-time {
+  position: absolute;
+  right: 16px;
+  color: rgba(255,255,255,0.9);
+  font-size: 12px;
+  text-align: right;
+  line-height: 1.4;
+}
+
+/* MarkerOn branding */
+.markeron-brand {
+  position: absolute;
+  bottom: calc(70px - var(--oy, 0px));
+  right: calc(40px - var(--ox, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.25);
+  font-size: 13px;
+  z-index: 100;
+}
+.markeron-brand svg { width: 16px; height: 16px; }
+
+/* Precision grid */
+.precision-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  width: 1680px;
+  height: 620px;
+  margin: 20px auto 0;
+}
+.shape-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.shape-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.shape-card-head h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.92);
+}
+.shape-key {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.shape-card-desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 14px;
+  min-height: 40px;
+}
+.shape-demo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+.shape-caption {
+  margin-top: 10px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: rgba(255,255,255,0.28);
+}
+</style>
+</head>
+<body>
+
+<div class="desktop-bg"></div>
+
+<div class="header">
+  <div class="accent-line"></div>
+  <h1>Draw now, refine later</h1>
+  <div class="subtitle">Marquee editing · hold to straighten · text outline · click-through the window below</div>
+</div>
+
+<div class="precision-grid">
+    <!-- 1. Select & marquee -->
+    <div class="shape-card">
+      <div class="shape-card-head"><h3>Select &amp; marquee</h3><div class="shape-key">V</div></div>
+      <div class="shape-card-desc">Marquee or click to select, then drag to move; drag corners to resize, the top dot to rotate</div>
+      <div class="shape-demo">
+        <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+          <ellipse cx="150" cy="112" rx="72" ry="36" stroke="#34C759" stroke-width="3.4" stroke-dasharray="13 9.75"/>
+          <rect x="62" y="62" width="176" height="100" stroke="#007AFF" stroke-opacity="0.95" stroke-width="1.5" stroke-dasharray="6 4"/>
+          <line x1="150" y1="62" x2="150" y2="34" stroke="#007AFF" stroke-opacity="0.75" stroke-width="1"/>
+          <circle cx="150" cy="34" r="5.5" fill="#FFFFFF" fill-opacity="0.95" stroke="#007AFF" stroke-opacity="0.95" stroke-width="1"/>
+          <rect x="58" y="58" width="8" height="8" fill="#FFFFFF" fill-opacity="0.95" stroke="#007AFF" stroke-opacity="0.95" stroke-width="1"/>
+          <rect x="234" y="58" width="8" height="8" fill="#FFFFFF" fill-opacity="0.95" stroke="#007AFF" stroke-opacity="0.95" stroke-width="1"/>
+          <rect x="234" y="158" width="8" height="8" fill="#FFFFFF" fill-opacity="0.95" stroke="#007AFF" stroke-opacity="0.95" stroke-width="1"/>
+          <rect x="58" y="158" width="8" height="8" fill="#FFFFFF" fill-opacity="0.95" stroke="#007AFF" stroke-opacity="0.95" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="shape-caption">Shift: aspect / angle snap · Alt: scale from center · Delete removes</div>
+    </div>
+
+    <!-- 2. Hold to straighten -->
+    <div class="shape-card">
+      <div class="shape-card-head"><h3>Hold to straighten</h3><div class="shape-key">0.5s</div></div>
+      <div class="shape-card-desc">Hold the pen or highlighter still for ~0.5s to straighten; drag the midpoint to bend</div>
+      <div class="shape-demo">
+        <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+          <path d="M16,52 q10,-16 20,0 t20,0 t20,0 t20,0 t20,0" stroke="#FF3B30" stroke-width="3.4" stroke-linecap="round"/>
+          <text x="16" y="24" font-family="inherit" font-size="12" fill="rgba(255,255,255,0.4)">freehand</text>
+          <path d="M132,52 h20" stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M147,47 l6,5 l-6,5" stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M168,52 h116" stroke="#FF3B30" stroke-width="3.4" stroke-linecap="round"/>
+          <text x="168" y="24" font-family="inherit" font-size="12" fill="rgba(255,255,255,0.4)">straight</text>
+          <path d="M16,160 Q150,112 284,160" stroke="#FF3B30" stroke-width="3.4" fill="none" stroke-linecap="round"/>
+          <rect x="10" y="118" width="292" height="64" stroke="#007AFF" stroke-opacity="0.8" stroke-width="1.5" stroke-dasharray="6 4"/>
+          <circle cx="16" cy="160" r="4" fill="#FFFFFF" fill-opacity="0.95" stroke="#007AFF" stroke-opacity="0.95" stroke-width="1"/>
+          <circle cx="151" cy="136" r="4.5" fill="#FFFFFF" fill-opacity="0.95" stroke="#007AFF" stroke-opacity="0.95" stroke-width="1"/>
+          <circle cx="284" cy="160" r="4" fill="#FFFFFF" fill-opacity="0.95" stroke="#007AFF" stroke-opacity="0.95" stroke-width="1"/>
+        </svg>
+      </div>
+      <div class="shape-caption">After straightening, drag the midpoint dot to bend it back into an arc</div>
+    </div>
+
+    <!-- 3. Text outline -->
+    <div class="shape-card">
+      <div class="shape-card-head"><h3>Text outline</h3><div class="shape-key">5 sizes</div></div>
+      <div class="shape-card-desc">Auto-picks the opposite color so text reads on both dark and light backgrounds</div>
+      <div class="shape-demo">
+        <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+          <rect x="8" y="8" width="284" height="70" rx="10" fill="#17171B"/>
+          <text x="150" y="55" text-anchor="middle" font-family="inherit" font-size="32" font-weight="700" fill="#FF3B30" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round" paint-order="stroke">Text outline</text>
+          <circle cx="26" cy="26" r="4" fill="#FFFFFF" fill-opacity="0.9" stroke="#007AFF" stroke-width="1.2"/>
+          <rect x="8" y="92" width="284" height="70" rx="10" fill="#FBFAF7"/>
+          <text x="150" y="139" text-anchor="middle" font-family="inherit" font-size="32" font-weight="700" fill="#FF3B30" stroke="#17171B" stroke-width="6" stroke-linejoin="round" paint-order="stroke">Text outline</text>
+          <circle cx="26" cy="110" r="4" fill="#17171B" fill-opacity="0.9" stroke="#007AFF" stroke-width="1.2"/>
+          <g font-family="inherit" font-size="13" fill="rgba(255,255,255,0.4)" text-anchor="middle">
+            <text x="38" y="188" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.3" paint-order="stroke">1</text>
+            <text x="90" y="188" stroke="#FFFFFF" stroke-width="2" stroke-opacity="0.3" paint-order="stroke">2</text>
+            <text x="142" y="188" stroke="#FFFFFF" stroke-width="3" stroke-opacity="0.3" paint-order="stroke">3</text>
+            <text x="194" y="188" stroke="#FFFFFF" stroke-width="5" stroke-opacity="0.3" paint-order="stroke">5</text>
+            <text x="246" y="188" stroke="#FFFFFF" stroke-width="8" stroke-opacity="0.3" paint-order="stroke">8</text>
+          </g>
+        </svg>
+      </div>
+      <div class="shape-caption">1 / 2 / 3 / 5 / 8 px widths, custom color</div>
+    </div>
+
+    <!-- 4. Click-through -->
+    <div class="shape-card">
+      <div class="shape-card-head"><h3>Click-through</h3><div class="shape-key">X</div></div>
+      <div class="shape-card-desc">The annotation layer stops catching the mouse, so you can operate the window underneath</div>
+      <div class="shape-demo">
+        <svg width="300" height="200" viewBox="0 0 300 200" fill="none">
+          <rect x="6" y="6" width="138" height="128" rx="10" fill="#101018" stroke="#007AFF" stroke-width="1.5" stroke-dasharray="6 4"/>
+          <rect x="20" y="24" width="110" height="94" rx="6" fill="#1C1C22" stroke="rgba(255,255,255,0.08)"/>
+          <rect x="20" y="24" width="110" height="16" rx="6" fill="rgba(255,255,255,0.06)"/>
+          <rect x="32" y="52" width="60" height="6" rx="3" fill="rgba(255,255,255,0.10)"/>
+          <rect x="32" y="66" width="84" height="6" rx="3" fill="rgba(255,255,255,0.10)"/>
+          <rect x="32" y="88" width="52" height="18" rx="4" fill="rgba(0,122,255,0.35)"/>
+          <ellipse cx="104" cy="86" rx="20" ry="13" stroke="#FF3B30" stroke-width="2.6" stroke-dasharray="10 7.5"/>
+          <path d="M132,108 l10,10 M142,108 l-10,10" stroke="#FF3B30" stroke-width="2.2" stroke-linecap="round"/>
+          <text x="75" y="154" text-anchor="middle" font-family="inherit" font-size="12" fill="rgba(255,255,255,0.45)">Annotating · clicks blocked</text>
+
+          <rect x="156" y="6" width="138" height="128" rx="10" fill="#101018" stroke="rgba(255,255,255,0.08)"/>
+          <rect x="170" y="24" width="110" height="94" rx="6" fill="#1C1C22" stroke="rgba(255,255,255,0.08)"/>
+          <rect x="170" y="24" width="110" height="16" rx="6" fill="rgba(255,255,255,0.06)"/>
+          <rect x="182" y="52" width="60" height="6" rx="3" fill="rgba(255,255,255,0.10)"/>
+          <rect x="182" y="66" width="84" height="6" rx="3" fill="rgba(255,255,255,0.10)"/>
+          <rect x="182" y="88" width="52" height="18" rx="4" fill="#007AFF"/>
+          <ellipse cx="254" cy="86" rx="20" ry="13" stroke="#FF3B30" stroke-width="2.6" stroke-dasharray="10 7.5" opacity="0.55"/>
+          <path d="M202,92 l0,17 l5,-4.5 l3.5,7 l4,-2 l-3.5,-6.5 l6,0 z" fill="#FFFFFF" stroke="#17171B" stroke-width="1.2" stroke-linejoin="round"/>
+          <text x="225" y="154" text-anchor="middle" font-family="inherit" font-size="12" fill="rgba(255,255,255,0.45)">Click-through · clicks land</text>
+        </svg>
+      </div>
+      <div class="shape-caption">Press X to resume editing; two Esc tuck it away, ink is always kept</div>
+    </div>
+  </div>
+
+<!-- Taskbar -->
+<div class="taskbar">
+  <div class="taskbar-icon">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><rect x="1" y="1" width="8" height="8" rx="1"/><rect x="11" y="1" width="8" height="8" rx="1"/><rect x="1" y="11" width="8" height="8" rx="1"/><rect x="11" y="11" width="8" height="8" rx="1"/></svg>
+  </div>
+  <div class="taskbar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+  <div class="taskbar-icon active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></div>
+  <div class="taskbar-icon active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><ellipse cx="12" cy="12" rx="5" ry="10"/></svg></div>
+  <div class="taskbar-time">
+    <div>15:42</div>
+    <div style="font-size:11px;">2026/4/10</div>
+  </div>
+</div>
+
+<!-- MarkerOn Branding -->
+<div class="markeron-brand">
+  <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M659.498667 412.8l-6.101334-6.058667a233.6 233.6 0 0 0-101.973333-57.557333c-124.032-33.237333-243.157333 37.077333-276.992 163.413333-1.834667 6.826667-2.816 14.506667-4.437333 33.749334-6.570667 79.786667-25.344 139.306667-76.8 199.68 96.426667 37.888 210.688 64.597333 297.557333 64.597333a234.88 234.88 0 0 0 226.56-174.037333 234.538667 234.538667 0 0 0-57.856-223.786667z m-92.501334-147.712l210.730667-163.925333a42.666667 42.666667 0 0 1 56.32 3.541333l127.786667 127.744a42.666667 42.666667 0 0 1 3.498666 56.32l-163.84 210.730667a320.213333 320.213333 0 0 1-310.741333 396.458666C341.333333 895.957333 149.333333 831.872 42.666667 767.872c169.813333-128 130.005333-205.226667 149.333333-277.333333 45.141333-168.533333 206.592-267.008 374.997333-225.450667zM712.533333 345.258667c2.816 2.688 5.546667 5.461333 8.277334 8.234666L769.28 401.92l105.6-135.765333-74.496-74.496-135.765333 105.6L712.533333 345.258667z"/></svg>
+  MarkerOn
+</div>
+
+<script>
+(function fitToScreen() {
+  var s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  var ox = (window.innerWidth - 1920 * s) / 2;
+  var oy = (window.innerHeight - 1080 * s) / 2;
+  document.body.style.transformOrigin = 'top left';
+  document.body.style.transform = 'translate(' + ox + 'px,' + oy + 'px) scale(' + s + ')';
+  document.documentElement.style.setProperty('--ox', (ox / s) + 'px');
+  document.documentElement.style.setProperty('--oy', (oy / s) + 'px');
+  window.addEventListener('resize', fitToScreen);
+})();
+</script>
+</body>
+</html>

@@ -78,6 +78,20 @@ winget install --id 9N6623X973JV --source msstore
 </tr>
 </table>
 
+<table>
+<tr>
+<td width="33%">
+<img src="docs/assets/stroke-styles.png" alt="Solid, dashed and dotted strokes with nine width steps" />
+</td>
+<td width="33%">
+<img src="docs/assets/precision-editing.png" alt="Select and marquee, hold to straighten, text outline, click-through" />
+</td>
+<td width="33%">
+<img src="docs/assets/whiteboard.png" alt="Whiteboard mode on a white or black canvas" />
+</td>
+</tr>
+</table>
+
 ## Keyboard Shortcuts
 
 On **macOS**, use <kbd>Command</kbd> (⌘) in place of <kbd>Ctrl</kbd>, and <kbd>Option</kbd> (⌥) in place of <kbd>Alt</kbd>.

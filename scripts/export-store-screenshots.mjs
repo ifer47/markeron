@@ -1,5 +1,5 @@
 /**
- * Export store-screenshot HTML scenes to marketing PNGs at 2880×1530 (1.5× of 1920×1080).
+ * Export store-screenshot HTML scenes to marketing PNGs at 2880×1620 (1.5× of 1920×1080).
  * Usage: node scripts/export-store-screenshots.mjs
  */
 import { chromium } from 'playwright'
@@ -79,6 +79,14 @@ const jobs = [
   {
     html: 'scene7-whiteboard.html',
     outs: ['assets/白板模式.png'],
+  },
+  {
+    html: 'scene8-precision-en.html',
+    outs: ['docs/assets/precision-editing.png'],
+  },
+  {
+    html: 'scene8-precision.html',
+    outs: ['assets/编辑与精修.png'],
   },
 ]
 

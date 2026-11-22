@@ -19,6 +19,7 @@ Last audited: 2026-11-22 (v2.31.0)
 | Settings window | `docs/assets/settings-window.png` / `assets/设置窗口.png` | 2880×1620 | Regenerated from `scene5-settings*.html`; embeds a real 660×500 @2x capture of the settings window (all five tabs) |
 | Line styles & widths | `docs/assets/stroke-styles.png` / `assets/线型与线宽.png` | 2880×1620 | Regenerated from `scene6-stroke*.html`; the only image that shows solid / dashed / dotted together, the 9-step width ladder, stamp and laser (real dash patterns: `13 9.75` and `0.1 7` with round caps) |
 | Whiteboard | `docs/assets/whiteboard.png` / `assets/白板模式.png` | 2880×1620 | Regenerated from `scene7-whiteboard*.html`; white vs black canvas side by side |
+| Edit & refine | `docs/assets/precision-editing.png` / `assets/编辑与精修.png` | 2880×1620 | Regenerated from `scene8-precision*.html`; selection frame + handles, hold-to-straighten / bend, text outline, click-through. Geometry copied from `useDrawing.drawSelectionOverlay` (1.5px `6 4` `#007AFF` frame, 8×8 handles, rotate dot 28px above the top edge) |
 | Hero / brand | `assets/MarkerOn.png` / `docs/assets/hero.png` | 2880×1620 | Regenerated from `scene0-hero*.html` |
 
 Removed in the 2026-11-22 audit (unreferenced, and the UI they showed no longer exists — drag modes, Diagnostics tab):

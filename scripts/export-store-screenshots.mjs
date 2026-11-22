@@ -53,9 +53,39 @@ const jobs = [
     html: 'scene0-hero.html',
     outs: ['assets/MarkerOn.png'],
   },
+  {
+    // Settings-window scenes embed a real 660×500 @2x capture
+    // (`settings-window-en.png` / `settings-window-zh.png`); re-capture it when the
+    // settings UI changes, then re-run this export.
+    html: 'scene5-settings-en.html',
+    outs: ['docs/assets/settings-window.png'],
+  },
+  {
+    html: 'scene5-settings.html',
+    outs: ['assets/设置窗口.png'],
+  },
+  {
+    html: 'scene6-stroke-en.html',
+    outs: ['docs/assets/stroke-styles.png'],
+  },
+  {
+    html: 'scene6-stroke.html',
+    outs: ['assets/线型与线宽.png'],
+  },
+  {
+    html: 'scene7-whiteboard-en.html',
+    outs: ['docs/assets/whiteboard.png'],
+  },
+  {
+    html: 'scene7-whiteboard.html',
+    outs: ['assets/白板模式.png'],
+  },
 ]
 
-const browser = await chromium.launch()
+// Allow an existing Chromium install (CI caches, offline machines) to be reused.
+const browser = await chromium.launch(
+  process.env.PLAYWRIGHT_CHROMIUM_PATH ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH } : {},
+)
 const context = await browser.newContext({
   viewport: { width: 1920, height: 1080 },
   deviceScaleFactor: 1.5,

@@ -202,7 +202,7 @@ kbd {
 </div>
 
 <div class="shortcuts-layout">
-  <!-- Column 1: Global & Drawing shortcuts -->
+  <!-- Column 1: Global & Actions -->
   <div style="display:flex; flex-direction:column; gap:24px;">
     <div class="shortcut-group">
       <div class="group-title"><div class="group-dot" style="background:#FF3B30;"></div> Global Shortcuts</div>
@@ -211,107 +211,129 @@ kbd {
         <span class="shortcut-desc">Toggle annotation mode</span>
       </div>
       <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span><kbd>X</kbd></div>
+        <span class="shortcut-desc">Toggle click-through mode</span>
+      </div>
+      <div class="shortcut-item">
         <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span><kbd>C</kbd></div>
         <span class="shortcut-desc">Clear all annotations (undoable)</span>
       </div>
     </div>
-
-    <div class="shortcut-group">
-      <div class="group-title"><div class="group-dot" style="background:#FF6B35;"></div> Drawing Shortcuts</div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span>Drag</div>
-        <span class="shortcut-desc">Rectangle</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Shift</kbd><span class="key-separator">+</span>Drag</div>
-        <span class="shortcut-desc">Ellipse</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span>Drag</div>
-        <span class="shortcut-desc">Arrow</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Alt</kbd><span class="key-separator">+</span>Drag</div>
-        <span class="shortcut-desc">Square</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Shift</kbd><span class="key-separator">+</span><kbd>Alt</kbd><span class="key-separator">+</span>Drag</div>
-        <span class="shortcut-desc">Circle</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Column 2: Tool switching -->
-  <div class="shortcut-group">
-    <div class="group-title"><div class="group-dot" style="background:#007AFF;"></div> Tool Switching</div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>1</kbd></div>
-      <span class="shortcut-desc">Pen — Freehand drawing</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>2</kbd></div>
-      <span class="shortcut-desc">Highlighter — Semi-transparent</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>3</kbd></div>
-      <span class="shortcut-desc">Arrow — Directional line</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>4</kbd></div>
-      <span class="shortcut-desc">Rectangle — Box outline</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>5</kbd></div>
-      <span class="shortcut-desc">Ellipse — Oval outline</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>6</kbd></div>
-      <span class="shortcut-desc">Line — Segment</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>7</kbd></div>
-      <span class="shortcut-desc">Eraser — Real-time erase</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>8</kbd></div>
-      <span class="shortcut-desc">Laser — Temporary fading ink</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>T</kbd></div>
-      <span class="shortcut-desc">Text — Double-click to place</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>N</kbd></div>
-      <span class="shortcut-desc">Stamp — Click to place; press again for digits/letters</span>
-    </div>
-  </div>
-
-  <!-- Column 3: Operations & Colors -->
-  <div style="display:flex; flex-direction:column; gap:24px;">
     <div class="shortcut-group">
       <div class="group-title"><div class="group-dot" style="background:#34C759;"></div> Action Shortcuts</div>
       <div class="shortcut-item">
-        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Z</kbd></div>
-        <span class="shortcut-desc">Undo</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span><kbd>Z</kbd></div>
-        <span class="shortcut-desc">Redo</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Y</kbd></div>
-        <span class="shortcut-desc">Redo (alt)</span>
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Z</kbd> / <kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span><kbd>Z</kbd></div>
+        <span class="shortcut-desc">Undo / Redo</span>
       </div>
       <div class="shortcut-item">
         <div class="key-combo"><kbd>Space</kbd></div>
-        <span class="shortcut-desc">Toggle panel</span>
+        <span class="shortcut-desc">Toggle toolbar</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>W</kbd></div>
+        <span class="shortcut-desc">Toggle whiteboard</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>V</kbd></div>
+        <span class="shortcut-desc">Select — marquee batch edit</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Delete</kbd></div>
+        <span class="shortcut-desc">Delete selection</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Arrows</kbd> / <kbd>Shift</kbd><span class="key-separator">+</span><kbd>Arrows</kbd></div>
+        <span class="shortcut-desc">Nudge 1px / 10px</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>C</kbd> / <kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>V</kbd></div>
+        <span class="shortcut-desc">Copy / paste selection</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Scroll</kbd></div>
+        <span class="shortcut-desc">Adjust stroke width</span>
       </div>
       <div class="shortcut-item">
         <div class="key-combo"><kbd>Esc</kbd></div>
         <span class="shortcut-desc">Exit annotation</span>
       </div>
     </div>
+  </div>
 
+  <!-- Column 2: Tool switching -->
+    <div class="shortcut-group">
+      <div class="group-title"><div class="group-dot" style="background:#007AFF;"></div> Tool Switching</div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>1</kbd></div>
+        <span class="shortcut-desc">Pen — freehand drawing</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>2</kbd></div>
+        <span class="shortcut-desc">Highlighter — semi-transparent</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>3</kbd></div>
+        <span class="shortcut-desc">Arrow — directional line</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>4</kbd></div>
+        <span class="shortcut-desc">Rectangle — box outline</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>5</kbd></div>
+        <span class="shortcut-desc">Ellipse — oval outline</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>6</kbd></div>
+        <span class="shortcut-desc">Line — segment</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>7</kbd></div>
+        <span class="shortcut-desc">Eraser — stroke / object erase</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>8</kbd></div>
+        <span class="shortcut-desc">Laser — trail / writing</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>T</kbd></div>
+        <span class="shortcut-desc">Text — double-click to place</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>N</kbd></div>
+        <span class="shortcut-desc">Stamp — click to place; digits / letters</span>
+      </div>
+    </div>
+
+  <!-- Column 3: Drawing & Colors -->
+  <div style="display:flex; flex-direction:column; gap:24px;">
+    <div class="shortcut-group">
+      <div class="group-title"><div class="group-dot" style="background:#FF6B35;"></div> Drawing Shortcuts</div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Alt</kbd><span class="key-separator">+</span><kbd>Drag</kbd></div>
+        <span class="shortcut-desc">Straight line</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Drag</kbd></div>
+        <span class="shortcut-desc">Rectangle</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Shift</kbd><span class="key-separator">+</span><kbd>Drag</kbd></div>
+        <span class="shortcut-desc">Ellipse</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span><kbd>Drag</kbd></div>
+        <span class="shortcut-desc">Arrow</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Alt</kbd><span class="key-separator">+</span><kbd>Drag</kbd></div>
+        <span class="shortcut-desc">Square</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Shift</kbd><span class="key-separator">+</span><kbd>Alt</kbd><span class="key-separator">+</span><kbd>Drag</kbd></div>
+        <span class="shortcut-desc">Circle</span>
+      </div>
+    </div>
     <div class="shortcut-group">
       <div class="group-title"><div class="group-dot" style="background:#AF52DE;"></div> Color & Stroke Style</div>
       <div class="shortcut-item">
@@ -323,7 +345,7 @@ kbd {
         <span class="shortcut-desc">Next color</span>
       </div>
       <div class="shortcut-item">
-        <div class="key-combo"><kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd></div>
+        <div class="key-combo"><kbd>D</kbd> / <kbd>Shift</kbd><span class="key-separator">+</span><kbd>D</kbd></div>
         <span class="shortcut-desc">Solid → dashed → dotted</span>
       </div>
       <div class="shortcut-item">

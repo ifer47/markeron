@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>MarkerOn - Settings Window</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html {
+  overflow: hidden; height: 100vh;
+  background:
+    radial-gradient(ellipse 80% 60% at 30% 70%, rgba(20, 60, 120, 0.7) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 70% 40%, rgba(40, 80, 160, 0.5) 0%, transparent 60%),
+    radial-gradient(ellipse 90% 80% at 50% 50%, rgba(10, 30, 80, 0.8) 0%, transparent 80%),
+    linear-gradient(135deg, #0a0e1a 0%, #0d1528 30%, #111d3a 60%, #0a1020 100%);
+}
+body {
+  width: 1920px;
+  height: 1080px;
+  /* overflow: hidden; */
+  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  background: transparent;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Desktop background - matching scene1 */
+.desktop-bg {
+  display: none;
+}
+
+/* Main row */
+.main-row {
+  position: relative;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 72px;
+}
+
+/* Settings window frame */
+.window-frame {
+  position: relative;
+  width: 900px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.65), 0 6px 24px rgba(0,0,0,0.35);
+}
+.window-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Right side feature descriptions */
+.features-side {
+  width: 430px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.features-side .accent-line {
+  width: 32px;
+  height: 3px;
+  background: #FF3B30;
+  border-radius: 2px;
+  margin-bottom: 18px;
+}
+.features-side h2 {
+  font-size: 34px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.35;
+  margin-bottom: 12px;
+}
+.features-side .sub {
+  font-size: 15px;
+  color: rgba(255,255,255,0.35);
+  line-height: 1.6;
+  margin-bottom: 32px;
+}
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 22px;
+}
+.feature-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 7px;
+}
+.feature-text h4 {
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: 3px;
+}
+.feature-text p {
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  line-height: 1.5;
+}
+
+/* Windows 11 Taskbar */
+.taskbar {
+  position: absolute;
+  bottom: calc(-1 * var(--oy, 0px));
+  left: calc(-1 * var(--ox, 0px));
+  right: calc(-1 * var(--ox, 0px));
+  height: 48px;
+  background: rgba(32, 32, 32, 0.85);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  z-index: 1;
+}
+.taskbar-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.9);
+  position: relative;
+}
+.taskbar-icon.active { background: rgba(255,255,255,0.08); }
+.taskbar-icon.active::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: #60cdff;
+}
+.taskbar-time {
+  position: absolute;
+  right: 16px;
+  color: rgba(255,255,255,0.9);
+  font-size: 12px;
+  text-align: right;
+  line-height: 1.4;
+}
+
+/* MarkerOn branding */
+.markeron-brand {
+  position: absolute;
+  bottom: calc(70px - var(--oy, 0px));
+  right: calc(40px - var(--ox, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.25);
+  font-size: 13px;
+  z-index: 100;
+}
+.markeron-brand svg { width: 16px; height: 16px; }
+</style>
+</head>
+<body>
+
+<div class="desktop-bg"></div>
+
+<div class="main-row">
+  <div class="window-frame"><img src="settings-window-en.png" alt="MarkerOn settings window"></div>
+
+  <div class="features-side">
+    <div class="accent-line"></div>
+    <h2>One window<br>for every setting</h2>
+    <div class="sub">Five tabs cover appearance, shortcuts, help, diagnostics and version info. Changes apply instantly — no restart.</div>
+    <div class="feature-item">
+      <div class="feature-dot" style="background:#FF3B30;"></div>
+      <div class="feature-text">
+        <h4>General</h4>
+        <p>Theme, element dragging, whiteboard color, eraser and laser modes, angle snap</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-dot" style="background:#007AFF;"></div>
+      <div class="feature-text">
+        <h4>Shortcuts</h4>
+        <p>Record global hotkeys; conflicts and invalid combos surface immediately</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-dot" style="background:#34C759;"></div>
+      <div class="feature-text">
+        <h4>Help</h4>
+        <p>One row per action — the in-session keys you actually use</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-dot" style="background:#AF52DE;"></div>
+      <div class="feature-text">
+        <h4>Diagnostics</h4>
+        <p>Export a diagnostics bundle and jump straight into a GitHub issue</p>
+      </div>
+    </div>
+    <div class="feature-item">
+      <div class="feature-dot" style="background:#FF6B35;"></div>
+      <div class="feature-text">
+        <h4>About</h4>
+        <p>Update check, sponsor list, and open-source license</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Taskbar -->
+<div class="taskbar">
+  <div class="taskbar-icon">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><rect x="1" y="1" width="8" height="8" rx="1"/><rect x="11" y="1" width="8" height="8" rx="1"/><rect x="1" y="11" width="8" height="8" rx="1"/><rect x="11" y="11" width="8" height="8" rx="1"/></svg>
+  </div>
+  <div class="taskbar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+  <div class="taskbar-icon active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></div>
+  <div class="taskbar-icon active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><ellipse cx="12" cy="12" rx="5" ry="10"/></svg></div>
+  <div class="taskbar-time">
+    <div>15:42</div>
+    <div style="font-size:11px;">2026/4/10</div>
+  </div>
+</div>
+
+<!-- Branding -->
+<div class="markeron-brand">
+  <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M659.498667 412.8l-6.101334-6.058667a233.6 233.6 0 0 0-101.973333-57.557333c-124.032-33.237333-243.157333 37.077333-276.992 163.413333-1.834667 6.826667-2.816 14.506667-4.437333 33.749334-6.570667 79.786667-25.344 139.306667-76.8 199.68 96.426667 37.888 210.688 64.597333 297.557333 64.597333a234.88 234.88 0 0 0 226.56-174.037333 234.538667 234.538667 0 0 0-57.856-223.786667z m-92.501334-147.712l210.730667-163.925333a42.666667 42.666667 0 0 1 56.32 3.541333l127.786667 127.744a42.666667 42.666667 0 0 1 3.498666 56.32l-163.84 210.730667a320.213333 320.213333 0 0 1-310.741333 396.458666C341.333333 895.957333 149.333333 831.872 42.666667 767.872c169.813333-128 130.005333-205.226667 149.333333-277.333333 45.141333-168.533333 206.592-267.008 374.997333-225.450667zM712.533333 345.258667c2.816 2.688 5.546667 5.461333 8.277334 8.234666L769.28 401.92l105.6-135.765333-74.496-74.496-135.765333 105.6L712.533333 345.258667z"/></svg>
+  MarkerOn
+</div>
+
+<script>
+(function fitToScreen() {
+  var s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  var ox = (window.innerWidth - 1920 * s) / 2;
+  var oy = (window.innerHeight - 1080 * s) / 2;
+  document.body.style.transformOrigin = 'top left';
+  document.body.style.transform = 'translate(' + ox + 'px,' + oy + 'px) scale(' + s + ')';
+  document.documentElement.style.setProperty('--ox', (ox / s) + 'px');
+  document.documentElement.style.setProperty('--oy', (oy / s) + 'px');
+  window.addEventListener('resize', fitToScreen);
+})();
+</script>
+</body>
+</html>

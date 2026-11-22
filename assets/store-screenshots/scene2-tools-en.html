@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=1920, height=1080">
-<title>MarkerOn - 10 Annotation Tools</title>
+<title>MarkerOn - 10 Drawing Tools</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html {
@@ -111,6 +111,7 @@ body {
   color: rgba(255,255,255,0.35);
   margin-bottom: 18px;
 }
+.tool-desc kbd { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 3px; padding: 0 4px; font-family: inherit; font-size: 11px; color: rgba(255,255,255,0.55); }
 .tool-demo {
   flex: 1;
   display: flex;
@@ -190,15 +191,15 @@ body {
 
 <div class="header">
   <div class="accent-line"></div>
-  <h1>10 Annotation Tools for Every Scenario</h1>
-  <div class="subtitle">Press <kbd>1-8</kbd> / <kbd>T</kbd> / <kbd>N</kbd> to switch instantly — no menus needed</div>
+  <h1>10 Drawing Tools for Every Scenario</h1>
+  <div class="subtitle">Press <kbd>1-8</kbd> / <kbd>T</kbd> / <kbd>N</kbd> to switch instantly; press <kbd>V</kbd> to marquee-select</div>
 </div>
 
 <div class="tools-grid">
   <!-- 1. Pen -->
   <div class="tool-card">
     <div class="tool-card-header"><h3>Pen</h3><div class="tool-key">1</div></div>
-    <div class="tool-desc">Freehand drawing, smooth curves</div>
+    <div class="tool-desc">Freehand drawing; press <kbd>1</kbd> again to change cursor</div>
     <div class="tool-demo">
       <svg viewBox="0 0 340 140" fill="none">
         <path d="M30,100 C60,20 100,120 140,60 C180,0 220,130 260,50 C290,0 310,80 330,40"
@@ -228,7 +229,7 @@ body {
   <!-- 3. Arrow -->
   <div class="tool-card">
     <div class="tool-card-header"><h3>Arrow</h3><div class="tool-key">3</div></div>
-    <div class="tool-desc">Directional arrow lines</div>
+    <div class="tool-desc">Arrow lines; drag the midpoint to bend</div>
     <div class="tool-demo">
       <svg viewBox="0 0 340 140" fill="none">
         <line x1="60" y1="120" x2="240" y2="30" stroke="#34C759" stroke-width="3"/>
@@ -242,7 +243,7 @@ body {
   <!-- 4. Rectangle -->
   <div class="tool-card">
     <div class="tool-card-header"><h3>Rectangle</h3><div class="tool-key">4</div></div>
-    <div class="tool-desc">Rectangle outlines</div>
+    <div class="tool-desc">Rectangle outlines; <kbd>D</kbd> cycles dash style</div>
     <div class="tool-demo">
       <svg viewBox="0 0 340 140" fill="none">
         <rect x="40" y="20" width="100" height="80" rx="2" stroke="#FF3B30" stroke-width="2.5" fill="none"/>
@@ -255,7 +256,7 @@ body {
   <!-- 5. Ellipse -->
   <div class="tool-card">
     <div class="tool-card-header"><h3>Ellipse</h3><div class="tool-key">5</div></div>
-    <div class="tool-desc">Ellipse outlines</div>
+    <div class="tool-desc">Ellipse outlines; <kbd>D</kbd> cycles dash style</div>
     <div class="tool-demo">
       <svg viewBox="0 0 340 140" fill="none">
         <ellipse cx="100" cy="70" rx="70" ry="45" stroke="#FF3B30" stroke-width="2.5"/>
@@ -268,7 +269,7 @@ body {
   <!-- 6. Line -->
   <div class="tool-card">
     <div class="tool-card-header"><h3>Line</h3><div class="tool-key">6</div></div>
-    <div class="tool-desc">Straight line segments</div>
+    <div class="tool-desc">Straight segments; drag the midpoint to bend</div>
     <div class="tool-demo">
       <svg viewBox="0 0 340 140" fill="none">
         <line x1="30" y1="110" x2="310" y2="30" stroke="#007AFF" stroke-width="3" stroke-linecap="round"/>
@@ -281,7 +282,7 @@ body {
   <!-- 7. Eraser -->
   <div class="tool-card">
     <div class="tool-card-header"><h3>Eraser</h3><div class="tool-key">7</div></div>
-    <div class="tool-desc">Real-time erase along stroke path</div>
+    <div class="tool-desc">Stroke / object erase; press <kbd>7</kbd> to switch</div>
     <div class="tool-demo">
       <svg viewBox="0 0 340 140" fill="none">
         <path d="M30,100 C80,20 130,120 180,60 C230,0 280,100 320,40"
@@ -298,7 +299,7 @@ body {
   <!-- 8. Laser -->
   <div class="tool-card">
     <div class="tool-card-header"><h3>Laser</h3><div class="tool-key">8</div></div>
-    <div class="tool-desc">Temporary ink that fades from the oldest tip first</div>
+    <div class="tool-desc">Trail / writing mode; press <kbd>8</kbd> to change cursor</div>
     <div class="tool-demo">
       <svg viewBox="0 0 340 140" fill="none">
         <path d="M40,100 C90,30 140,110 190,50 C240,10 280,90 310,40"
@@ -314,7 +315,7 @@ body {
   <!-- 9. Text -->
   <div class="tool-card">
     <div class="tool-card-header"><h3>Text</h3><div class="tool-key">T</div></div>
-    <div class="tool-desc">Double-click to place, multiple sizes</div>
+    <div class="tool-desc">Double-click to place; 9 sizes plus outline</div>
     <div class="tool-demo" style="flex-direction:column; gap:8px; align-items:flex-start; padding:10px 20px;">
       <span style="font-size:28px; font-weight:700; color:#FF3B30;">Annotate</span>
       <span style="font-size:18px; font-weight:600; color:#FFCC02;">Multiple font sizes</span>

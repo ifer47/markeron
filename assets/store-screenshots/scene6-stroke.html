@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1920, height=1080">
+<title>MarkerOn - 线型与线宽</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html {
+  overflow: hidden; height: 100vh;
+  background:
+    radial-gradient(ellipse 80% 60% at 30% 70%, rgba(20, 60, 120, 0.7) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 50% at 70% 40%, rgba(40, 80, 160, 0.5) 0%, transparent 60%),
+    radial-gradient(ellipse 90% 80% at 50% 50%, rgba(10, 30, 80, 0.8) 0%, transparent 80%),
+    linear-gradient(135deg, #0a0e1a 0%, #0d1528 30%, #111d3a 60%, #0a1020 100%);
+}
+body {
+  width: 1920px;
+  height: 1080px;
+  /* overflow: hidden; */
+  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  background: transparent;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 100px 40px;
+}
+.desktop-bg {
+  display: none;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 50px;
+}
+.header .accent-line {
+  width: 40px;
+  height: 4px;
+  background: #FF3B30;
+  border-radius: 2px;
+  margin: 0 auto 20px;
+}
+.header h1 {
+  font-size: 44px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 2px;
+  margin-bottom: 14px;
+}
+.header .subtitle {
+  font-size: 16px;
+  color: rgba(255,255,255,0.45);
+}
+.header .subtitle kbd {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 13px;
+  font-family: inherit;
+  color: rgba(255,255,255,0.6);
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 20px;
+  width: 1680px;
+  height: 680px;
+  margin: 20px auto 0;
+}
+
+.tool-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 24px 28px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.tool-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.tool-card-header h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+}
+.tool-key {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  font-weight: 500;
+}
+.tool-desc {
+  font-size: 13px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 18px;
+}
+.tool-desc kbd {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 3px;
+  padding: 0 4px;
+  font-family: inherit;
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+}
+.tool-demo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+}
+.tool-demo svg {
+  width: 100%;
+  height: 100%;
+  max-height: 160px;
+}
+
+/* Windows 11 Taskbar */
+.taskbar {
+  position: absolute;
+  bottom: calc(-1 * var(--oy, 0px));
+  left: calc(-1 * var(--ox, 0px));
+  right: calc(-1 * var(--ox, 0px));
+  height: 48px;
+  background: rgba(32, 32, 32, 0.85);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  z-index: 1;
+}
+.taskbar-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.9);
+  position: relative;
+}
+.taskbar-icon.active { background: rgba(255,255,255,0.08); }
+.taskbar-icon.active::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: #60cdff;
+}
+.taskbar-time {
+  position: absolute;
+  right: 16px;
+  color: rgba(255,255,255,0.9);
+  font-size: 12px;
+  text-align: right;
+  line-height: 1.4;
+}
+
+/* MarkerOn branding */
+.markeron-brand {
+  position: absolute;
+  bottom: calc(70px - var(--oy, 0px));
+  right: calc(40px - var(--ox, 0px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.25);
+  font-size: 13px;
+  z-index: 100;
+}
+.markeron-brand svg { width: 16px; height: 16px; }
+
+.width-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.width-line-bar {
+  flex: 1;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.72);
+}
+.width-line-bar.active {
+  background: #fff;
+  box-shadow: 0 0 0 1.5px rgba(10,132,255,0.65);
+}
+.width-line-label {
+  width: 44px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.38);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Stroke showcase grid */
+.stroke-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  width: 1680px;
+  height: 620px;
+  margin: 20px auto 0;
+}
+.shape-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.shape-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.shape-card-head h3 {
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.92);
+}
+.shape-key {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.shape-card-desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 14px;
+  min-height: 40px;
+}
+.shape-demo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+.shape-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.shape-row svg { flex-shrink: 0; }
+.shape-label {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  white-space: nowrap;
+}
+.shape-caption {
+  margin-top: 10px;
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: rgba(255,255,255,0.28);
+}
+</style>
+</head>
+<body>
+
+<div class="desktop-bg"></div>
+
+<div class="header">
+  <div class="accent-line"></div>
+  <h1>一条笔迹，三种线型</h1>
+  <div class="subtitle">按 <kbd>D</kbd> 循环实线 → 虚线 → 点线（<kbd>Shift</kbd>+<kbd>D</kbd> 反向）</div>
+</div>
+
+<div class="stroke-grid">
+    <div class="shape-card">
+      <div class="shape-card-head"><h3>三种线型</h3><div class="shape-key">D</div></div>
+      <div class="shape-card-desc">同一形状按 <kbd>D</kbd> 切换；画笔、直线、箭头、矩形、椭圆都支持</div>
+      <div class="shape-demo">
+      <div class="shape-row">
+        <svg width="200" height="56" viewBox="0 0 200 56" fill="none">
+          <rect x="12" y="12" width="176" height="32" rx="5" stroke="#FF3B30" stroke-width="3.4"/>
+        </svg>
+        <span class="shape-label">实线</span>
+      </div>
+      <div class="shape-row">
+        <svg width="200" height="56" viewBox="0 0 200 56" fill="none">
+          <ellipse cx="100" cy="28" rx="86" ry="20" stroke="#34C759" stroke-width="3.4" stroke-dasharray="13 9.75"/>
+        </svg>
+        <span class="shape-label">虚线</span>
+      </div>
+      <div class="shape-row">
+        <svg width="200" height="56" viewBox="0 0 200 56" fill="none">
+          <line x1="16" y1="40" x2="170" y2="16" stroke="#007AFF" stroke-width="3.4" stroke-linecap="round" stroke-dasharray="0.1 7"/>
+          <polygon points="184,12 160,14 170,27" fill="#007AFF"/>
+        </svg>
+        <span class="shape-label">点线</span>
+      </div>
+      </div>
+      <div class="shape-caption">虚线 13/9.75px、点线 0.1/7px，均随线宽缩放</div>
+    </div>
+
+    <div class="shape-card">
+      <div class="shape-card-head"><h3>九档线宽</h3><div class="shape-key">Ctrl+滚轮</div></div>
+      <div class="shape-card-desc">画笔 / 荧光笔 / 橡皮擦 / 文字各自独立记忆</div>
+      <div class="shape-demo">
+      <div class="width-line"><span class="width-line-bar" style="height:4px"></span><span class="width-line-label">极细</span></div>
+      <div class="width-line"><span class="width-line-bar" style="height:6px"></span><span class="width-line-label">很细</span></div>
+      <div class="width-line"><span class="width-line-bar" style="height:8px"></span><span class="width-line-label">细</span></div>
+      <div class="width-line"><span class="width-line-bar" style="height:10.5px"></span><span class="width-line-label">较细</span></div>
+      <div class="width-line"><span class="width-line-bar active" style="height:13px"></span><span class="width-line-label">中</span></div>
+      <div class="width-line"><span class="width-line-bar" style="height:15.5px"></span><span class="width-line-label">较粗</span></div>
+      <div class="width-line"><span class="width-line-bar" style="height:18px"></span><span class="width-line-label">粗</span></div>
+      <div class="width-line"><span class="width-line-bar" style="height:21px"></span><span class="width-line-label">很粗</span></div>
+      <div class="width-line"><span class="width-line-bar" style="height:24px"></span><span class="width-line-label">极粗</span></div>
+      </div>
+      <div class="shape-caption">1.15px → 9.2px，等比步进，粗细过渡均匀</div>
+    </div>
+
+    <div class="shape-card">
+      <div class="shape-card-head"><h3>序号 / 图章</h3><div class="shape-key">N</div></div>
+      <div class="shape-card-desc">单击放置；<kbd>N</kbd> 切换数字 / 字母，<kbd>Shift</kbd>+<kbd>N</kbd> 重置</div>
+      <div class="shape-demo">
+        <svg width="230" height="150" viewBox="0 0 230 150" fill="none">
+          <circle cx="30" cy="34" r="19" fill="#FF3B30"/><circle cx="30" cy="34" r="19" fill="none" stroke="#FFFFFF" stroke-width="2.6"/><text x="30" y="41" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="19" fill="#FFFFFF">1</text>
+          <circle cx="98" cy="34" r="19" fill="#007AFF"/><circle cx="98" cy="34" r="19" fill="none" stroke="#FFFFFF" stroke-width="2.6"/><text x="98" y="41" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="19" fill="#FFFFFF">2</text>
+          <circle cx="166" cy="34" r="19" fill="#34C759"/><circle cx="166" cy="34" r="19" fill="none" stroke="#FFFFFF" stroke-width="2.6"/><text x="166" y="41" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="19" fill="#FFFFFF">3</text>
+          <circle cx="30" cy="108" r="19" fill="#FFCC02"/><circle cx="30" cy="108" r="19" fill="none" stroke="#FFFFFF" stroke-width="2.6"/><text x="30" y="115" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="19" fill="#FFFFFF">A</text>
+          <circle cx="98" cy="108" r="19" fill="#AF52DE"/><circle cx="98" cy="108" r="19" fill="none" stroke="#FFFFFF" stroke-width="2.6"/><text x="98" y="115" text-anchor="middle" font-family="Arial, sans-serif" font-weight="700" font-size="19" fill="#FFFFFF">B</text>
+        </svg>
+      </div>
+      <div class="shape-caption">白色描边 + 投影，深色浅色背景都清晰</div>
+    </div>
+
+    <div class="shape-card">
+      <div class="shape-card-head"><h3>激光笔</h3><div class="shape-key">8</div></div>
+      <div class="shape-card-desc">拖尾 / 书写双模式；再按 <kbd>8</kbd> 切换十字准星 / 圆点光标</div>
+      <div class="shape-demo">
+      <svg width="330" height="150" viewBox="0 0 330 150" fill="none">
+        <defs>
+          <linearGradient id="laserFade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stop-color="#FF3B30" stop-opacity="0"/>
+            <stop offset="45%" stop-color="#FF3B30" stop-opacity="0.45"/>
+            <stop offset="100%" stop-color="#FF3B30" stop-opacity="1"/>
+          </linearGradient>
+        </defs>
+        <path d="M16,120 C90,40 150,140 235,70" stroke="url(#laserFade)" stroke-width="3.6" stroke-linecap="round" fill="none"/>
+        <circle cx="243" cy="65" r="6.5" fill="#FF3B30"/>
+        <circle cx="243" cy="65" r="15" stroke="#FF3B30" stroke-width="1.6" opacity="0.45"/>
+      </svg>
+      </div>
+      <div class="shape-caption">书写模式：停笔约 1 秒后整段一起淡出</div>
+    </div>
+  </div>
+
+<!-- Taskbar -->
+<div class="taskbar">
+  <div class="taskbar-icon">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><rect x="1" y="1" width="8" height="8" rx="1"/><rect x="11" y="1" width="8" height="8" rx="1"/><rect x="1" y="11" width="8" height="8" rx="1"/><rect x="11" y="11" width="8" height="8" rx="1"/></svg>
+  </div>
+  <div class="taskbar-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+  <div class="taskbar-icon active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg></div>
+  <div class="taskbar-icon active"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><ellipse cx="12" cy="12" rx="5" ry="10"/></svg></div>
+  <div class="taskbar-time">
+    <div>15:42</div>
+    <div style="font-size:11px;">2026/4/10</div>
+  </div>
+</div>
+
+<!-- MarkerOn Branding -->
+<div class="markeron-brand">
+  <svg viewBox="0 0 1024 1024" fill="currentColor"><path d="M659.498667 412.8l-6.101334-6.058667a233.6 233.6 0 0 0-101.973333-57.557333c-124.032-33.237333-243.157333 37.077333-276.992 163.413333-1.834667 6.826667-2.816 14.506667-4.437333 33.749334-6.570667 79.786667-25.344 139.306667-76.8 199.68 96.426667 37.888 210.688 64.597333 297.557333 64.597333a234.88 234.88 0 0 0 226.56-174.037333 234.538667 234.538667 0 0 0-57.856-223.786667z m-92.501334-147.712l210.730667-163.925333a42.666667 42.666667 0 0 1 56.32 3.541333l127.786667 127.744a42.666667 42.666667 0 0 1 3.498666 56.32l-163.84 210.730667a320.213333 320.213333 0 0 1-310.741333 396.458666C341.333333 895.957333 149.333333 831.872 42.666667 767.872c169.813333-128 130.005333-205.226667 149.333333-277.333333 45.141333-168.533333 206.592-267.008 374.997333-225.450667zM712.533333 345.258667c2.816 2.688 5.546667 5.461333 8.277334 8.234666L769.28 401.92l105.6-135.765333-74.496-74.496-135.765333 105.6L712.533333 345.258667z"/></svg>
+  MarkerOn
+</div>
+
+<script>
+(function fitToScreen() {
+  var s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+  var ox = (window.innerWidth - 1920 * s) / 2;
+  var oy = (window.innerHeight - 1080 * s) / 2;
+  document.body.style.transformOrigin = 'top left';
+  document.body.style.transform = 'translate(' + ox + 'px,' + oy + 'px) scale(' + s + ')';
+  document.documentElement.style.setProperty('--ox', (ox / s) + 'px');
+  document.documentElement.style.setProperty('--oy', (oy / s) + 'px');
+  window.addEventListener('resize', fitToScreen);
+})();
+</script>
+</body>
+</html>

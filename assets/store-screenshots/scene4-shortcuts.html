@@ -202,7 +202,7 @@ kbd {
 </div>
 
 <div class="shortcuts-layout">
-  <!-- Column 1: Global & Drawing shortcuts -->
+  <!-- Column 1: Global & Operations -->
   <div style="display:flex; flex-direction:column; gap:24px;">
     <div class="shortcut-group">
       <div class="group-title"><div class="group-dot" style="background:#FF3B30;"></div> 全局快捷键</div>
@@ -211,13 +211,108 @@ kbd {
         <span class="shortcut-desc">开启 / 退出标注模式</span>
       </div>
       <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span><kbd>X</kbd></div>
+        <span class="shortcut-desc">切换穿透模式</span>
+      </div>
+      <div class="shortcut-item">
         <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span><kbd>C</kbd></div>
         <span class="shortcut-desc">清除所有标注（可撤销）</span>
       </div>
     </div>
+    <div class="shortcut-group">
+      <div class="group-title"><div class="group-dot" style="background:#34C759;"></div> 操作快捷键</div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Z</kbd> / <kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span><kbd>Z</kbd></div>
+        <span class="shortcut-desc">撤销 / 重做</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Space</kbd></div>
+        <span class="shortcut-desc">呼出 / 隐藏工具栏</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>W</kbd></div>
+        <span class="shortcut-desc">切换白板模式</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>V</kbd></div>
+        <span class="shortcut-desc">选择 — 框选批量编辑</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Delete</kbd></div>
+        <span class="shortcut-desc">删除选中</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>方向键</kbd> / <kbd>Shift</kbd><span class="key-separator">+</span><kbd>方向键</kbd></div>
+        <span class="shortcut-desc">微移 1px / 10px</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>C</kbd> / <kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>V</kbd></div>
+        <span class="shortcut-desc">复制 / 粘贴选中</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>滚轮</kbd></div>
+        <span class="shortcut-desc">调整线宽</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Esc</kbd></div>
+        <span class="shortcut-desc">退出标注模式</span>
+      </div>
+    </div>
+  </div>
 
+  <!-- Column 2: Tool switching -->
+    <div class="shortcut-group">
+      <div class="group-title"><div class="group-dot" style="background:#007AFF;"></div> 工具切换</div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>1</kbd></div>
+        <span class="shortcut-desc">画笔 — 自由绘画</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>2</kbd></div>
+        <span class="shortcut-desc">荧光笔 — 半透明高亮</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>3</kbd></div>
+        <span class="shortcut-desc">箭头 — 指示线</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>4</kbd></div>
+        <span class="shortcut-desc">矩形 — 方框标注</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>5</kbd></div>
+        <span class="shortcut-desc">椭圆 — 圆框标注</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>6</kbd></div>
+        <span class="shortcut-desc">直线 — 线段</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>7</kbd></div>
+        <span class="shortcut-desc">橡皮擦 — 轨迹 / 对象擦除</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>8</kbd></div>
+        <span class="shortcut-desc">激光笔 — 拖尾 / 书写</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>T</kbd></div>
+        <span class="shortcut-desc">文字 — 双击放置</span>
+      </div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>N</kbd></div>
+        <span class="shortcut-desc">序号 — 单击放置；再按切换数字/字母</span>
+      </div>
+    </div>
+
+  <!-- Column 3: Drawing & Colors -->
+  <div style="display:flex; flex-direction:column; gap:24px;">
     <div class="shortcut-group">
       <div class="group-title"><div class="group-dot" style="background:#FF6B35;"></div> 绘制快捷键</div>
+      <div class="shortcut-item">
+        <div class="key-combo"><kbd>Alt</kbd><span class="key-separator">+</span>拖动</div>
+        <span class="shortcut-desc">绘制直线</span>
+      </div>
       <div class="shortcut-item">
         <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span>拖动</div>
         <span class="shortcut-desc">绘制矩形</span>
@@ -239,79 +334,6 @@ kbd {
         <span class="shortcut-desc">绘制正圆</span>
       </div>
     </div>
-  </div>
-
-  <!-- Column 2: Tool switching -->
-  <div class="shortcut-group">
-    <div class="group-title"><div class="group-dot" style="background:#007AFF;"></div> 工具切换</div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>1</kbd></div>
-      <span class="shortcut-desc">画笔 — 自由绘画</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>2</kbd></div>
-      <span class="shortcut-desc">荧光笔 — 半透明高亮</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>3</kbd></div>
-      <span class="shortcut-desc">箭头 — 指示线</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>4</kbd></div>
-      <span class="shortcut-desc">矩形 — 方框标注</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>5</kbd></div>
-      <span class="shortcut-desc">椭圆 — 圆框标注</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>6</kbd></div>
-      <span class="shortcut-desc">直线 — 线段</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>7</kbd></div>
-      <span class="shortcut-desc">橡皮擦 — 实时擦除</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>8</kbd></div>
-      <span class="shortcut-desc">激光笔 — 临时笔迹</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>T</kbd></div>
-      <span class="shortcut-desc">文字 — 双击放置</span>
-    </div>
-    <div class="shortcut-item">
-      <div class="key-combo"><kbd>N</kbd></div>
-      <span class="shortcut-desc">序号 — 单击放置；再按切换数字/字母</span>
-    </div>
-  </div>
-
-  <!-- Column 3: Operations & Colors -->
-  <div style="display:flex; flex-direction:column; gap:24px;">
-    <div class="shortcut-group">
-      <div class="group-title"><div class="group-dot" style="background:#34C759;"></div> 操作快捷键</div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Z</kbd></div>
-        <span class="shortcut-desc">撤销</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Shift</kbd><span class="key-separator">+</span><kbd>Z</kbd></div>
-        <span class="shortcut-desc">重做</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Ctrl</kbd><span class="key-separator">+</span><kbd>Y</kbd></div>
-        <span class="shortcut-desc">重做（备选）</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Space</kbd></div>
-        <span class="shortcut-desc">呼出 / 隐藏面板</span>
-      </div>
-      <div class="shortcut-item">
-        <div class="key-combo"><kbd>Esc</kbd></div>
-        <span class="shortcut-desc">退出标注模式</span>
-      </div>
-    </div>
-
     <div class="shortcut-group">
       <div class="group-title"><div class="group-dot" style="background:#AF52DE;"></div> 颜色与线型</div>
       <div class="shortcut-item">
@@ -323,7 +345,7 @@ kbd {
         <span class="shortcut-desc">下一个颜色</span>
       </div>
       <div class="shortcut-item">
-        <div class="key-combo"><kbd>D</kbd> / <kbd>Shift</kbd>+<kbd>D</kbd></div>
+        <div class="key-combo"><kbd>D</kbd> / <kbd>Shift</kbd><span class="key-separator">+</span><kbd>D</kbd></div>
         <span class="shortcut-desc">实线 → 虚线 → 点线</span>
       </div>
       <div class="shortcut-item">

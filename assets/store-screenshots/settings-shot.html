@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MarkerOn 设置窗口截图入口</title>
+    <!--
+      Renders the real SettingsView with mocked Tauri IPC so the marketing kit can
+      capture an authentic settings window without building the desktop app.
+
+        npm run dev:fe
+        open http://localhost:1420/assets/store-screenshots/settings-shot.html?locale=zh-CN#settings
+
+      Capture at 660×500 with deviceScaleFactor 2, save as
+      settings-window-{zh,en}.png next to this file, then re-run
+      `node scripts/export-store-screenshots.mjs`.
+    -->
+    <script>
+      ;(function () {
+        let cbId = 0
+        const config = {
+          configVersion: 3,
+          shortcuts: {
+            toggleDrawing: 'Ctrl+Shift+D',
+            clearDrawing: 'Ctrl+Shift+C',
+            togglePenetration: 'Ctrl+Shift+X',
+          },
+          general: {
+            dragMode: 'modifier',
+            locale: new URLSearchParams(location.search).get('locale') || 'zh-CN',
+            preserveDrawings: true,
+            whiteboardPreserveDrawings: true,
+            angleSnapStep: 15,
+            defaultEntryMode: 'screen',
+            whiteboardBackground: 'white',
+            eraserMode: 'stroke',
+            laserMode: 'trail',
+            autoRevertToPen: true,
+            autoStart: true,
+            theme: 'dark',
+          },
+        }
+        const handlers = {
+          get_config: () => config,
+          save_general: () => ({ ok: true }),
+          save_shortcuts: () => ({ ok: true }),
+          save_locale: () => null,
+          reveal_settings_window: () => null,
+          is_portable: () => false,
+          supports_autostart: () => true,
+          'plugin:autostart|is_enabled': () => true,
+          'plugin:autostart|enable': () => null,
+          'plugin:autostart|disable': () => null,
+          'plugin:event|listen': () => 1,
+          'plugin:event|unlisten': () => null,
+          get_diagnostics_summary: () => ({ sinceLaunch: 0 }),
+          open_url: () => null,
+        }
+        window.__TAURI_INTERNALS__ = {
+          invoke: function (cmd) {
+            return Promise.resolve(cmd in handlers ? handlers[cmd]() : null)
+          },
+          transformCallback: function (cb) {
+            const id = ++cbId
+            window['_' + id] = cb
+            return id
+          },
+          convertFileSrc: function (p) {
+            return p
+          },
+          metadata: {
+            currentWindow: { label: 'settings' },
+            currentWebview: { windowLabel: 'settings', label: 'settings' },
+          },
+        }
+        document.documentElement.classList.add('settings')
+      })()
+    </script>
+  </head>
+  <body style="margin: 0; overflow: hidden">
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

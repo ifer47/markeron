@@ -5,7 +5,11 @@ import { isNonSolidDashStyle } from '../constants/tools'
 import {
   connectingQuadPoints,
   nodesFromSmoothedPoints,
+  polylineLength,
+  isInkTaperEnabled,
   SWEPT_STYLE,
+  taperNodes,
+  taperStyleFor,
   usesPressureInk,
   type StylusNode,
 } from '../constants/sweptStylus'
@@ -542,10 +546,17 @@ interface InkNodeCacheEntry {
   pointerType: string | undefined
   tool: DrawAction['tool']
   dashStyle: DrawAction['dashStyle']
+  /** Global 笔锋 switch the nodes were tapered with. */
+  taper: boolean
   nodes: StylusNode[]
 }
 
-const inkNodeCache = new WeakMap<DrawAction, InkNodeCacheEntry>()
+let inkNodeCache = new WeakMap<DrawAction, InkNodeCacheEntry>()
+
+/** Drop every cached ribbon so a 笔锋 toggle repaints hit testing with the new radii. */
+export function clearInkNodeCache(): void {
+  inkNodeCache = new WeakMap()
+}
 
 /**
  * True when `entry` still describes `action`'s painted ink.
@@ -563,7 +574,8 @@ function inkCacheMatches(entry: InkNodeCacheEntry | undefined, action: DrawActio
     action.lineWidth !== entry.lineWidth ||
     action.pointerType !== entry.pointerType ||
     action.tool !== entry.tool ||
-    action.dashStyle !== entry.dashStyle
+    action.dashStyle !== entry.dashStyle ||
+    entry.taper !== isInkTaperEnabled()
   ) {
     return false
   }
@@ -599,12 +611,18 @@ export function actionInkNodes(action: DrawAction): StylusNode[] | null {
   if (inkCacheMatches(cached, action)) return cached.nodes
 
   const points = isCurvedLinearAction(action) ? curvedInkPoints(action) : pts
-  const nodes = nodesFromSmoothedPoints(
+  const smoothed = nodesFromSmoothedPoints(
     points,
     action.lineWidth,
     isCurvedLinearAction(action) ? CURVED_INK_STYLE : SWEPT_STYLE,
     action.pointerType,
   )
+  // The 笔锋 ramps shrink the painted radius at both ends, so the eraser has to see the
+  // tapered nodes too — otherwise it erases the air where the round cap used to be.
+  const nodes = taperNodes(smoothed, action.lineWidth, polylineLength(smoothed), taperStyleFor(action.tool), {
+    start: true,
+    end: true,
+  })
 
   const first = pts[0]
   const last = pts[pts.length - 1]
@@ -621,6 +639,7 @@ export function actionInkNodes(action: DrawAction): StylusNode[] | null {
     pointerType: action.pointerType,
     tool: action.tool,
     dashStyle: action.dashStyle,
+    taper: isInkTaperEnabled(),
     nodes,
   })
   return nodes

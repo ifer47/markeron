@@ -194,6 +194,9 @@ export default {
     autoRevertToPen: 'Return to pen after shape',
     autoRevertToPenDesc:
       'After drawing one line, arrow, rectangle, or ellipse, automatically switch back to the pen. Re-entering drawing mode also starts from the pen. Modifier-key temporary tools still restore the previous tool as before.',
+    inkTaper: 'Tapered stroke ends',
+    inkTaperDesc:
+      'Pen and highlighter strokes thin out where you start and where you lift the nib, so handwriting keeps a natural brush tip. Works with a mouse, touch and stylus alike; turn it off for uniform round ends.',
   },
   toolbar: {
     shortcutTooltip: '{label} ({shortcut})',

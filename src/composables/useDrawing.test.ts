@@ -4,6 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { ref, type Ref } from 'vue'
 import { useDrawing } from './useDrawing'
+import { setInkTaperEnabled } from '../constants/sweptStylus'
 
 function createMockCanvas(): HTMLCanvasElement {
   const ctx = {
@@ -2232,6 +2233,29 @@ describe('useDrawing', () => {
       drawing.redrawAll()
 
       expect(ctx.setTransform).toHaveBeenCalledWith(1.5, 0, 0, 1.5, 0, 0)
+    })
+  })
+
+  describe('ink taper switch', () => {
+    afterEach(() => setInkTaperEnabled(true))
+
+    it('repaints committed ink when the setting is toggled', () => {
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 10, y: 10 })
+      drawing.endDraw()
+
+      const ctx = previewCanvas.getContext('2d') as unknown as { clearRect: ReturnType<typeof vi.fn> }
+      ctx.clearRect.mockClear()
+      drawing.setInkTaper(false)
+      // 已有笔迹的 Path2D 被丢弃后整屏重绘，而不是只影响之后画的笔迹。
+      expect(ctx.clearRect).toHaveBeenCalled()
+    })
+
+    it('does nothing when the value does not change', () => {
+      const ctx = previewCanvas.getContext('2d') as unknown as { clearRect: ReturnType<typeof vi.fn> }
+      ctx.clearRect.mockClear()
+      drawing.setInkTaper(true)
+      expect(ctx.clearRect).not.toHaveBeenCalled()
     })
   })
 

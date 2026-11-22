@@ -16,6 +16,7 @@ import {
   isLockedInkAction,
   perfectCircleCornersFromCenter,
   snapPointToAngle,
+  clearInkNodeCache,
 } from './drawingGeometry'
 import {
   applyReshapeHandle,
@@ -46,6 +47,10 @@ import {
   pruneNodes,
   SWEPT_STYLE,
   SweptSampleCache,
+  isInkTaperEnabled,
+  setInkTaperEnabled,
+  taperNodes,
+  taperStyleFor,
 } from '../constants/sweptStylus'
 import { collapseStrokeToLine, STROKE_LINE_LOCK_HOLD_MS, strokeLineLockStillDistSq } from '../utils/strokeLineLock'
 import { buildEraserFootprint, type EraserFootprint } from '../utils/eraserFootprint'
@@ -440,6 +445,21 @@ export function useDrawing(
     angleSnapStep.value = Number.isFinite(step) ? Math.min(90, Math.max(1, step)) : 15
   }
 
+  /**
+   * Apply the 笔锋 switch to every future paint.
+   *
+   * Existing ribbons are cached as `Path2D` and the eraser caches their nodes, so both
+   * caches are dropped and the whole scene repaints — otherwise a change would only
+   * affect ink drawn after it.
+   */
+  function setInkTaper(enabled: boolean) {
+    if (isInkTaperEnabled() === enabled) return
+    setInkTaperEnabled(enabled)
+    pathCache = new WeakMap()
+    clearInkNodeCache()
+    redrawAll()
+  }
+
   interface DragSnapshot {
     points: Point[]
     index: number
@@ -806,7 +826,7 @@ export function useDrawing(
   let drawGestureOrigin: Point | null = null
   let tempCanvas: HTMLCanvasElement | null = null
   let tempCtx: CanvasRenderingContext2D | null = null
-  const pathCache = new WeakMap<DrawAction, Path2D>()
+  let pathCache = new WeakMap<DrawAction, Path2D>()
 
   // O(1) action→history-index lookup (replaces O(n) lastIndexOf in findActionAt).
   // Lazily rebuilt when splice operations invalidate it.
@@ -1420,9 +1440,20 @@ export function useDrawing(
     // frozen chunks stick out and the stroke visibly re-renders on pointer up.
     const cache = (inkSamples ??= new SweptSampleCache(action.lineWidth, SWEPT_STYLE, action.pointerType))
     cache.sync(pts)
+    const taper = taperStyleFor(action.tool)
+    // Ramp lengths come from the whole stroke, so the live tail tapers exactly like the
+    // committed path. Only the true ends get a 锋: a frozen chunk's end is covered by the
+    // live tail, and a ramp there would leave an unpainted notch mid-stroke.
+    const strokeLength = cache.length(pts)
     const pathFor = (from: number, to: number): Path2D => {
       const nodes = cache.nodes(pts, from, to)
-      return buildSweptPath(nodes, pruneNodes(nodes, SWEPT_STYLE))
+      const pruned = pruneNodes(nodes, SWEPT_STYLE)
+      return buildSweptPath(
+        taperNodes(pruned, action.lineWidth, strokeLength, taper, {
+          start: from === 0,
+          end: to === pts.length - 1,
+        }),
+      )
     }
 
     if (pts.length === 1) {
@@ -3038,5 +3069,6 @@ export function useDrawing(
     cancelReshape,
     destroy,
     setAngleSnapStep,
+    setInkTaper,
   }
 }

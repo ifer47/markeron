@@ -20,7 +20,16 @@ import {
 } from '../constants/stamp'
 import { LaserPointer } from '@excalidraw/laser-pointer'
 import { laserSizeFromMapping, smoothLaserPositions } from '../constants/laser'
-import { buildSweptPath, dotRadius, nodesFromSmoothedPoints, pruneNodes, SWEPT_STYLE } from '../constants/sweptStylus'
+import {
+  buildSweptPath,
+  dotRadius,
+  nodesFromSmoothedPoints,
+  polylineLength,
+  pruneNodes,
+  SWEPT_STYLE,
+  taperNodes,
+  taperStyleFor,
+} from '../constants/sweptStylus'
 
 /** Constant-width freehand (eraser / legacy fallback). */
 export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
@@ -41,17 +50,36 @@ export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
   ctx.stroke()
 }
 
-/** Ink outline for pen / highlighter (pressure width for pen/touch; uniform for mouse). */
-export function buildInkPath(points: Point[], size: number, pointerType?: string | null): Path2D {
+/**
+ * Fill-ready ribbon for pen / highlighter (pressure width for pen/touch; uniform
+ * for mouse) with a 笔锋 at both ends.
+ *
+ * The ramps run after pruning: they need arc-length resolution, and the tangent
+ * hulls have to see the tapered radii or the tip keeps its old round cap.
+ */
+export function buildInkPath(
+  points: Point[],
+  size: number,
+  pointerType?: string | null,
+  tool?: DrawAction['tool'],
+): Path2D {
   const nodes = nodesFromSmoothedPoints(points, size, SWEPT_STYLE, pointerType)
-  return buildSweptPath(nodes, pruneNodes(nodes, SWEPT_STYLE))
+  // Prune first, then taper: the ramps need arc-length resolution, and merging the two
+  // would either drop the ramp's curvature or paint round caps at the tapered tip.
+  const pruned = pruneNodes(nodes, SWEPT_STYLE)
+  const tapered = taperNodes(pruned, size, polylineLength(nodes), taperStyleFor(tool), { start: true, end: true })
+  return buildSweptPath(tapered)
 }
 
 function buildCurvedInkPath(action: DrawAction): Path2D {
   const nodes = nodesFromSmoothedPoints(curvedInkPoints(action), action.lineWidth, CURVED_INK_STYLE, action.pointerType)
   // Keep every sample: the 3° freehand pruning tolerance would flatten a smooth
   // quadratic into a visibly polygonal ribbon.
-  return buildSweptPath(nodes)
+  const tapered = taperNodes(nodes, action.lineWidth, polylineLength(nodes), taperStyleFor(action.tool), {
+    start: true,
+    end: true,
+  })
+  return buildSweptPath(tapered)
 }
 
 export function drawLine(ctx: CanvasRenderingContext2D, start: Point, end: Point) {
@@ -482,7 +510,9 @@ export function drawActionDirect(
       }
       let path = pathCache?.get(action)
       if (!path) {
-        path = curvedInk ? buildCurvedInkPath(action) : buildInkPath(pts, action.lineWidth, action.pointerType)
+        path = curvedInk
+          ? buildCurvedInkPath(action)
+          : buildInkPath(pts, action.lineWidth, action.pointerType, action.tool)
         if (action.bbox) pathCache?.set(action, path)
       }
       ctx.fill(path)

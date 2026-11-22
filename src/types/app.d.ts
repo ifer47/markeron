@@ -32,6 +32,8 @@ export interface AppConfig {
     crosshairCursorStyle?: CrosshairCursorStyle
     /** After one arrow/rect/ellipse/line stroke, switch back to pen. Default off. */
     autoRevertToPen?: boolean
+    /** Taper both ends of pen / highlighter ink (笔锋). Default on. */
+    inkTaper?: boolean
     lineWidths?: {
       stroke: number
       highlighter: number

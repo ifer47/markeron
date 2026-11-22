@@ -93,6 +93,7 @@ import {
 } from '../utils/crosshairCursor'
 import { resolveToolbarSelectTool } from '../utils/toolbarSelectTool'
 import { resolveAutoRevertToPen, toolAfterShapeStroke, toolOnDrawingEntry } from '../utils/autoRevertToPen'
+import { resolveInkTaper } from '../utils/inkTaper'
 import { resolveModifierTempTool } from '../utils/modifierTempTool'
 import { noteStableViewportSample } from '../utils/overlayViewport'
 import { normalizePressure } from '../constants/sweptStylus'
@@ -360,6 +361,7 @@ const {
   setLineWidths,
   setLineWidth,
   setAngleSnapStep,
+  setInkTaper,
   eraserMode,
   setEraserMode,
   setLaserMode,
@@ -556,6 +558,10 @@ const autoRevertToPen = ref(false)
 
 function applyAutoRevertToPenFromConfig(general?: AppConfig['general']) {
   autoRevertToPen.value = resolveAutoRevertToPen(general)
+}
+
+function applyInkTaperFromConfig(general?: AppConfig['general']) {
+  setInkTaper(resolveInkTaper(general))
 }
 
 /**
@@ -2320,6 +2326,7 @@ onMounted(async () => {
     applyPenCursorStyleFromConfig(cfg.general)
     applyCrosshairCursorStyleFromConfig(cfg.general)
     applyAutoRevertToPenFromConfig(cfg.general)
+    applyInkTaperFromConfig(cfg.general)
     applyLineWidthsFromConfig(cfg.general)
     preserveDrawings.value = cfg.general?.preserveDrawings ?? false
     whiteboardPreserveDrawings.value = cfg.general?.whiteboardPreserveDrawings ?? true
@@ -2343,6 +2350,7 @@ onMounted(async () => {
       applyPenCursorStyleFromConfig(event.payload.general)
       applyCrosshairCursorStyleFromConfig(event.payload.general)
       applyAutoRevertToPenFromConfig(event.payload.general)
+      applyInkTaperFromConfig(event.payload.general)
       // lineWidths: overlay is the sole writer; skip echo from our own save_general
       preserveDrawings.value = event.payload.general?.preserveDrawings ?? false
       whiteboardPreserveDrawings.value = event.payload.general?.whiteboardPreserveDrawings ?? true

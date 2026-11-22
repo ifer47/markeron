@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import type { Point } from '../composables/drawingTypes'
 import {
   buildSweptPath,
@@ -6,11 +6,15 @@ import {
   connectingQuadPoints,
   dotRadius,
   ellipsePoints,
+  HIGHLIGHTER_TAPER,
   INK_MIN_DIST_SQ,
+  MIN_TAPER_RADIUS,
   nodeFromPoint,
   nodesFromPoints,
   normalizePressure,
+  PEN_TAPER,
   planSweptFreeze,
+  polylineLength,
   pressureAlphaAt,
   pruneNodes,
   nodesFromSmoothedPoints,
@@ -19,7 +23,11 @@ import {
   SWEPT_TAIL_NODES,
   smoothPenPoint,
   SWEPT_STYLE,
+  setInkTaperEnabled,
   SweptSampleCache,
+  taperLengths,
+  taperNodes,
+  taperStyleFor,
   usesPressureInk,
   type StylusNode,
 } from './sweptStylus'
@@ -573,5 +581,188 @@ describe('nodesFromSmoothedPoints corner rounding', () => {
     ]
     const out = nodesFromSmoothedPoints(points, 6, SWEPT_STYLE, 'pen')
     expect(out[out.length - 1]).toMatchObject({ x: 40, y: 20 })
+  })
+})
+
+describe('taperLengths', () => {
+  it('uses the pen-scaled ramp lengths on a long stroke', () => {
+    const { start, end } = taperLengths(100, 4, PEN_TAPER)
+    expect(start).toBeCloseTo(4 * PEN_TAPER.startLength, 6)
+    expect(end).toBeCloseTo(4 * PEN_TAPER.endLength, 6)
+  })
+
+  it('shrinks both ramps together so a short tick keeps a full-width middle', () => {
+    const { start, end } = taperLengths(6, 4, PEN_TAPER)
+    expect(start + end).toBeCloseTo(6 * PEN_TAPER.maxLengthRatio, 6)
+    // 起笔比出锋短，比例在缩放后不变。
+    expect(start / end).toBeCloseTo(PEN_TAPER.startLength / PEN_TAPER.endLength, 6)
+  })
+
+  it('does not taper a zero-length stroke', () => {
+    expect(taperLengths(0, 4, PEN_TAPER)).toEqual({ start: 0, end: 0 })
+  })
+})
+
+describe('taperNodes', () => {
+  const lineWidth = 4
+  const half = lineWidth / 2
+
+  it('picks a different ramp for the highlighter', () => {
+    expect(taperStyleFor('highlighter')).toBe(HIGHLIGHTER_TAPER)
+    expect(taperStyleFor('pen')).toBe(PEN_TAPER)
+    expect(taperStyleFor(undefined)).toBe(PEN_TAPER)
+  })
+
+  it('narrows both ends and keeps the middle at the pen width', () => {
+    const points: Point[] = [
+      { x: 0, y: 0 },
+      { x: 50, y: 0 },
+      { x: 100, y: 0 },
+    ]
+    const input = nodesFromSmoothedPoints(points, lineWidth, SWEPT_STYLE, 'mouse')
+    const tapered = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, { start: true, end: true })
+
+    expect(tapered[0].r).toBeCloseTo(half * PEN_TAPER.startTipScale, 5)
+    expect(tapered[tapered.length - 1].r).toBeCloseTo(half * PEN_TAPER.endTipScale, 5)
+    expect(Math.max(...tapered.map((n) => n.r))).toBeCloseTo(half, 5)
+  })
+
+  it('ramps the radius monotonically from each tip', () => {
+    const input = nodesFromSmoothedPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 50, y: 0 },
+        { x: 100, y: 0 },
+      ],
+      lineWidth,
+      SWEPT_STYLE,
+      'mouse',
+    )
+    const tapered = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, { start: true, end: true })
+
+    // 起笔到笔肚单调变粗，笔肚到出锋单调变细（一片叶子，而不是波浪）。
+    const peak = tapered.reduce((best, node, index) => (node.r > tapered[best].r ? index : best), 0)
+    for (let i = 1; i <= peak; i++) {
+      expect(tapered[i].r).toBeGreaterThanOrEqual(tapered[i - 1].r - 1e-9)
+    }
+    for (let i = peak + 1; i < tapered.length; i++) {
+      expect(tapered[i].r).toBeLessThanOrEqual(tapered[i - 1].r + 1e-9)
+    }
+  })
+
+  it('densifies a sparse two-point stroke so only the ends taper', () => {
+    const input = nodesFromSmoothedPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+      ],
+      lineWidth,
+      SWEPT_STYLE,
+      'mouse',
+    )
+    const tapered = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, { start: true, end: true })
+
+    // 出锋长 3.2 × 4 = 12.8px，采样点必须足够密才画得出弧线，而不是整条线段都在变细。
+    expect(tapered.length).toBeGreaterThan(input.length + 10)
+    expect(Math.max(...tapered.map((n) => n.r))).toBeCloseTo(half, 5)
+    expect(tapered[0].r).toBeLessThan(half)
+    expect(tapered[tapered.length - 1].r).toBeLessThan(half)
+  })
+
+  it('never paints below the hairline tip radius', () => {
+    const input = nodesFromSmoothedPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 4, y: 0 },
+      ],
+      0.2,
+      SWEPT_STYLE,
+      'mouse',
+    )
+    const tapered = taperNodes(input, 0.2, polylineLength(input), PEN_TAPER, { start: true, end: true })
+    expect(Math.min(...tapered.map((n) => n.r))).toBeGreaterThanOrEqual(MIN_TAPER_RADIUS - 1e-9)
+  })
+
+  it('only tapers the ends that are real stroke ends', () => {
+    const input = nodesFromSmoothedPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 50, y: 0 },
+        { x: 100, y: 0 },
+      ],
+      lineWidth,
+      SWEPT_STYLE,
+      'mouse',
+    )
+    const tailOnly = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, { end: true })
+    expect(tailOnly[0].r).toBeCloseTo(half, 5)
+    expect(tailOnly[tailOnly.length - 1].r).toBeCloseTo(half * PEN_TAPER.endTipScale, 5)
+  })
+
+  it('leaves a single-sample tap round', () => {
+    const tap: StylusNode[] = [{ x: 0, y: 0, r: 2 }]
+    expect(taperNodes(tap, lineWidth, 0, PEN_TAPER, { start: true, end: true })).toEqual(tap)
+  })
+
+  describe('global switch', () => {
+    afterEach(() => setInkTaperEnabled(true))
+
+    it('paints a uniform ribbon when the setting is off', () => {
+      const input = nodesFromSmoothedPoints(
+        [
+          { x: 0, y: 0 },
+          { x: 100, y: 0 },
+        ],
+        lineWidth,
+        SWEPT_STYLE,
+        'mouse',
+      )
+      setInkTaperEnabled(false)
+      const style = taperStyleFor('pen')
+      expect(style.endLength).toBe(0)
+      expect(style.startLength).toBe(0)
+      // 关闭时连数组都不重建，直接复用原始节点。
+      expect(taperNodes(input, lineWidth, polylineLength(input), style, { start: true, end: true })).toBe(input)
+      expect(taperStyleFor('highlighter').endTipScale).toBe(1)
+    })
+  })
+})
+
+describe('SweptSampleCache length', () => {
+  it('reports the whole-stroke arc length for the live ramps', () => {
+    const points: Point[] = Array.from({ length: 12 }, (_, i) => ({ x: i * 10, y: 0 }))
+    const cache = new SweptSampleCache(4, SWEPT_STYLE, 'mouse')
+    cache.sync(points)
+    // 直线上的平滑位移只做插值，累计弧长与原始采样一致。
+    expect(cache.length(points)).toBeCloseTo(polylineLength(points), 5)
+  })
+})
+
+describe('taperNodes live slices', () => {
+  const points: Point[] = Array.from({ length: 300 }, (_, i) => ({ x: i * 2, y: Math.sin(i / 12) * 20 }))
+  const nodes = nodesFromSmoothedPoints(points, 4, SWEPT_STYLE, 'mouse')
+  const total = polylineLength(nodes)
+  const committed = taperNodes(nodes, 4, total, PEN_TAPER, { start: true, end: true })
+  const committedAt = new Map(committed.map((node) => [`${node.x},${node.y}`, node.r]))
+
+  it('freezes a chunk without a ramp at its covered end', () => {
+    const chunk = taperNodes(nodes.slice(0, 260), 4, total, PEN_TAPER, { start: true, end: false })
+    // 冻结块的末端藏在实时尾部下方，必须是满宽圆头，不能留缺口。
+    expect(chunk[chunk.length - 1].r).toBeCloseTo(2, 6)
+    for (const node of chunk) {
+      const painted = committedAt.get(`${node.x},${node.y}`)
+      if (painted !== undefined) expect(node.r).toBeCloseTo(painted, 6)
+    }
+  })
+
+  it('tapers the live tail exactly like the committed ribbon', () => {
+    const tail = taperNodes(nodes.slice(200), 4, total, PEN_TAPER, { start: false, end: true })
+    // 尾部起点是冻结块的接缝，不能再收一次锋；其余节点必须与落笔后的轮廓逐点一致。
+    expect(tail[0].r).toBeCloseTo(2, 6)
+    expect(tail[tail.length - 1].r).toBeCloseTo(committed[committed.length - 1].r, 6)
+    for (const node of tail) {
+      const painted = committedAt.get(`${node.x},${node.y}`)
+      if (painted !== undefined) expect(node.r).toBeCloseTo(painted, 6)
+    }
   })
 })

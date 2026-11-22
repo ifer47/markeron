@@ -135,6 +135,90 @@ export const SWEPT_STYLE: SweptStyle = {
 }
 
 /**
+ * 笔锋: how the painted radius ramps in at the start and out at the end.
+ *
+ * WPF's `StrokeRenderer` only varies width through pressure, so a mouse — pinned
+ * to pressure 0.5 — paints a constant ribbon with a round cap at both ends, which
+ * reads as a marker instead of handwriting. These ramps are purely geometric, so
+ * a mouse, a trackpad and a light stylus touch all get the same tapered entry and
+ * exit no matter what the tablet reports.
+ *
+ * Distances are multiples of `lineWidth`, so the 锋 scales with the pen size: a
+ * 1px hairline tapers over ~1px while a 9px marker tapers over ~30px.
+ */
+export interface TaperStyle {
+  /** Entry ramp length as a multiple of `lineWidth`. */
+  startLength: number
+  /** Exit ramp length as a multiple of `lineWidth`. */
+  endLength: number
+  /** Radius multiplier at the first sample (0 < s < 1); never a zero-width needle. */
+  startTipScale: number
+  /** Radius multiplier at the last sample. */
+  endTipScale: number
+  /** Ramp exponent: < 1 keeps the tip sharp, > 1 makes it blunt. */
+  profileExponent: number
+  /** Longest share of the whole stroke both ramps may consume together. */
+  maxLengthRatio: number
+}
+
+/**
+ * Fountain-pen ink: a short, blunt entry (起笔) and a long, sharp exit (出锋).
+ *
+ * The exit is the visible 笔锋 — the last few widths of the stroke collapse to a
+ * point exactly where a real nib lifts, and the concave ramp keeps the silhouette
+ * slim right at the tip instead of rounding it into a blob.
+ */
+export const PEN_TAPER: TaperStyle = {
+  startLength: 1,
+  endLength: 3.2,
+  startTipScale: 0.45,
+  endTipScale: 0.12,
+  profileExponent: 0.8,
+  maxLengthRatio: 0.7,
+}
+
+/** Highlighter: a chisel swipe — a short entry, a soft tail, never a needle. */
+export const HIGHLIGHTER_TAPER: TaperStyle = {
+  startLength: 0.7,
+  endLength: 1.8,
+  startTipScale: 0.6,
+  endTipScale: 0.35,
+  profileExponent: 0.85,
+  maxLengthRatio: 0.75,
+}
+
+/** Thinnest painted tip (CSS px): a hairline pen still ends in a visible point. */
+export const MIN_TAPER_RADIUS = 0.18
+
+/** Disabled 笔锋: zero-length ramps turn `taperNodes` into a no-op. */
+const NO_TAPER: TaperStyle = {
+  startLength: 0,
+  endLength: 0,
+  startTipScale: 1,
+  endTipScale: 1,
+  profileExponent: 1,
+  maxLengthRatio: 0,
+}
+
+/**
+ * Global 笔锋 switch.
+ *
+ * The setting lives in `config.json` (`general.inkTaper`) and the overlay applies it
+ * here, because every consumer — committed ribbons, the live tail, eraser hit testing —
+ * resolves its style through {@link taperStyleFor}. Keeping it module-level avoids
+ * threading a render-only preference through every draw call and action record.
+ */
+let inkTaperEnabled = true
+
+export function setInkTaperEnabled(enabled: boolean): void {
+  inkTaperEnabled = enabled
+}
+
+export function isInkTaperEnabled(): boolean {
+  return inkTaperEnabled
+}
+
+/**
  * Excalidraw-style EMA towards the previous stored sample. Pressure is filtered
  * too: unfiltered pressure noise is what makes the silhouette look furry.
  *
@@ -290,6 +374,169 @@ export function nodesFromSmoothedPoints(
   return out
 }
 
+/** Taper preset for a tool: only the pen and the highlighter paint a swept ribbon. */
+export function taperStyleFor(tool: string | undefined | null): TaperStyle {
+  if (!inkTaperEnabled) return NO_TAPER
+  return tool === 'highlighter' ? HIGHLIGHTER_TAPER : PEN_TAPER
+}
+
+/** Arc length of a polyline, i.e. the distance the pen actually travels. */
+export function polylineLength(points: readonly { x: number; y: number }[]): number {
+  let total = 0
+  for (let i = 1; i < points.length; i++) {
+    total += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
+  }
+  return total
+}
+
+/**
+ * Ramp lengths for one stroke, in CSS px.
+ *
+ * A short tick (a 3px flick) would otherwise be tapered away entirely, so both
+ * ramps share a budget of `maxLengthRatio` of the stroke and shrink together. The
+ * middle always keeps at least 25–30% of the pen width, which is what makes a fast
+ * dot read as a dot instead of a sliver.
+ */
+export function taperLengths(
+  totalLength: number,
+  lineWidth: number,
+  style: TaperStyle,
+): { start: number; end: number } {
+  if (!(totalLength > 0) || !(lineWidth > 0)) return { start: 0, end: 0 }
+  let start = Math.max(0, style.startLength) * lineWidth
+  let end = Math.max(0, style.endLength) * lineWidth
+  const budget = totalLength * Math.max(0, style.maxLengthRatio)
+  const sum = start + end
+  if (sum > budget) {
+    const scale = sum > 1e-9 ? budget / sum : 0
+    start *= scale
+    end *= scale
+  }
+  return { start, end }
+}
+
+/** Which ends of the painted stroke get a 锋. */
+export interface TaperEnds {
+  /** The slice starts at the pen-down sample. */
+  start?: boolean
+  /** The slice ends at the current / final tip. */
+  end?: boolean
+}
+
+/**
+ * Densify the ramp regions so a fast flick still gets a real 锋.
+ *
+ * Pointer samples can be 10–30px apart on a quick stroke while the exit ramp is
+ * only a few widths long; without extra nodes the ramp would be sampled at its two
+ * endpoints and the whole segment would read as a thin wedge. Points are inserted
+ * along the existing segments with linearly interpolated radii, i.e. exactly on the
+ * polyline the hull renderer would draw anyway.
+ */
+function densifyRamps(nodes: StylusNode[], start: number, end: number, lineWidth: number): StylusNode[] {
+  const count = nodes.length
+  if (count < 2 || (start <= 0 && end <= 0)) return nodes
+
+  const total = polylineLength(nodes)
+  // A ramp is a width ramp: resolve it far finer than the pen radius, so the
+  // silhouette is a smooth curve rather than one long wedge.
+  const maxSegment = Math.min(1.6, Math.max(0.6, lineWidth * 0.22))
+  const out: StylusNode[] = [nodes[0]]
+  let travelled = 0
+
+  for (let i = 1; i < count; i++) {
+    const a = nodes[i - 1]
+    const b = nodes[i]
+    const segment = Math.hypot(b.x - a.x, b.y - a.y)
+    if (segment > maxSegment) {
+      // Distances along this segment that fall inside either ramp. Clamping to the
+      // segment keeps the cost proportional to the ramp length, not to a fast flick.
+      const cuts: number[] = []
+      const addRamp = (from: number, to: number) => {
+        const lo = Math.max(0, from - travelled)
+        const hi = Math.min(segment, to - travelled)
+        for (let d = lo; d < hi - 1e-9; d += maxSegment) cuts.push(d)
+        // Close the ramp exactly on its boundary, so the full-width run between the two
+        // ramps is a straight hull instead of a 0.1px-deep valley.
+        if (hi > lo + 1e-9 && hi < segment - 1e-9) cuts.push(hi)
+      }
+      if (start > 0) addRamp(0, start)
+      if (end > 0) addRamp(total - end, total)
+      cuts.sort((p, q) => p - q)
+
+      let previous = 0
+      for (const distance of cuts) {
+        if (distance <= previous + 1e-9 || distance >= segment - 1e-9) continue
+        const t = distance / segment
+        out.push({
+          x: a.x + (b.x - a.x) * t,
+          y: a.y + (b.y - a.y) * t,
+          r: a.r + (b.r - a.r) * t,
+        })
+        previous = distance
+      }
+    }
+    out.push(b)
+    travelled += segment
+  }
+  return out
+}
+
+/**
+ * Apply the 笔锋 ramps to a run of stroke nodes.
+ *
+ * `totalLength` is the arc length of the **whole** stroke (not of `nodes`): the
+ * live preview re-outlines only its tail, and the ramp it draws there has to match
+ * what `buildInkPath` will paint on pointer up, or the tail visibly sharpens when
+ * the pointer is released. Pass `start: false` on a tail slice whose start is a
+ * seam inside frozen ink, and `end: false` on a frozen chunk whose end is covered
+ * by the live tail — a ramp there would leave an unpainted notch mid-stroke.
+ *
+ * Returns a new array; the input nodes may be cached and are never mutated.
+ */
+export function taperNodes(
+  nodes: StylusNode[],
+  lineWidth: number,
+  totalLength: number,
+  style: TaperStyle,
+  ends: TaperEnds = {},
+): StylusNode[] {
+  const count = nodes.length
+  if (count === 0) return nodes
+
+  const { start, end } = taperLengths(totalLength, lineWidth, style)
+  const rampStart = ends.start === true && start > 1e-6
+  const rampEnd = ends.end === true && end > 1e-6
+  if (!rampStart && !rampEnd) return nodes
+
+  const dense = densifyRamps(nodes, rampStart ? start : 0, rampEnd ? end : 0, lineWidth)
+  const denseCount = dense.length
+
+  // Measure along the ink: a fast flick and a slow press taper over the same visual
+  // distance, which is what makes the point read as a lifted nib.
+  const cumulative: number[] = [0]
+  for (let i = 1; i < denseCount; i++) {
+    cumulative.push(cumulative[i - 1] + Math.hypot(dense[i].x - dense[i - 1].x, dense[i].y - dense[i - 1].y))
+  }
+  const last = cumulative[denseCount - 1]
+  const exponent = style.profileExponent > 0 ? style.profileExponent : 1
+
+  const out: StylusNode[] = []
+  for (let i = 0; i < denseCount; i++) {
+    const node = dense[i]
+    let scale = 1
+    if (rampStart) {
+      const t = Math.min(1, cumulative[i] / start)
+      scale = Math.min(scale, style.startTipScale + (1 - style.startTipScale) * Math.pow(t, exponent))
+    }
+    if (rampEnd) {
+      const t = Math.min(1, (last - cumulative[i]) / end)
+      scale = Math.min(scale, style.endTipScale + (1 - style.endTipScale) * Math.pow(t, exponent))
+    }
+    out.push(scale >= 1 ? node : { x: node.x, y: node.y, r: Math.max(MIN_TAPER_RADIUS, node.r * scale) })
+  }
+  return out
+}
+
 /**
  * Incremental EMA cache for a **live** stroke.
  *
@@ -311,6 +558,8 @@ export class SweptSampleCache {
   private readonly lineWidth: number
   private readonly style: SweptStyle
   private readonly pressureInk: boolean
+  /** Arc length between the cached smoothed samples (the raw tip is added in `length`). */
+  private arcLength = 0
 
   constructor(lineWidth: number, style: SweptStyle, pointerType?: string | null) {
     this.lineWidth = lineWidth
@@ -323,7 +572,9 @@ export class SweptSampleCache {
     while (this.smoothed.length < points.length) {
       const i = this.smoothed.length
       const prev = i > 0 ? this.smoothed[i - 1] : null
-      this.smoothed.push(prev ? smoothPenPoint(prev, points[i], this.style, i) : points[i])
+      const current = prev ? smoothPenPoint(prev, points[i], this.style, i) : points[i]
+      if (prev) this.arcLength += Math.hypot(current.x - prev.x, current.y - prev.y)
+      this.smoothed.push(current)
     }
 
     // Samples 0…n-2 are settled: their rounded corner depends only on neighbours that exist.
@@ -335,6 +586,20 @@ export class SweptSampleCache {
           : roundCornerTips(this.smoothed[i - 1], this.smoothed[i], this.smoothed[i + 1], this.style)
       this.perSample.push(tips.map((tip) => nodeFromPoint(tip, this.lineWidth, this.style, this.pressureInk)))
     }
+  }
+
+  /**
+   * Arc length of the painted centreline so far, including the raw tip.
+   *
+   * The live tail needs the same whole-stroke length `buildInkPath` measures when
+   * it commits, otherwise a short stroke sharpens its ramps on pointer up.
+   */
+  length(points: Point[]): number {
+    const count = this.smoothed.length
+    if (count === 0 || points.length < count) return this.arcLength
+    const last = this.smoothed[count - 1]
+    const tip = points[count - 1]
+    return this.arcLength + Math.hypot(tip.x - last.x, tip.y - last.y)
   }
 
   /** Node for sample `i`; `points` must already be synced. */

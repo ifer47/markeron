@@ -1152,11 +1152,28 @@ describe('hitTestActionWithFootprint', () => {
           { x: 50, y: 100, pressure: 1 },
         ],
       })
-      // Full pressure: 6 / 2 × 1.45 = 4.35px at the raw tip.
-      const tipR = Math.max(...actionInkNodes(action)!.map((n) => n.r))
-      expect(tipR).toBeCloseTo(4.35, 10)
-      expect(hitTestActionWithFootprint(action, squareProbe(50 + tipR + 5 - 0.01, 100, 5))).toBe(true)
-      expect(hitTestActionWithFootprint(action, squareProbe(50 + tipR + 5 + 0.01, 100, 5))).toBe(false)
+      // Full pressure: 6 / 2 × 1.45 = 4.35px. Both ends are 笔锋-tapered, so the
+      // widest painted cross-section sits mid-stroke.
+      const widest = Math.max(...actionInkNodes(action)!.map((n) => n.r))
+      expect(widest).toBeCloseTo(4.35, 10)
+      expect(hitTestActionWithFootprint(action, squareProbe(50 + widest + 5 - 0.01, 50, 5))).toBe(true)
+      expect(hitTestActionWithFootprint(action, squareProbe(50 + widest + 5 + 0.01, 50, 5))).toBe(false)
+    })
+
+    it('erases where the tapered tip is, not where the old round cap was', () => {
+      const action = stroke({
+        pointerType: 'pen',
+        points: [
+          { x: 50, y: 0, pressure: 1 },
+          { x: 50, y: 100, pressure: 1 },
+        ],
+      })
+      const tip = actionInkNodes(action)!.reduce((lowest, node) => (node.y > lowest.y ? node : lowest))
+      // 4.35 × endTipScale (0.12) — the paint ends in a point, not a disc.
+      expect(tip.r).toBeCloseTo(4.35 * 0.12, 5)
+      expect(hitTestActionWithFootprint(action, squareProbe(50, 100, 5))).toBe(true)
+      // The old round cap reached 4.35px at the tip; the tapered ribbon is gone by then.
+      expect(hitTestActionWithFootprint(action, squareProbe(50 + 4.35 + 5 - 0.01, 100, 5))).toBe(false)
     })
 
     it('reaches single-point dots', () => {

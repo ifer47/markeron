@@ -83,6 +83,7 @@ const props = defineProps<{
   eraserMode: EraserMode
   laserMode: LaserMode
   autoRevertToPen: boolean
+  inkTaper: boolean
   preserveDrawings: boolean
   whiteboardPreserveDrawings: boolean
   autoStartEnabled: boolean
@@ -99,6 +100,7 @@ const emit = defineEmits<{
   'update:eraserMode': [value: EraserMode]
   'update:laserMode': [value: LaserMode]
   'update:autoRevertToPen': [value: boolean]
+  'update:inkTaper': [value: boolean]
   'update:preserveDrawings': [value: boolean]
   'update:whiteboardPreserveDrawings': [value: boolean]
   'update:autoStartEnabled': [value: boolean]
@@ -276,6 +278,26 @@ async function toggleAutoRevertToPen() {
     await invoke('save_general', { general: cfg.general })
   } catch (error) {
     console.error('Failed to save auto-revert-to-pen setting:', error)
+  }
+}
+
+async function toggleInkTaper() {
+  const newValue = !props.inkTaper
+  emit('update:inkTaper', newValue)
+  try {
+    const cfg = await invoke<AppConfig>('get_config')
+    if (!cfg.general)
+      cfg.general = {
+        dragMode: props.dragMode,
+        inkTaper: newValue,
+        preserveDrawings: false,
+        whiteboardPreserveDrawings: true,
+        angleSnapStep: props.angleSnapStep,
+      }
+    cfg.general.inkTaper = newValue
+    await invoke('save_general', { general: cfg.general })
+  } catch (error) {
+    console.error('Failed to save ink taper setting:', error)
   }
 }
 
@@ -639,6 +661,26 @@ async function commitAngleSnapStep(step: number) {
           </button>
         </div>
         <p class="settings-card-desc">{{ t('settings.autoRevertToPenDesc') }}</p>
+      </div>
+
+      <div class="settings-card">
+        <div class="settings-card-row">
+          <span class="settings-text-label">{{ t('settings.inkTaper') }}</span>
+          <button
+            role="switch"
+            :aria-checked="inkTaper"
+            :aria-label="t('settings.inkTaper')"
+            class="relative w-8 h-4.5 rounded-full transition-colors duration-200 cursor-pointer border-none p-0 outline-none shadow-inner"
+            :class="inkTaper ? 'settings-toggle-on' : 'settings-toggle-off'"
+            @click="toggleInkTaper"
+          >
+            <span
+              class="absolute top-0.5 left-0.5 size-3.5 rounded-full bg-white shadow-md transition-transform duration-200"
+              :class="inkTaper ? 'translate-x-3.5' : 'translate-x-0'"
+            />
+          </button>
+        </div>
+        <p class="settings-card-desc">{{ t('settings.inkTaperDesc') }}</p>
       </div>
 
       <div class="settings-card">

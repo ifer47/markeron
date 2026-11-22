@@ -37,6 +37,11 @@ fn default_auto_revert_to_pen() -> bool {
     false
 }
 
+/// 笔锋 (tapered stroke ends) is a style improvement, so older configs opt in.
+fn default_ink_taper() -> bool {
+    true
+}
+
 /// Persisted widths are hundredths of a CSS pixel (115 = 1.15px), nine geometric steps.
 const LINE_WIDTH_PRESET_STORAGE: [u32; 9] = [115, 149, 193, 251, 325, 422, 547, 709, 920];
 
@@ -408,6 +413,9 @@ pub struct GeneralConfig {
     /// After finishing one arrow/rect/ellipse/line stroke, switch back to pen.
     #[serde(default = "default_auto_revert_to_pen", rename = "autoRevertToPen")]
     pub auto_revert_to_pen: bool,
+    /// Taper both ends of pen / highlighter ink (笔锋).
+    #[serde(default = "default_ink_taper", rename = "inkTaper")]
+    pub ink_taper: bool,
     #[serde(default, rename = "lineWidths")]
     pub line_widths: LineWidthsConfig,
     #[serde(default = "default_auto_start", rename = "autoStart")]
@@ -434,6 +442,7 @@ impl Default for GeneralConfig {
             pen_cursor_style: PenCursorStyle::Pen,
             crosshair_cursor_style: CrosshairCursorStyle::Crosshair,
             auto_revert_to_pen: default_auto_revert_to_pen(),
+            ink_taper: default_ink_taper(),
             line_widths: LineWidthsConfig::default(),
             auto_start: default_auto_start(),
             theme: ThemePreference::Dark,
@@ -927,6 +936,20 @@ mod tests {
             config.general.angle_snap_step
         );
         assert_eq!(parsed.general.theme, ThemePreference::Dark);
+        assert!(parsed.general.ink_taper);
+    }
+
+    #[test]
+    fn ink_taper_defaults_on_and_roundtrips() {
+        // Configs written before the field existed keep the improved default.
+        let legacy: AppConfig = serde_json::from_str(r#"{"general":{}}"#).unwrap();
+        assert!(legacy.general.ink_taper);
+
+        let off: AppConfig = serde_json::from_str(r#"{"general":{"inkTaper":false}}"#).unwrap();
+        assert!(!off.general.ink_taper);
+
+        let json = serde_json::to_string(&off).unwrap();
+        assert!(json.contains("\"inkTaper\":false"));
     }
 
     #[test]

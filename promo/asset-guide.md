@@ -46,6 +46,20 @@ npm run dev:fe
 
 The capture lands in `assets/store-screenshots/settings-window-{zh,en}.png`; re-run `node scripts/export-store-screenshots.mjs` afterwards.
 
+### Toolbar panel
+
+`scene0-hero*.html` and `scene3-panel*.html` embed `panel-{zh,en}.png` — a real 320 × 377.5 `ToolToolbar` render, captured at 2× with 32px transparent corners. Do **not** hand-write the panel markup again: a hand-built copy drifted from the component in six places (width bars 28px instead of 70%, 100–190px of empty panel below the last row, missing the `Q ← 切换 → E` colour hint, a 24px custom picker instead of 30px, no `scale-[1.18]` on the active swatch, and 47px tool buttons instead of 45px).
+
+```bash
+npm run dev:fe
+# then capture .overlay-panel-surface at deviceScaleFactor 2:
+# http://localhost:1420/assets/store-screenshots/panel-shot.html?locale=zh-CN&tool=pen&color=%23FF3B30
+node scripts/shot-panel.mjs   # writes panel-zh.png / panel-en.png
+node scripts/export-store-screenshots.mjs
+```
+
+Both scenes hide the old hand-built `.panel-drag` / `.action-row` / `.panel-content` nodes with `display: none`; delete them once you have a shell to re-verify the tag balance.
+
 After changing tools / shortcuts / panel copy in those HTML files, re-export and overwrite the PNG paths above.
 Every screenshot has a single copy: English shots live in `docs/assets/` (shared by README and the website), Chinese shots in `assets/`.
 

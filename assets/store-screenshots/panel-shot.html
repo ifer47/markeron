@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>MarkerOn 工具栏面板截图入口</title>
+    <!--
+      Renders the real ToolToolbar with mocked Tauri IPC so the marketing kit can
+      capture an authentic toolbar panel without building the desktop app.
+
+        npm run dev:fe
+        open http://localhost:1420/assets/store-screenshots/panel-shot.html?locale=zh-CN
+        (`?locale=en` for the English build; add `&expanded=0` for the compact panel)
+
+      Capture the panel element with deviceScaleFactor 2, save as
+      panel-{zh,en}.png next to this file, then use it as the reference when
+      updating scene0-hero*.html / scene3-panel*.html.
+    -->
+    <script>
+      ;(function () {
+        const params = new URLSearchParams(location.search)
+        localStorage.setItem('markeron-locale', params.get('locale') || 'zh-CN')
+
+        let cbId = 0
+        const handlers = {
+          get_config: () => ({ general: { theme: 'dark' } }),
+          get_toolbar_panel_height: () => 400,
+          set_toolbar_popup: () => null,
+          suppress_penetration: () => null,
+          raise_toolbar: () => null,
+          'plugin:event|listen': () => 1,
+          'plugin:event|unlisten': () => null,
+        }
+        window.__TAURI_INTERNALS__ = {
+          invoke: function (cmd) {
+            return Promise.resolve(cmd in handlers ? handlers[cmd]() : null)
+          },
+          transformCallback: function (cb) {
+            const id = ++cbId
+            window['_' + id] = cb
+            return id
+          },
+          convertFileSrc: function (p) {
+            return p
+          },
+          metadata: {
+            currentWindow: { label: 'toolbar' },
+            currentWebview: { windowLabel: 'toolbar', label: 'toolbar' },
+          },
+        }
+      })()
+    </script>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: transparent;
+      }
+      #app {
+        display: inline-block;
+        padding: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { createApp, h, nextTick } from 'vue'
+      import '/src/style.css'
+      import ToolToolbar from '/src/components/ToolToolbar.vue'
+      import { DEFAULT_LINE_WIDTH } from '/src/constants/tools'
+      import { createDefaultTextOutline } from '/src/constants/textOutline'
+
+      const params = new URLSearchParams(location.search)
+      const expanded = params.get('expanded') !== '0'
+
+      createApp({
+        render() {
+          return h(ToolToolbar, {
+            pinned: true,
+            standaloneWindow: false,
+            currentTool: params.get('tool') || 'select',
+            currentColor: params.get('color') || '#007AFF',
+            lineWidth: DEFAULT_LINE_WIDTH,
+            textOutline: createDefaultTextOutline(),
+            whiteboardMode: false,
+            penetrationMode: false,
+            canUndo: true,
+            canRedo: true,
+            canClear: true,
+            clearShortcut: 'Ctrl+Shift+C',
+            anchorX: 0,
+            anchorY: 0,
+            pointerX: 0,
+            pointerY: 0,
+          })
+        },
+      }).mount('#app')
+
+      // The panel starts compact; the marketing shots show the expanded state.
+      nextTick(() => {
+        if (!expanded) return
+        const toggle = [...document.querySelectorAll('button')].find((b) =>
+          /更多|收起|More|Less/.test(b.textContent || ''),
+        )
+        toggle?.click()
+      })
+    </script>
+  </body>
+</html>

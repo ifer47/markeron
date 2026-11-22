@@ -198,6 +198,9 @@ body {
   display: flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.25); font-size: 13px; z-index: 100;
 }
 .markeron-brand svg { width: 16px; height: 16px; }
+/* Real ToolToolbar render: the wrapper keeps only the drop shadow. */
+.panel-shot { display: block; width: 100%; height: auto; }
+.floating-panel { border: 0; }
 </style>
 </head>
 <body>
@@ -302,110 +305,9 @@ body {
 
   <!-- Settings Panel -->
   <div class="floating-panel">
-    <div class="panel-drag"><div class="panel-drag-indicator"></div></div>
-
-    <!-- Action row (always visible in the real panel) -->
-    <div class="action-row">
-      <button class="action-btn" title="Select (V)"><svg viewBox="0 0 24 24"><path d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z"/><path d="M5 3a2 2 0 0 0-2 2"/><path d="M19 3a2 2 0 0 1 2 2"/><path d="M5 21a2 2 0 0 1-2-2"/><path d="M9 3h1"/><path d="M9 21h2"/><path d="M14 3h1"/><path d="M3 9v1"/><path d="M21 9v2"/><path d="M3 14v1"/></svg></button>
-      <button class="action-btn" title="Undo (Ctrl+Z)"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></button>
-      <button class="action-btn" title="Redo (Ctrl+Shift+Z)"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5A5.5 5.5 0 0 0 9.5 20H13"/></svg></button>
-      <button class="action-btn" title="Clear all (Ctrl+Shift+C)"><svg viewBox="0 0 24 24"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-      <button class="action-btn" title="Whiteboard (W)"><svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></button>
-      <button class="action-btn" title="Copy (Ctrl+C)"><svg viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg></button>
-    </div>
-
-    <div class="panel-content">
-      <div class="section-header">
-        <span class="section-title">Tools</span>
-        <span class="section-hint">Press V / 1-8 / T / N</span>
-      </div>
-      <div class="panel-tools-grid">
-        <div class="tool-btn">
-          <svg viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg>
-          <span class="tool-label">Pen</span>
-          <span class="tool-shortcut">1</span>
-        </div>
-        <div class="tool-btn">
-          <svg viewBox="0 0 24 24"><path d="m9 11-6 6v3h9l3-3"/><path d="m22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4"/></svg>
-          <span class="tool-label">Highlight</span>
-          <span class="tool-shortcut">2</span>
-        </div>
-        <div class="tool-btn active">
-          <svg viewBox="0 0 24 24"><path d="M7 7h10"/><path d="M7 7v10"/><path d="M7 7l10 10"/></svg>
-          <span class="tool-label">Arrow</span>
-          <span class="tool-shortcut">3</span>
-        </div>
-        <div class="tool-btn">
-          <svg viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/></svg>
-          <span class="tool-label">Rect</span>
-          <span class="tool-shortcut">4</span>
-        </div>
-        <div class="tool-btn">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-          <span class="tool-label">Ellipse</span>
-          <span class="tool-shortcut">5</span>
-        </div>
-        <div class="tool-btn">
-          <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
-          <span class="tool-label">Line</span>
-          <span class="tool-shortcut">6</span>
-        </div>
-        <div class="tool-btn">
-          <svg viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
-          <span class="tool-label">Eraser</span>
-          <span class="tool-shortcut">7</span>
-        </div>
-        <div class="tool-btn">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="22" x2="18" y1="12" y2="12"/><line x1="6" x2="2" y1="12" y2="12"/><line x1="12" x2="12" y1="6" y2="2"/><line x1="12" x2="12" y1="22" y2="18"/></svg>
-          <span class="tool-label">Laser</span>
-          <span class="tool-shortcut">8</span>
-        </div>
-        <div class="tool-btn">
-          <svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>
-          <span class="tool-label">Text</span>
-          <span class="tool-shortcut">T</span>
-        </div>
-        <div class="tool-btn">
-          <svg viewBox="0 0 24 24"><path d="M10 12h11"/><path d="M10 18h11"/><path d="M10 6h11"/><path d="M4 10h2"/><path d="M4 6h1v4"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
-          <span class="tool-label">Stamp</span>
-          <span class="tool-shortcut">N</span>
-        </div>
-      </div>
-
-      <div class="section-sep"></div>
-      <div class="color-section-title">Colors</div>
-      <div class="color-row">
-        <button class="color-dot"><span class="color-swatch" style="background:#FF3B30;"></span></button>
-        <button class="color-dot"><span class="color-swatch" style="background:#FF6B35;"></span></button>
-        <button class="color-dot"><span class="color-swatch" style="background:#FFCC02;"></span></button>
-        <button class="color-dot"><span class="color-swatch" style="background:#34C759;"></span></button>
-        <button class="color-dot active"><span class="color-swatch" style="background:#007AFF;"></span></button>
-        <button class="color-dot"><span class="color-swatch" style="background:#5856D6;"></span></button>
-        <button class="color-dot"><span class="color-swatch" style="background:#FFFFFF;"></span></button>
-        <button class="color-dot"><span class="color-swatch" style="background:#000000;"></span></button>
-        <button class="color-dot color-picker" title="Custom color">+</button>
-      </div>
-
-      <div class="section-sep"></div>
-      <div class="width-section-title">Stroke</div>
-      <div class="width-row">
-        <div class="width-btn"><div class="width-bar" style="width:28px; height:2px;"></div></div>
-        <div class="width-btn"><div class="width-bar" style="width:28px; height:3.1px;"></div></div>
-        <div class="width-btn"><div class="width-bar" style="width:28px; height:4.2px;"></div></div>
-        <div class="width-btn"><div class="width-bar" style="width:28px; height:5.3px;"></div></div>
-        <div class="width-btn active"><div class="width-bar" style="width:28px; height:6.4px;"></div></div>
-        <div class="width-btn"><div class="width-bar" style="width:28px; height:7.5px;"></div></div>
-        <div class="width-btn"><div class="width-bar" style="width:28px; height:8.6px;"></div></div>
-        <div class="width-btn"><div class="width-bar" style="width:28px; height:9.7px;"></div></div>
-        <div class="width-btn"><div class="width-bar" style="width:28px; height:10.8px;"></div></div>
-      </div>
-
-      <button class="more-btn">
-        <svg viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></svg>
-        Less
-      </button>
-    </div>
-  </div>
+  <!-- Real ToolToolbar render — regenerate with scripts/shot-panel.mjs -->
+  <img class="panel-shot" src="panel-en.png" alt="MarkerOn toolbar panel" width="320" height="378" />
+</div>
 
   <!-- Floating Card 1: Highlighter -->
   <div class="tool-card floating-card-1">

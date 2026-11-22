@@ -720,6 +720,18 @@ describe('hitTestAction', () => {
       expect(hitTestAction(bent, { x: 50, y: 40 })).toBe(true)
       expect(hitTestAction(bent, { x: 50, y: 70 })).toBe(false)
     })
+
+    it('paints a locked line at uniform width — a shape carries no 锋', () => {
+      const ink = actionInkNodes(straight)!
+      // 3 / 2 = 1.5px at every sample, tip included: two round caps, no taper.
+      expect(Math.min(...ink.map((n) => n.r))).toBeCloseTo(1.5, 10)
+      expect(Math.max(...ink.map((n) => n.r))).toBeCloseTo(1.5, 10)
+
+      // The same samples as freehand ink still taper the lifted tip.
+      const freehand = actionInkNodes({ ...straight, lockedLine: false })!
+      expect(freehand[freehand.length - 1].r).toBeLessThan(1.5)
+      expect(freehand[0].r).toBeCloseTo(1.5, 10)
+    })
   })
 
   describe('rect tool', () => {
@@ -1152,8 +1164,8 @@ describe('hitTestActionWithFootprint', () => {
           { x: 50, y: 100, pressure: 1 },
         ],
       })
-      // Full pressure: 6 / 2 × 1.45 = 4.35px. Both ends are 笔锋-tapered, so the
-      // widest painted cross-section sits mid-stroke.
+      // Full pressure: 6 / 2 × 1.45 = 4.35px. Only the lifted tip is 笔锋-tapered,
+      // so the widest painted cross-section is the full-width body.
       const widest = Math.max(...actionInkNodes(action)!.map((n) => n.r))
       expect(widest).toBeCloseTo(4.35, 10)
       expect(hitTestActionWithFootprint(action, squareProbe(50 + widest + 5 - 0.01, 50, 5))).toBe(true)

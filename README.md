@@ -59,7 +59,7 @@ winget install --id 9N6623X973JV --source msstore
 - **11 tools** — select, pen, highlighter, laser, arrow, rectangle, ellipse, line, eraser, text, stamp
 - **Stroke styles** — press <kbd>D</kbd> to cycle solid → dashed → dotted (<kbd>Shift</kbd>+<kbd>D</kbd> reverses) for pen, line, arrow, rectangle, and ellipse
 - **Hold to straighten** — while drawing with pen/highlighter, hold still ~0.5s to lock into a straight line and keep dragging to preview (only near-straight strokes snap — loops and elbows keep their shape); hold <kbd>Alt</kbd> to draw a perfect line immediately
-- **Tapered ink** — pen and highlighter strokes thin out at both ends for a natural brush tip, even with a mouse; toggle it in **Settings → General**
+- **Tapered ink** — pen and highlighter strokes thin out at the lifted end only, so a natural brush tip appears where the nib leaves the paper while the start stays full width; toggle it in **Settings → General**
 - **Marquee batch edit** — press <kbd>V</kbd> for Select: box/click select, group drag, corner reshape, top-handle rotate, <kbd>Delete</kbd> to remove
 - **Flexible toolbar** — press <kbd>Space</kbd> to toggle, or enable **always-on** in Settings; compact panel with **Expand** for full options, undo, copy, and whiteboard actions in-panel; **independent floating window** with drawing / click-through toggles
 - **Click-through mode** — interact with apps below while staying in the session; toggle via toolbar buttons, <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd> (global), or <kbd>X</kbd> while drawing; disabled in whiteboard mode

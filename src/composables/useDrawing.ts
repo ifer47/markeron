@@ -1440,20 +1440,15 @@ export function useDrawing(
     // frozen chunks stick out and the stroke visibly re-renders on pointer up.
     const cache = (inkSamples ??= new SweptSampleCache(action.lineWidth, SWEPT_STYLE, action.pointerType))
     cache.sync(pts)
-    const taper = taperStyleFor(action.tool)
-    // Ramp lengths come from the whole stroke, so the live tail tapers exactly like the
-    // committed path. Only the true ends get a 锋: a frozen chunk's end is covered by the
-    // live tail, and a ramp there would leave an unpainted notch mid-stroke.
+    const taper = taperStyleFor(action.tool, action.lockedLine === true)
+    // The ramp length comes from the whole stroke, so the live tail tapers exactly like
+    // the committed path. Only the lifted tip gets a 锋: a frozen chunk's end is covered
+    // by the live tail, and a ramp there would leave an unpainted notch mid-stroke.
     const strokeLength = cache.length(pts)
     const pathFor = (from: number, to: number): Path2D => {
       const nodes = cache.nodes(pts, from, to)
       const pruned = pruneNodes(nodes, SWEPT_STYLE)
-      return buildSweptPath(
-        taperNodes(pruned, action.lineWidth, strokeLength, taper, {
-          start: from === 0,
-          end: to === pts.length - 1,
-        }),
-      )
+      return buildSweptPath(taperNodes(pruned, action.lineWidth, strokeLength, taper, to === pts.length - 1))
     }
 
     if (pts.length === 1) {

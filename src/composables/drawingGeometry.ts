@@ -548,6 +548,8 @@ interface InkNodeCacheEntry {
   dashStyle: DrawAction['dashStyle']
   /** Global 笔锋 switch the nodes were tapered with. */
   taper: boolean
+  /** A hold-locked stroke is a line (a shape) and paints no 锋 at all. */
+  lockedLine: boolean
   nodes: StylusNode[]
 }
 
@@ -575,7 +577,8 @@ function inkCacheMatches(entry: InkNodeCacheEntry | undefined, action: DrawActio
     action.pointerType !== entry.pointerType ||
     action.tool !== entry.tool ||
     action.dashStyle !== entry.dashStyle ||
-    entry.taper !== isInkTaperEnabled()
+    entry.taper !== isInkTaperEnabled() ||
+    entry.lockedLine !== (action.lockedLine === true)
   ) {
     return false
   }
@@ -617,12 +620,14 @@ export function actionInkNodes(action: DrawAction): StylusNode[] | null {
     isCurvedLinearAction(action) ? CURVED_INK_STYLE : SWEPT_STYLE,
     action.pointerType,
   )
-  // The 笔锋 ramps shrink the painted radius at both ends, so the eraser has to see the
-  // tapered nodes too — otherwise it erases the air where the round cap used to be.
-  const nodes = taperNodes(smoothed, action.lineWidth, polylineLength(smoothed), taperStyleFor(action.tool), {
-    start: true,
-    end: true,
-  })
+  // The 笔锋 ramp shrinks the painted radius at the lifted tip, so the eraser has to see
+  // the tapered nodes too — otherwise it erases the air where the round cap used to be.
+  const nodes = taperNodes(
+    smoothed,
+    action.lineWidth,
+    polylineLength(smoothed),
+    taperStyleFor(action.tool, action.lockedLine === true),
+  )
 
   const first = pts[0]
   const last = pts[pts.length - 1]
@@ -640,6 +645,7 @@ export function actionInkNodes(action: DrawAction): StylusNode[] | null {
     tool: action.tool,
     dashStyle: action.dashStyle,
     taper: isInkTaperEnabled(),
+    lockedLine: action.lockedLine === true,
     nodes,
   })
   return nodes

@@ -52,9 +52,9 @@ export function drawFreehand(ctx: CanvasRenderingContext2D, points: Point[]) {
 
 /**
  * Fill-ready ribbon for pen / highlighter (pressure width for pen/touch; uniform
- * for mouse) with a 笔锋 at both ends.
+ * for mouse) with a 笔锋 at the lifted tip only.
  *
- * The ramps run after pruning: they need arc-length resolution, and the tangent
+ * The ramp runs after pruning: it needs arc-length resolution, and the tangent
  * hulls have to see the tapered radii or the tip keeps its old round cap.
  */
 export function buildInkPath(
@@ -62,12 +62,13 @@ export function buildInkPath(
   size: number,
   pointerType?: string | null,
   tool?: DrawAction['tool'],
+  lockedLine = false,
 ): Path2D {
   const nodes = nodesFromSmoothedPoints(points, size, SWEPT_STYLE, pointerType)
-  // Prune first, then taper: the ramps need arc-length resolution, and merging the two
+  // Prune first, then taper: the ramp needs arc-length resolution, and merging the two
   // would either drop the ramp's curvature or paint round caps at the tapered tip.
   const pruned = pruneNodes(nodes, SWEPT_STYLE)
-  const tapered = taperNodes(pruned, size, polylineLength(nodes), taperStyleFor(tool), { start: true, end: true })
+  const tapered = taperNodes(pruned, size, polylineLength(nodes), taperStyleFor(tool, lockedLine))
   return buildSweptPath(tapered)
 }
 
@@ -75,10 +76,12 @@ function buildCurvedInkPath(action: DrawAction): Path2D {
   const nodes = nodesFromSmoothedPoints(curvedInkPoints(action), action.lineWidth, CURVED_INK_STYLE, action.pointerType)
   // Keep every sample: the 3° freehand pruning tolerance would flatten a smooth
   // quadratic into a visibly polygonal ribbon.
-  const tapered = taperNodes(nodes, action.lineWidth, polylineLength(nodes), taperStyleFor(action.tool), {
-    start: true,
-    end: true,
-  })
+  const tapered = taperNodes(
+    nodes,
+    action.lineWidth,
+    polylineLength(nodes),
+    taperStyleFor(action.tool, action.lockedLine === true),
+  )
   return buildSweptPath(tapered)
 }
 
@@ -512,7 +515,7 @@ export function drawActionDirect(
       if (!path) {
         path = curvedInk
           ? buildCurvedInkPath(action)
-          : buildInkPath(pts, action.lineWidth, action.pointerType, action.tool)
+          : buildInkPath(pts, action.lineWidth, action.pointerType, action.tool, action.lockedLine === true)
         if (action.bbox) pathCache?.set(action, path)
       }
       ctx.fill(path)

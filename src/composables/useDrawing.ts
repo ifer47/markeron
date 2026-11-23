@@ -1451,6 +1451,7 @@ export function useDrawing(
       const pruned = pruneNodes(nodes, SWEPT_STYLE)
       return buildSweptPath(
         taperNodes(pruned, action.lineWidth, strokeLength, taper, {
+          taperStart: from === 0,
           taperEnd: to === pts.length - 1,
           metrics: taperMetrics(nodes),
         }),

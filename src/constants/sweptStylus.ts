@@ -135,28 +135,43 @@ export const SWEPT_STYLE: SweptStyle = {
 }
 
 /**
- * 笔锋: how the painted radius ramps **out at the lifted end** of a stroke.
+ * 笔锋: how the painted radius ramps at **both** ends of a stroke.
  *
  * WPF's `StrokeRenderer` only varies width through pressure, so a mouse — pinned
  * to pressure 0.5 — paints a constant ribbon with a round cap at both ends, which
- * reads as a marker instead of handwriting. This ramp is purely geometric, so a
- * mouse, a trackpad and a light stylus touch all get the same tapered exit no
- * matter what the tablet reports.
+ * reads as a marker instead of handwriting. These ramps are purely geometric, so a
+ * mouse, a trackpad and a light stylus touch all get the same 锋 no matter what the
+ * tablet reports.
  *
- * Only the **exit** tapers. Real ink lands at full width the instant the nib
- * touches the paper, so a 起笔 must stay blunt — tapering it makes the stroke
- * start in a thin needle that never appears in handwriting. A 锋 is what a lifted
- * nib leaves behind, and nothing else.
+ * The two ends are deliberately **not** mirror images. A brush lays a short, sharp
+ * 尖起 (露锋) when it lands fast, or a blunt 藏锋 when it presses first, and then
+ * trails a long, thin 出锋 when it lifts: the entry ramp is an order of magnitude
+ * shorter, convex instead of concave, and its tip leans the other way. Tapering
+ * both ends with one shape is what reads as a symmetric leaf instead of a stroke.
  *
- * A real 锋 is not a symmetric needle: the bristles lay a belly that keeps its
- * width for a while (the 肩), then trail off in a thin thread (the 尾), and the
- * thread curls away from the belly. {@link taperNodes} models both from arc length
- * plus the exit speed and turn, so two strokes never produce the same wedge.
+ * A real 锋 is also not a needle: the bristles lay a belly that keeps its width for
+ * a while (the 肩), then trail off in a thin thread (the 尾), and the thread curls
+ * away from the belly. {@link taperNodes} models both ends from arc length plus the
+ * entry/exit speed and the exit turn, so two strokes never produce the same wedge.
  *
  * Distances are multiples of `lineWidth`, so the 锋 scales with the pen size: a
  * 1px hairline tapers over ~1px while a 9px marker tapers over ~30px.
  */
 export interface TaperStyle {
+  /** Entry ramp length as a multiple of `lineWidth` on a fast 露锋 landing. */
+  startLength: number
+  /** Radius multiplier at the first sample; the 尖起 tip. */
+  startTipScale: number
+  /**
+   * Entry ramp exponent. < 1 flares the width straight out of a sharp 尖入 tip,
+   * > 1 keeps a thin 藏锋 lip before the press takes over.
+   */
+  startExponent: number
+  /**
+   * Entry skew relative to the exit skew, 0…1. The entry tip leans opposite the
+   * exit thread, which is what stops the two ends from mirroring each other.
+   */
+  startSkew: number
   /** Exit ramp length as a multiple of `lineWidth`, before the speed gain. */
   endLength: number
   /** Radius multiplier at the last sample; the thread's thickness. */
@@ -189,6 +204,10 @@ export interface TaperStyle {
  * brush rather than a wooden skewer.
  */
 export const PEN_TAPER: TaperStyle = {
+  startLength: 1,
+  startTipScale: 0.28,
+  startExponent: 0.8,
+  startSkew: 0.6,
   endLength: 3.2,
   endTipScale: 0.24,
   profileExponent: 2.4,
@@ -201,6 +220,10 @@ export const PEN_TAPER: TaperStyle = {
 
 /** Highlighter: a chisel swipe — a blunt touchdown, a soft tail, never a needle. */
 export const HIGHLIGHTER_TAPER: TaperStyle = {
+  startLength: 0.45,
+  startTipScale: 0.6,
+  startExponent: 1,
+  startSkew: 0.15,
   endLength: 1.8,
   endTipScale: 0.3,
   profileExponent: 1.6,
@@ -216,6 +239,10 @@ export const MIN_TAPER_RADIUS = 0.18
 
 /** Disabled 笔锋: a zero-length ramp turns `taperNodes` into a no-op. */
 const NO_TAPER: TaperStyle = {
+  startLength: 0,
+  startTipScale: 1,
+  startExponent: 1,
+  startSkew: 0,
   endLength: 0,
   endTipScale: 1,
   profileExponent: 1,
@@ -422,24 +449,55 @@ export function polylineLength(points: readonly { x: number; y: number }[]): num
   return total
 }
 
+/** Ramp lengths for one stroke, in CSS px. */
+export interface TaperRamps {
+  /** Entry ramp: short and sharp on a 露锋 landing, gone on a 藏锋 press. */
+  start: number
+  /** Exit ramp on the belly side (肩): long, stretched by the exit speed. */
+  belly: number
+  /** Exit ramp on the thread side (尾): shorter than the belly, hence the skew. */
+  thread: number
+}
+
 /**
- * Exit ramp length for one stroke, in CSS px.
+ * Ramp lengths for both ends of one stroke.
  *
- * A short tick (a 3px flick) would otherwise be tapered away entirely, so the ramp
- * is capped at `maxLengthRatio` of the stroke. The body ahead of it keeps at least
- * 25–30% of the stroke at full width, which is what makes a fast dot read as a dot
- * instead of a sliver.
+ * The three ramps share a single `maxLengthRatio` budget, so a 12px tick keeps a
+ * full-width body instead of turning into three joining wedges — that is what makes
+ * a fast dot read as a dot instead of a sliver.
  *
- * `speed` (0…1) stretches the ramp: a quick flick lifts the nib for longer than a
- * slow, deliberate press, so the 锋 gets longer instead of every stroke ending in
- * the same wedge.
+ * Exit speed (0…1) stretches the 出锋: a quick flick lifts the nib for longer than a
+ * slow, deliberate press. Entry speed does the opposite — a fast landing leaves a
+ * short 露锋, a slow press stays blunt (藏锋) — so the stroke starts the way it was
+ * actually put down.
  */
-export function taperLength(totalLength: number, lineWidth: number, style: TaperStyle, speed = 0): number {
-  if (!(totalLength > 0) || !(lineWidth > 0)) return 0
-  const gain = 1 + Math.max(0, style.speedLengthGain) * clamp01(speed)
-  const end = Math.max(0, style.endLength) * lineWidth * gain
+export function taperRamps(
+  totalLength: number,
+  lineWidth: number,
+  style: TaperStyle,
+  metrics: TaperMetrics = NO_METRICS,
+): TaperRamps {
+  if (!(totalLength > 0) || !(lineWidth > 0)) return { start: 0, belly: 0, thread: 0 }
+
+  const speed = clamp01(metrics.speed)
+  const entry = clamp01(metrics.entrySpeed)
+  const curvature = Math.min(1, Math.abs(metrics.turn) / Math.max(1e-6, style.skewTurn))
+  const skew = Math.min(0.9, Math.max(0, style.skew) * (0.5 + 0.5 * curvature))
+
+  let start = Math.max(0, style.startLength) * lineWidth * entry
+  const base = Math.max(0, style.endLength) * lineWidth * (1 + Math.max(0, style.speedLengthGain) * speed)
+  let belly = base * (1 + skew)
+  let thread = base * (1 - skew)
+
   const budget = totalLength * Math.max(0, style.maxLengthRatio)
-  return end > budget ? budget : end
+  const sum = start + belly
+  if (sum > budget && sum > 1e-9) {
+    const scale = budget / sum
+    start *= scale
+    belly *= scale
+    thread *= scale
+  }
+  return { start, belly, thread }
 }
 
 function clamp01(value: number): number {
@@ -456,10 +514,10 @@ const SPEED_FAST_PX = 5
 const TURN_SEGMENTS = 8
 
 /**
- * Speed and turn of the stroke's exit.
+ * Speed of both ends plus the turn of the stroke's exit.
  *
- * Both have to be read from the **raw** samples: {@link pruneNodes} drops samples on
- * smooth stretches, so a pruned tail would report the ramp's own length as spacing
+ * Everything has to be read from the **raw** samples: {@link pruneNodes} drops samples
+ * on smooth stretches, so a pruned tail would report the ramp's own length as spacing
  * and a slow, straight stroke would look like the fastest flick in the app.
  *
  * Speed is spacing per pointer sample — the same proxy WPF's InkCanvas uses, since
@@ -471,9 +529,17 @@ export interface TaperMetrics {
   speed: number
   /** Signed turn over the exit ramp in radians, positive = clockwise on screen. */
   turn: number
+  /** Normalized entry speed: 0 = the nib landed and pressed (藏锋), 1 = flicked down (露锋). */
+  entrySpeed: number
 }
 
-const NO_METRICS: TaperMetrics = { speed: 0, turn: 0 }
+const NO_METRICS: TaperMetrics = { speed: 0, turn: 0, entrySpeed: 0 }
+
+/** Map spacing per sample onto 0 (slow press) … 1 (fast flick). */
+function normalizeSpeed(spacing: number, sampled: number): number {
+  const perSample = spacing / Math.max(1, sampled)
+  return clamp01((perSample - SPEED_SLOW_PX) / (SPEED_FAST_PX - SPEED_SLOW_PX))
+}
 
 export function taperMetrics(nodes: readonly StylusNode[]): TaperMetrics {
   const count = nodes.length
@@ -484,8 +550,14 @@ export function taperMetrics(nodes: readonly StylusNode[]): TaperMetrics {
   for (let i = count - 1; i > 0 && sampled < SPEED_SAMPLES; i--, sampled++) {
     spacing += Math.hypot(nodes[i].x - nodes[i - 1].x, nodes[i].y - nodes[i - 1].y)
   }
-  const perSample = spacing / Math.max(1, sampled)
-  const speed = clamp01((perSample - SPEED_SLOW_PX) / (SPEED_FAST_PX - SPEED_SLOW_PX))
+  const speed = normalizeSpeed(spacing, sampled)
+
+  let entrySpacing = 0
+  let entrySampled = 0
+  for (let i = 1; i < count && entrySampled < SPEED_SAMPLES; i++, entrySampled++) {
+    entrySpacing += Math.hypot(nodes[i].x - nodes[i - 1].x, nodes[i].y - nodes[i - 1].y)
+  }
+  const entrySpeed = normalizeSpeed(entrySpacing, entrySampled)
 
   const start = Math.max(1, count - TURN_SEGMENTS)
   let turn = 0
@@ -502,21 +574,21 @@ export function taperMetrics(nodes: readonly StylusNode[]): TaperMetrics {
     lastAngle = angle
   }
 
-  return { speed, turn: Math.max(-Math.PI, Math.min(Math.PI, turn)) }
+  return { speed, turn: Math.max(-Math.PI, Math.min(Math.PI, turn)), entrySpeed }
 }
 
 /**
- * Densify the exit ramp so a fast flick still gets a real 锋.
+ * Densify both ramps so a fast flick still gets a real 锋.
  *
- * Pointer samples can be 10–30px apart on a quick stroke while the exit ramp is
- * only a few widths long; without extra nodes the ramp would be sampled at its two
- * endpoints and the whole segment would read as a thin wedge. Points are inserted
- * along the existing segments with linearly interpolated radii, i.e. exactly on the
- * polyline the hull renderer would draw anyway.
+ * Pointer samples can be 10–30px apart on a quick stroke while a ramp is only a few
+ * widths long; without extra nodes the ramp would be sampled at its two endpoints and
+ * the whole segment would read as a thin wedge. Points are inserted along the existing
+ * segments with linearly interpolated radii, i.e. exactly on the polyline the hull
+ * renderer would draw anyway.
  */
-function densifyRamp(nodes: StylusNode[], end: number, lineWidth: number): StylusNode[] {
+function densifyRamps(nodes: StylusNode[], start: number, end: number, lineWidth: number): StylusNode[] {
   const count = nodes.length
-  if (count < 2 || end <= 0) return nodes
+  if (count < 2 || (start <= 0 && end <= 0)) return nodes
 
   const total = polylineLength(nodes)
   // A ramp is a width ramp: resolve it far finer than the pen radius, so the
@@ -530,15 +602,20 @@ function densifyRamp(nodes: StylusNode[], end: number, lineWidth: number): Stylu
     const b = nodes[i]
     const segment = Math.hypot(b.x - a.x, b.y - a.y)
     if (segment > maxSegment) {
-      // Distances along this segment that fall inside the ramp. Clamping to the
+      // Distances along this segment that fall inside either ramp. Clamping to the
       // segment keeps the cost proportional to the ramp length, not to a fast flick.
-      const lo = Math.max(0, total - end - travelled)
-      const hi = Math.min(segment, total - travelled)
       const cuts: number[] = []
-      for (let d = lo; d < hi - 1e-9; d += maxSegment) cuts.push(d)
-      // Close the ramp exactly on its boundary, so the full-width run before it is a
-      // straight hull instead of a 0.1px-deep valley.
-      if (hi > lo + 1e-9 && hi < segment - 1e-9) cuts.push(hi)
+      const addRamp = (from: number, to: number) => {
+        const lo = Math.max(0, from - travelled)
+        const hi = Math.min(segment, to - travelled)
+        for (let d = lo; d < hi - 1e-9; d += maxSegment) cuts.push(d)
+        // Close the ramp exactly on its boundary, so the full-width run between the two
+        // ramps is a straight hull instead of a 0.1px-deep valley.
+        if (hi > lo + 1e-9 && hi < segment - 1e-9) cuts.push(hi)
+      }
+      if (start > 0) addRamp(0, start)
+      if (end > 0) addRamp(total - end, total)
+      cuts.sort((p, q) => p - q)
 
       let previous = 0
       for (const distance of cuts) {
@@ -561,14 +638,19 @@ function densifyRamp(nodes: StylusNode[], end: number, lineWidth: number): Stylu
 /** How a slice of the stroke should be tapered. */
 interface TaperOptions {
   /**
+   * This slice starts at the pen-down sample. A frozen chunk's start is a seam inside
+   * the stroke, so the live tail passes `false` — a ramp there would leave a notch.
+   */
+  taperStart?: boolean
+  /**
    * This slice ends at the lifted tip. A frozen chunk's end is covered by the live
    * tail, so it passes `false` — a ramp there would leave an unpainted notch
    * mid-stroke.
    */
   taperEnd?: boolean
   /**
-   * Exit speed and turn, measured on the **raw** samples with {@link taperMetrics}.
-   * Omitting it falls back to a symmetric, speed-agnostic ramp.
+   * Entry / exit speed and exit turn, measured on the **raw** samples with
+   * {@link taperMetrics}. Omitting it falls back to a symmetric, speed-agnostic ramp.
    */
   metrics?: TaperMetrics
 }
@@ -585,18 +667,19 @@ function nodeNormal(nodes: readonly StylusNode[], index: number): { x: number; y
 }
 
 /**
- * Apply the 笔锋 exit ramp to a run of stroke nodes.
+ * Apply the 笔锋 ramps to a run of stroke nodes.
  *
  * `totalLength` is the arc length of the **whole** stroke (not of `nodes`): the
  * live preview re-outlines only its tail, and the ramp it draws there has to match
  * what `buildInkPath` will paint on pointer up, or the tail visibly sharpens when
  * the pointer is released.
  *
- * The ramp is not a single symmetric shrink. Each side gets its own length — the
- * belly (肩) keeps its width a while, the thread (尾) trails off — and the whole
- * tail is displaced towards the belly, so the 锋 reads as a brush laid down and
- * lifted instead of a wedge mirrored about the centreline. Exit speed stretches the
- * ramp and sharpens the thread; the turn decides which side becomes the belly.
+ * Neither end is a single symmetric shrink. At the exit each side gets its own
+ * length — the belly (肩) keeps its width a while, the thread (尾) trails off — and
+ * the whole tail is displaced towards the belly, so the 锋 reads as a brush lifted
+ * off the paper. The entry is much shorter and convex (尖起 / 露锋), leans the other
+ * way, and fades out entirely on a slow press (藏锋). Exit speed stretches the 出锋
+ * and sharpens the thread; entry speed decides whether there is a 露锋 at all.
  *
  * Returns a new array; the input nodes may be cached and are never mutated.
  */
@@ -605,29 +688,22 @@ export function taperNodes(
   lineWidth: number,
   totalLength: number,
   style: TaperStyle,
-  { taperEnd = true, metrics = NO_METRICS }: TaperOptions = {},
+  { taperStart = true, taperEnd = true, metrics = NO_METRICS }: TaperOptions = {},
 ): StylusNode[] {
   const count = nodes.length
-  if (count === 0 || !taperEnd) return nodes
+  if (count === 0) return nodes
 
-  const speed = clamp01(metrics.speed)
-  const end = taperLength(totalLength, lineWidth, style, speed)
-  if (end <= 1e-6) return nodes
+  const ramps = taperRamps(totalLength, lineWidth, style, metrics)
+  const entry = taperStart ? ramps.start : 0
+  const belly = taperEnd ? ramps.belly : 0
+  const thread = taperEnd ? ramps.thread : 0
+  if (entry <= 1e-6 && belly <= 1e-6) return nodes
 
-  // A brush leans its belly into the curve and trails the thin thread on the outside,
-  // so the two edges never share a ramp length. Straight strokes keep half the skew,
-  // which is what stops every stroke from ending in the same mirrored wedge.
-  const curvature = Math.min(1, Math.abs(metrics.turn) / Math.max(1e-6, style.skewTurn))
-  const asym = Math.max(0, style.skew) * (0.5 + 0.5 * curvature) * (metrics.turn < 0 ? -1 : 1)
-  const belly = end * (1 + Math.abs(asym))
-  const thread = Math.max(end * (1 - Math.abs(asym)), 1e-3)
-  const tipScale = Math.min(1, Math.max(0.02, style.endTipScale * (1 - Math.max(0, style.speedTipGain) * speed)))
-
-  const dense = densifyRamp(nodes, Math.max(belly, thread), lineWidth)
+  const dense = densifyRamps(nodes, entry, Math.max(belly, thread), lineWidth)
   const denseCount = dense.length
 
   // Measure along the ink: a fast flick and a slow press taper over the same visual
-  // distance, which is what makes the point read as a lifted nib.
+  // distance, which is what makes either end read as a real nib.
   const cumulative: number[] = [0]
   for (let i = 1; i < denseCount; i++) {
     cumulative.push(cumulative[i - 1] + Math.hypot(dense[i].x - dense[i - 1].x, dense[i].y - dense[i - 1].y))
@@ -635,26 +711,52 @@ export function taperNodes(
   const last = cumulative[denseCount - 1]
   const exponent = style.profileExponent > 0 ? style.profileExponent : 1
 
-  // Ramp a side: `tipScale` at the lifted tip, full width where the ramp ends.
-  const ramp = (distance: number, length: number): number =>
-    tipScale + (1 - tipScale) * Math.pow(Math.min(1, distance / length), exponent)
+  const speed = clamp01(metrics.speed)
+  const tipScale = Math.min(1, Math.max(0.02, style.endTipScale * (1 - Math.max(0, style.speedTipGain) * speed)))
+  const entryScale = Math.min(1, Math.max(0.02, style.startTipScale))
+  const entryExponent = style.startExponent > 0 ? style.startExponent : 1
+  const ramp = (tip: number, exp: number, distance: number, length: number): number =>
+    tip + (1 - tip) * Math.pow(Math.min(1, distance / length), exp)
+
+  // A brush leans its belly into the curve and trails the thin thread on the outside, so
+  // the two edges never share a ramp length. The entry tip leans the other way, which is
+  // what stops the two ends from mirroring each other into a leaf.
+  const curvature = Math.min(1, Math.abs(metrics.turn) / Math.max(1e-6, style.skewTurn))
+  const asym = Math.min(0.9, Math.max(0, style.skew) * (0.5 + 0.5 * curvature))
+  const side = metrics.turn < 0 ? -1 : 1
+  const entrySkew = asym * Math.min(1, Math.max(0, style.startSkew))
 
   const out: StylusNode[] = []
   for (let i = 0; i < denseCount; i++) {
     const node = dense[i]
-    const distance = last - cumulative[i]
-    if (distance >= belly && distance >= thread) {
+    const fromEnd = last - cumulative[i]
+    const fromStart = cumulative[i]
+    const inEntry = entry > 1e-6 && fromStart < entry
+    const inExit = belly > 1e-6 && fromEnd < Math.max(belly, thread)
+
+    if (!inEntry && !inExit) {
       out.push(node)
       continue
     }
+
     // Two edges, two ramps: their mean is the painted radius. The centreline then drifts
     // towards the belly by however much the thread has already eaten into it, so the
     // deviation grows monotonically to the tip — the belly edge stays straight while the
     // thread cuts in, instead of both edges mirroring each other.
-    const bellyRadius = node.r * ramp(distance, belly)
-    const threadRadius = node.r * ramp(distance, thread)
-    const radius = (bellyRadius + threadRadius) / 2
-    const shift = (node.r - radius) * Math.abs(asym) * (asym < 0 ? -1 : 1)
+    let radius = node.r
+    let shift = 0
+    if (inExit) {
+      const bellyRadius = node.r * ramp(tipScale, exponent, fromEnd, belly)
+      const threadRadius = node.r * ramp(tipScale, exponent, fromEnd, thread)
+      radius = (bellyRadius + threadRadius) / 2
+      shift = (node.r - radius) * asym * side
+    }
+    if (inEntry) {
+      const entryRadius = node.r * ramp(entryScale, entryExponent, fromStart, entry)
+      radius = Math.min(radius, entryRadius)
+      shift += (node.r - entryRadius) * entrySkew * -side
+    }
+
     const normal = nodeNormal(dense, i)
     out.push({
       x: node.x + normal.x * shift,

@@ -25,9 +25,9 @@ import {
   SWEPT_STYLE,
   setInkTaperEnabled,
   SweptSampleCache,
-  taperLength,
   taperMetrics,
   taperNodes,
+  taperRamps,
   taperStyleFor,
   usesPressureInk,
   type StylusNode,
@@ -600,24 +600,38 @@ describe('nodesFromSmoothedPoints corner rounding', () => {
   })
 })
 
-describe('taperLength', () => {
-  it('uses the pen-scaled ramp length on a long stroke', () => {
-    expect(taperLength(100, 4, PEN_TAPER)).toBeCloseTo(4 * PEN_TAPER.endLength, 6)
+describe('taperRamps', () => {
+  const slow = { speed: 0, turn: 0, entrySpeed: 0 }
+  const fast = { speed: 1, turn: 0, entrySpeed: 1 }
+
+  it('scales both ends with the pen width on a long stroke', () => {
+    const ramps = taperRamps(100, 4, PEN_TAPER, slow)
+    expect(ramps.start).toBe(0)
+    expect(ramps.belly).toBeCloseTo(4 * PEN_TAPER.endLength * (1 + 0.25), 6)
+    expect(ramps.thread).toBeCloseTo(4 * PEN_TAPER.endLength * (1 - 0.25), 6)
   })
 
-  it('caps the ramp so a short tick keeps a full-width body', () => {
-    expect(taperLength(6, 4, PEN_TAPER)).toBeCloseTo(6 * PEN_TAPER.maxLengthRatio, 6)
+  it('stretches the 出锋 and grows the 露锋 with speed', () => {
+    const slowRamps = taperRamps(200, 4, PEN_TAPER, slow)
+    const fastRamps = taperRamps(200, 4, PEN_TAPER, fast)
+    expect(fastRamps.belly / slowRamps.belly).toBeCloseTo(1 + PEN_TAPER.speedLengthGain, 6)
+    // 慢速落笔是藏锋，根本没有入口斜坡。
+    expect(fastRamps.start / slowRamps.belly).toBeCloseTo(PEN_TAPER.startLength / PEN_TAPER.endLength / 1.25, 6)
   })
 
-  it('stretches the ramp with the exit speed', () => {
-    const slow = taperLength(200, 4, PEN_TAPER, 0)
-    const fast = taperLength(200, 4, PEN_TAPER, 1)
-    expect(slow).toBeCloseTo(4 * PEN_TAPER.endLength, 6)
-    expect(fast / slow).toBeCloseTo(1 + PEN_TAPER.speedLengthGain, 6)
+  it('keeps an entry ramp far shorter than the exit', () => {
+    const ramps = taperRamps(200, 4, PEN_TAPER, fast)
+    expect(ramps.start).toBeCloseTo(4 * PEN_TAPER.startLength, 6)
+    expect(ramps.start).toBeLessThan(ramps.thread)
+  })
+
+  it('caps the ramps so a short tick keeps a full-width body', () => {
+    const ramps = taperRamps(6, 4, PEN_TAPER, fast)
+    expect(ramps.start + ramps.belly).toBeCloseTo(6 * PEN_TAPER.maxLengthRatio, 6)
   })
 
   it('does not taper a zero-length stroke', () => {
-    expect(taperLength(0, 4, PEN_TAPER)).toBe(0)
+    expect(taperRamps(0, 4, PEN_TAPER)).toEqual({ start: 0, belly: 0, thread: 0 })
   })
 })
 
@@ -629,6 +643,18 @@ describe('taperMetrics', () => {
     expect(taperMetrics(line(0.5)).speed).toBe(0)
     expect(taperMetrics(line(3)).speed).toBeCloseTo(0.5, 6)
     expect(taperMetrics(line(10)).speed).toBe(1)
+  })
+
+  it('reads the entry speed from the first samples', () => {
+    // 起笔慢、收笔快：藏锋落笔 + 长出锋。
+    const nodes: StylusNode[] = Array.from({ length: 20 }, (_, i) => ({
+      x: i < 10 ? i * 0.4 : 4 + (i - 10) * 9,
+      y: 0,
+      r: 2,
+    }))
+    const metrics = taperMetrics(nodes)
+    expect(metrics.entrySpeed).toBe(0)
+    expect(metrics.speed).toBe(1)
   })
 
   it('reports the signed turn of the exit', () => {
@@ -644,7 +670,7 @@ describe('taperMetrics', () => {
   })
 
   it('has no direction to report on a tap', () => {
-    expect(taperMetrics([{ x: 0, y: 0, r: 2 }])).toEqual({ speed: 0, turn: 0 })
+    expect(taperMetrics([{ x: 0, y: 0, r: 2 }])).toEqual({ speed: 0, turn: 0, entrySpeed: 0 })
   })
 })
 
@@ -675,23 +701,8 @@ describe('taperNodes', () => {
     expect(taperNodes(input, lineWidth, polylineLength(input), taperStyleFor('pen', true))).toBe(input)
   })
 
-  it('keeps the 起笔 at full width and only narrows the 收笔', () => {
-    const points: Point[] = [
-      { x: 0, y: 0 },
-      { x: 50, y: 0 },
-      { x: 100, y: 0 },
-    ]
-    const input = nodesFromSmoothedPoints(points, lineWidth, SWEPT_STYLE, 'mouse')
-    const tapered = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER)
-
-    // 真实笔尖落纸即满宽：起笔不能收细。
-    expect(tapered[0].r).toBeCloseTo(half, 5)
-    expect(tapered[tapered.length - 1].r).toBeCloseTo(half * PEN_TAPER.endTipScale, 5)
-    expect(Math.max(...tapered.map((n) => n.r))).toBeCloseTo(half, 5)
-  })
-
-  it('ramps the radius monotonically down to the lifted tip', () => {
-    const input = nodesFromSmoothedPoints(
+  const straight = (): StylusNode[] =>
+    nodesFromSmoothedPoints(
       [
         { x: 0, y: 0 },
         { x: 50, y: 0 },
@@ -701,11 +712,44 @@ describe('taperNodes', () => {
       SWEPT_STYLE,
       'mouse',
     )
-    const tapered = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER)
+  const slow = { speed: 0, turn: 0, entrySpeed: 0 }
+  const fastEntry = { speed: 0, turn: 0, entrySpeed: 1 }
 
-    // 满宽起笔，然后单调变细（一条出锋，而不是中间粗两头细的叶子）。
+  it('keeps a slow 藏锋 landing blunt', () => {
+    const input = straight()
+    const tapered = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, { metrics: slow })
+
+    // 笔尖压住再走：起笔是满宽的。
     expect(tapered[0].r).toBeCloseTo(half, 5)
-    for (let i = 1; i < tapered.length; i++) {
+    expect(tapered[tapered.length - 1].r).toBeCloseTo(half * PEN_TAPER.endTipScale, 5)
+  })
+
+  it('thins a fast 露锋 landing into a short tip', () => {
+    const input = straight()
+    const tapered = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, {
+      metrics: fastEntry,
+    })
+
+    // 尖起只占一小段：第一个采样点收细，但入口斜坡远短于出口。
+    expect(tapered[0].r).toBeCloseTo(half * PEN_TAPER.startTipScale, 5)
+    const entryEnd = tapered.findIndex((node) => Math.abs(node.r - half) < 1e-6)
+    expect(entryEnd).toBeGreaterThan(0)
+    expect(tapered[entryEnd].x).toBeLessThan(polylineLength(input) * 0.2)
+  })
+
+  it('ramps the radius between the two tips with a full-width belly', () => {
+    const input = straight()
+    const tapered = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, {
+      metrics: fastEntry,
+    })
+
+    // 两端都收细，中间保持满宽（一撇笔，而不是中间粗两头尖的叶子）。
+    expect(Math.max(...tapered.map((node) => node.r))).toBeCloseTo(half, 5)
+    const peak = tapered.reduce((best, node, index) => (node.r > tapered[best].r ? index : best), 0)
+    for (let i = 1; i <= peak; i++) {
+      expect(tapered[i].r).toBeGreaterThanOrEqual(tapered[i - 1].r - 1e-9)
+    }
+    for (let i = peak + 1; i < tapered.length; i++) {
       expect(tapered[i].r).toBeLessThanOrEqual(tapered[i - 1].r + 1e-9)
     }
   })
@@ -754,7 +798,10 @@ describe('taperNodes', () => {
       SWEPT_STYLE,
       'mouse',
     )
-    const tailOnly = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER)
+    const tailOnly = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, {
+      taperStart: false,
+      metrics: fastEntry,
+    })
     expect(tailOnly[0].r).toBeCloseTo(half, 5)
     expect(tailOnly[tailOnly.length - 1].r).toBeCloseTo(half * PEN_TAPER.endTipScale, 5)
   })
@@ -771,7 +818,9 @@ describe('taperNodes', () => {
       'mouse',
     )
     // 冻结块的末端藏在实时尾部下方，必须是满宽圆头，不能留缺口。
-    expect(taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, { taperEnd: false })).toBe(input)
+    expect(taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, { taperEnd: false, metrics: slow })).toBe(
+      input,
+    )
   })
 
   it('skews the tail off the centreline', () => {
@@ -788,7 +837,9 @@ describe('taperNodes', () => {
     expect(offsetOf(symmetric)).toBe(0)
 
     // 反向弯曲时偏到另一侧。
-    const flipped = taperNodes(input, lineWidth, total, PEN_TAPER, { metrics: { speed: 0, turn: -Math.PI } })
+    const flipped = taperNodes(input, lineWidth, total, PEN_TAPER, {
+      metrics: { speed: 0, turn: -Math.PI, entrySpeed: 0 },
+    })
     const peak = (nodes: StylusNode[]) =>
       nodes.reduce((best, node) => (Math.abs(node.y) > Math.abs(best.y) ? node : best))
     expect(Math.sign(peak(flipped).y)).toBe(-Math.sign(peak(skewed).y))
@@ -801,10 +852,14 @@ describe('taperNodes', () => {
       nodes.reduce((best, node) => (Math.abs(node.x - x) < Math.abs(best.x - x) ? node : best)).r
 
     // 同一位置，快速挑笔更细：锋更长。
-    const slow = taperNodes(input, lineWidth, total, PEN_TAPER, { metrics: { speed: 0, turn: 0 } })
-    const fast = taperNodes(input, lineWidth, total, PEN_TAPER, { metrics: { speed: 1, turn: 0 } })
-    expect(radiusAt(fast, total - 8)).toBeLessThan(radiusAt(slow, total - 8))
-    expect(radiusAt(fast, total * 0.4)).toBeCloseTo(radiusAt(slow, total * 0.4), 5)
+    const slowExit = taperNodes(input, lineWidth, total, PEN_TAPER, {
+      metrics: { speed: 0, turn: 0, entrySpeed: 0 },
+    })
+    const fastExit = taperNodes(input, lineWidth, total, PEN_TAPER, {
+      metrics: { speed: 1, turn: 0, entrySpeed: 0 },
+    })
+    expect(radiusAt(fastExit, total - 8)).toBeLessThan(radiusAt(slowExit, total - 8))
+    expect(radiusAt(fastExit, total * 0.4)).toBeCloseTo(radiusAt(slowExit, total * 0.4), 5)
   })
 
   it('leaves a single-sample tap round', () => {
@@ -853,7 +908,10 @@ describe('taperNodes live slices', () => {
   const committedAt = new Map(committed.map((node) => [`${node.x},${node.y}`, node.r]))
 
   it('freezes a chunk without a ramp at its covered end', () => {
-    const chunk = taperNodes(nodes.slice(0, 260), 4, total, PEN_TAPER, { taperEnd: false })
+    const chunk = taperNodes(nodes.slice(0, 260), 4, total, PEN_TAPER, {
+      taperStart: true,
+      taperEnd: false,
+    })
     // 冻结块的末端藏在实时尾部下方，必须是满宽圆头，不能留缺口。
     expect(chunk[chunk.length - 1].r).toBeCloseTo(2, 6)
     for (const node of chunk) {
@@ -863,7 +921,10 @@ describe('taperNodes live slices', () => {
   })
 
   it('tapers the live tail exactly like the committed ribbon', () => {
-    const tail = taperNodes(nodes.slice(200), 4, total, PEN_TAPER)
+    const tail = taperNodes(nodes.slice(200), 4, total, PEN_TAPER, {
+      taperStart: false,
+      taperEnd: true,
+    })
     // 尾部起点是冻结块的接缝，必须和冻结块一样保持满宽；其余节点必须与落笔后的轮廓逐点一致。
     expect(tail[0].r).toBeCloseTo(2, 6)
     expect(tail[tail.length - 1].r).toBeCloseTo(committed[committed.length - 1].r, 6)

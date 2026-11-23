@@ -218,22 +218,6 @@ export const PEN_TAPER: TaperStyle = {
   skewTurn: 1,
 }
 
-/** Highlighter: a chisel swipe — a blunt touchdown, a soft tail, never a needle. */
-export const HIGHLIGHTER_TAPER: TaperStyle = {
-  startLength: 0.45,
-  startTipScale: 0.6,
-  startExponent: 1,
-  startSkew: 0.15,
-  endLength: 1.8,
-  endTipScale: 0.3,
-  profileExponent: 1.6,
-  maxLengthRatio: 0.75,
-  speedLengthGain: 0.45,
-  speedTipGain: 0.2,
-  skew: 0.2,
-  skewTurn: 1.1,
-}
-
 /** Thinnest painted tip (CSS px): a hairline pen still ends in a visible point. */
 export const MIN_TAPER_RADIUS = 0.18
 
@@ -362,7 +346,7 @@ export function brushWidthScale(speed: number, profile: BrushProfile = PEN_BRUSH
 
 /**
  * Brush profile for a tool: only the pen is a brush. A highlighter is a chisel
- * marker, so it keeps a constant width and only its ends taper.
+ * marker, so it keeps a constant width with round caps at both ends.
  *
  * A hold-locked stroke has been collapsed into a line — a shape, not handwriting —
  * so it paints at the chosen width like the other shapes. Disabled 毛笔字效果
@@ -517,7 +501,7 @@ export function nodesFromSmoothedPoints(
 
 /** Smoothed width multiplier for every sample of a stroke. */
 export function brushScales(points: readonly Point[], style: SweptStyle, profile: BrushProfile | null): number[] {
-  const scales: number[] = new Array(points.length).fill(1)
+  const scales: number[] = Array.from({ length: points.length }, () => 1)
   if (!profile) return scales
   for (let i = 1; i < points.length; i++) {
     scales[i] = brushScaleAt(points, i, style, profile, scales[i - 1])
@@ -526,16 +510,17 @@ export function brushScales(points: readonly Point[], style: SweptStyle, profile
 }
 
 /**
- * Taper preset for a tool: only the pen and the highlighter paint a swept ribbon.
+ * Taper preset for a tool: only the pen is a brush.
  *
- * A hold-locked stroke (`lockedLine`) has been collapsed into a straight or bent
- * **line** — a shape, not handwriting — so it keeps a uniform width with round caps
- * at both ends. A 锋 there would read as if the straight line had been written by
- * hand and then left with two sharpened tips.
+ * A highlighter is a chisel marker — a long thin 尾 on a mark that is meant to cover
+ * text looks like a rendering artifact and leaves gaps, so it keeps its chosen width
+ * with round caps at both ends. A hold-locked stroke (`lockedLine`) has been collapsed
+ * into a straight or bent **line** — a shape, not handwriting — and is uniform for the
+ * same reason.
  */
 export function taperStyleFor(tool: string | undefined | null, lockedLine = false): TaperStyle {
-  if (!inkTaperEnabled || lockedLine) return NO_TAPER
-  return tool === 'highlighter' ? HIGHLIGHTER_TAPER : PEN_TAPER
+  if (!inkTaperEnabled || lockedLine || tool !== 'pen') return NO_TAPER
+  return PEN_TAPER
 }
 
 /** Arc length of a polyline, i.e. the distance the pen actually travels. */
@@ -614,9 +599,10 @@ const TURN_SEGMENTS = 8
 /**
  * Speed of both ends plus the turn of the stroke's exit.
  *
- * Everything has to be read from the **raw** samples: {@link pruneNodes} drops samples
- * on smooth stretches, so a pruned tail would report the ramp's own length as spacing
- * and a slow, straight stroke would look like the fastest flick in the app.
+ * Measure it on the **unpruned** smoothed nodes, i.e. the same array the caller later
+ * tapers: {@link pruneNodes} drops samples on smooth stretches, so a pruned tail would
+ * report the ramp's own length as spacing and a slow, straight stroke would look like the
+ * fastest flick in the app. (The EMA smoothing keeps the steady-state spacing intact.)
  *
  * Speed is spacing per pointer sample — the same proxy WPF's InkCanvas uses, since
  * the event rate is roughly constant, so distance ≈ speed. Turn is the signed sum of
@@ -779,7 +765,8 @@ function nodeNormal(nodes: readonly StylusNode[], index: number): { x: number; y
  * way, and fades out entirely on a slow press (藏锋). Exit speed stretches the 出锋
  * and sharpens the thread; entry speed decides whether there is a 露锋 at all.
  *
- * Returns a new array; the input nodes may be cached and are never mutated.
+ * Returns a tapered copy; with no ramp at either end (e.g. {@link NO_TAPER}) it returns
+ * the input array unchanged. Cached inputs are never mutated.
  */
 export function taperNodes(
   nodes: StylusNode[],
@@ -935,12 +922,6 @@ export class SweptSampleCache {
     const last = this.smoothed[count - 1]
     const tip = points[count - 1]
     return this.arcLength + Math.hypot(tip.x - last.x, tip.y - last.y)
-  }
-
-  /** Node for sample `i`; `points` must already be synced. */
-  nodeAt(points: Point[], i: number): StylusNode {
-    const sample = i === points.length - 1 ? points[i] : this.smoothed[i]
-    return nodeFromPoint(sample, this.lineWidth, this.style, this.pressureInk, this.scales[i] ?? 1)
   }
 
   /** Nodes for samples `[from, to]` inclusive — same values `nodesFromSmoothedPoints` yields. */

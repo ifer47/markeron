@@ -6,7 +6,6 @@ import {
   connectingQuadPoints,
   dotRadius,
   ellipsePoints,
-  HIGHLIGHTER_TAPER,
   INK_MIN_DIST_SQ,
   MIN_TAPER_RADIUS,
   nodeFromPoint,
@@ -719,7 +718,7 @@ describe('brushScales', () => {
   })
 
   it('is a no-op without a brush profile', () => {
-    expect(brushScales(timed(4, 1), SWEPT_STYLE, null)).toEqual(new Array(12).fill(1))
+    expect(brushScales(timed(4, 1), SWEPT_STYLE, null)).toEqual(Array.from({ length: 12 }, () => 1))
   })
 })
 
@@ -742,10 +741,30 @@ describe('taperNodes', () => {
   const lineWidth = 4
   const half = lineWidth / 2
 
-  it('picks a different ramp for the highlighter', () => {
-    expect(taperStyleFor('highlighter')).toBe(HIGHLIGHTER_TAPER)
+  it('keeps the highlighter a plain marker — no 锋 at either end', () => {
+    // 荧光笔是凿形马克笔：长尾会盖不住文字，也看着像渲染瑕疵。
+    expect(taperStyleFor('highlighter')).toBe(taperStyleFor('pen', true))
+    expect(taperStyleFor('highlighter').endLength).toBe(0)
+    expect(taperStyleFor('highlighter').startLength).toBe(0)
+    // 未知工具同样按等宽绘制，只有明确的 pen 才收尖。
+    expect(taperStyleFor(undefined)).toBe(taperStyleFor('pen', true))
     expect(taperStyleFor('pen')).toBe(PEN_TAPER)
-    expect(taperStyleFor(undefined)).toBe(PEN_TAPER)
+  })
+
+  it('paints the highlighter at a constant width', () => {
+    const input = nodesFromSmoothedPoints(
+      [
+        { x: 0, y: 0 },
+        { x: 50, y: 0 },
+        { x: 100, y: 0 },
+      ],
+      lineWidth,
+      SWEPT_STYLE,
+      'mouse',
+    )
+    // 即使速度/走向都在极端值，荧光笔也不改宽度。
+    const metrics = { speed: 1, turn: 0.8, entrySpeed: 1 }
+    expect(taperNodes(input, lineWidth, polylineLength(input), taperStyleFor('highlighter'), { metrics })).toBe(input)
   })
 
   it('paints a locked line (a shape) with no 锋 at all', () => {

@@ -2345,4 +2345,44 @@ describe('useDrawing', () => {
       expect(drawing.canUndo.value).toBe(true)
     })
   })
+
+  describe('ink sample timestamps', () => {
+    it('writes the pointer timestamp on every ink sample', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0, timeStamp: 1000 })
+      drawing.draw({ x: 10, y: 0, timeStamp: 1016 })
+      drawing.draw({ x: 20, y: 0, timeStamp: 1032 })
+      drawing.endDraw()
+
+      const action = drawing.findActionAt({ x: 10, y: 0 })?.action
+      expect(action?.points.map((p) => p.t)).toEqual([1000, 1016, 1032])
+    })
+
+    it('omits the timestamp for synthetic input so the width stays uniform', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0 })
+      drawing.draw({ x: 10, y: 0 })
+      drawing.draw({ x: 20, y: 0 })
+      drawing.endDraw()
+
+      const action = drawing.findActionAt({ x: 10, y: 0 })?.action
+      expect(action?.points.every((p) => p.t === undefined)).toBe(true)
+    })
+
+    it('writes the timestamp on the first ink sample', () => {
+      drawing.currentTool.value = 'pen'
+      drawing.startDraw({ x: 0, y: 0, timeStamp: 1000 })
+
+      expect(drawing.getActiveStrokeFirstPoint()).toEqual({ x: 0, y: 0, t: 1000 })
+      drawing.cancelDraw()
+    })
+
+    it('omits the timestamp for non-ink tools', () => {
+      drawing.currentTool.value = 'eraser'
+      drawing.startDraw({ x: 0, y: 0, timeStamp: 1000 })
+
+      expect(drawing.getActiveStrokeFirstPoint()).toEqual({ x: 0, y: 0 })
+      drawing.cancelDraw()
+    })
+  })
 })

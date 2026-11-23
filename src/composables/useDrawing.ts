@@ -1813,7 +1813,7 @@ export function useDrawing(
     }
   }
 
-  function startDraw(point: Point) {
+  function startDraw(point: Point & { timeStamp?: number }) {
     if (currentTool.value === 'text' || currentTool.value === 'stamp' || currentTool.value === 'select') return
     isDrawing.value = true
     resetLineLockState()
@@ -1837,6 +1837,9 @@ export function useDrawing(
             x: point.x,
             y: point.y,
             pressure: normalizePressure(point.pressure),
+            // 起笔也要带时间戳，否则第一个采样间隔算不出速度，起笔处会有一个宽度台阶。
+            // 只有 ink 工具需要它；合成输入（测试 / 脚本）没有事件时间戳时保持等宽回退。
+            ...(isInkTool(currentTool.value) && point.timeStamp != null ? { t: point.timeStamp } : {}),
           }
 
     currentAction.value = {
@@ -1882,7 +1885,7 @@ export function useDrawing(
     scheduleRender()
   }
 
-  function draw(point: Point, isPerfect = false) {
+  function draw(point: InputPointLike, isPerfect = false) {
     drawBatch([point], isPerfect)
   }
 
@@ -1931,7 +1934,12 @@ export function useDrawing(
           // 毛笔字 width follows nib speed, so every sample keeps the event timestamp.
           // Synthetic input (tests, scripted strokes) has none — the renderer then paints
           // at the chosen width instead of guessing a speed from `performance.now()`.
-          nextPoint = { x, y, pressure: normalizePressure(point.pressure), t: point.timeStamp }
+          nextPoint = {
+            x,
+            y,
+            pressure: normalizePressure(point.pressure),
+            ...(point.timeStamp != null ? { t: point.timeStamp } : {}),
+          }
         } else {
           nextPoint = { x, y }
         }
@@ -3027,7 +3035,9 @@ export function useDrawing(
     getActiveStrokePointerType: () => currentAction.value?.pointerType ?? null,
     getActiveStrokeFirstPoint: () => {
       const pts = currentAction.value?.points
-      return pts && pts.length > 0 ? { x: pts[0].x, y: pts[0].y } : null
+      if (!pts || pts.length === 0) return null
+      // 只有 ink 工具带 `t`；条件展开保持无时间戳时的旧返回形状。
+      return { x: pts[0].x, y: pts[0].y, ...(pts[0].t != null ? { t: pts[0].t } : {}) }
     },
     getActiveStrokePointCount: () => currentAction.value?.points.length ?? 0,
     getStrokeSamplingStats: () => ({

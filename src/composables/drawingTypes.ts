@@ -19,7 +19,7 @@ export interface Point {
   y: number
   /** Pointer pressure 0–1 when available (pen / freehand ink). */
   pressure?: number
-  /** performance.now() when added — used by laser trail decay. */
+  /** Event timestamp in ms — laser trail decay and 毛笔字 width both read it. */
   t?: number
   /**
    * Pointer that started the gesture (`mouse` | `pen` | `touch`).
@@ -36,6 +36,8 @@ export interface InputPointLike {
   pressure?: number
   /** DOMHighResTimeStamp of the pointer event — drives the 毛笔字 width from speed. */
   timeStamp?: number
+  /** `mouse` | `pen` | `touch`; kept on sampled points so callers can re-derive it. */
+  pointerType?: string
 }
 
 export type TextOutlineColorMode = 'auto' | 'fixed'

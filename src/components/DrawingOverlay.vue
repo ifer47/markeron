@@ -3,7 +3,7 @@ import { ref, shallowRef, onMounted, onUnmounted, nextTick, computed, watch } fr
 import { invoke } from '@tauri-apps/api/core'
 import { listen, emit, type UnlistenFn } from '@tauri-apps/api/event'
 import { getCurrentWindow } from '@tauri-apps/api/window'
-import { useDrawing, type Tool, type DrawAction } from '../composables/useDrawing'
+import { useDrawing, type Tool, type DrawAction, type InputPointLike } from '../composables/useDrawing'
 import type { TextOutlineStyle } from '../composables/drawingTypes'
 import { useTooltip } from '../composables/useTooltip'
 import {
@@ -273,6 +273,7 @@ async function onRmbPointerDown(e: PointerEvent) {
     y: e.clientY,
     pressure: normalizePressure(e.pressure),
     pointerType: e.pointerType,
+    timeStamp: e.timeStamp,
   })
   logActionEvent('rmb erase start', { toolBefore: rmbEraseGesture.toolBefore })
 }
@@ -1299,8 +1300,9 @@ const supportsPointerRawUpdate = typeof window !== 'undefined' && 'onpointerrawu
 
 let penRawUpdatesActive = false
 
-function pointerSample(e: PointerEvent) {
-  return { x: e.clientX, y: e.clientY, pressure: normalizePressure(e.pressure) }
+function pointerSample(e: PointerEvent): InputPointLike {
+  // 毛笔字宽度按相邻采样间隔 / 事件时间差算速度，回退路径也必须带上事件时间戳。
+  return { x: e.clientX, y: e.clientY, pressure: normalizePressure(e.pressure), timeStamp: e.timeStamp }
 }
 
 function ingestDrawingPointer(e: PointerEvent) {
@@ -1521,6 +1523,7 @@ async function onPointerDown(e: PointerEvent) {
     y: e.clientY,
     pressure: normalizePressure(e.pressure),
     pointerType: e.pointerType,
+    timeStamp: e.timeStamp,
   })
 }
 

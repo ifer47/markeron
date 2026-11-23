@@ -34,6 +34,8 @@ export interface InputPointLike {
   clientX?: number
   clientY?: number
   pressure?: number
+  /** DOMHighResTimeStamp of the pointer event — drives the 毛笔字 width from speed. */
+  timeStamp?: number
 }
 
 export type TextOutlineColorMode = 'auto' | 'fixed'

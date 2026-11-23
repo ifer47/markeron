@@ -304,12 +304,73 @@ export function pressureAlphaAt(index: number, style: SweptStyle): number {
 }
 
 /** Build the stroke node for one sample (WPF `StrokeNodeData` radius). */
-export function nodeFromPoint(point: Point, lineWidth: number, style: SweptStyle, pressureInk: boolean): StylusNode {
+export function nodeFromPoint(
+  point: Point,
+  lineWidth: number,
+  style: SweptStyle,
+  pressureInk: boolean,
+  widthScale = 1,
+): StylusNode {
   const baseRadius = Math.max(0.5, lineWidth / 2)
-  const r = pressureInk
-    ? Math.max(0.1, baseRadius * pressureRadiusScale(normalizePressure(point.pressure), style))
-    : baseRadius
+  const pressureScale = pressureInk ? pressureRadiusScale(normalizePressure(point.pressure), style) : 1
+  const r = Math.max(0.1, baseRadius * pressureScale * widthScale)
   return { x: point.x, y: point.y, r }
+}
+
+/**
+ * 毛笔字 body: how the painted width follows how fast the nib is moving.
+ *
+ * A brush lays down ink while it dwells and runs dry when it races — the effect
+ * `handWritingWithJS` gets by stamping a smaller brush the faster the pointer
+ * moves. Reproducing it as a width multiplier keeps the renderer a single filled
+ * ribbon, and keeps the eraser footprint, hit testing and the live preview on the
+ * same numbers without a second code path.
+ */
+export interface BrushProfile {
+  /** Nib speed (CSS px/ms) that paints at exactly the chosen width. */
+  typicalSpeed: number
+  /** Width swing per unit of normalized speed: how strongly speed shows up. */
+  gain: number
+  /** Widest a slow press paints, as a multiple of the chosen width. */
+  slowScale: number
+  /** Thinnest a fast flick paints. */
+  fastScale: number
+}
+
+/**
+ * Fountain-pen brush: ±40% around the chosen width between a careful stroke and a
+ * quick flick. Tuned so handwriting stays legible at every speed while the width
+ * swing is clearly visible.
+ */
+export const PEN_BRUSH: BrushProfile = {
+  typicalSpeed: 0.9,
+  gain: 0.4,
+  slowScale: 1.3,
+  fastScale: 0.42,
+}
+
+/** Fastest speed the profile reacts to, in CSS px/ms — spikes from coalesced events. */
+const SPEED_CLAMP = 30
+
+/** Width multiplier for a nib moving at `speed` CSS px/ms. */
+export function brushWidthScale(speed: number, profile: BrushProfile = PEN_BRUSH): number {
+  if (!(speed > 0)) return profile.slowScale
+  const normalized = (Math.min(speed, SPEED_CLAMP) - profile.typicalSpeed) / profile.typicalSpeed
+  const scale = 1 - profile.gain * normalized
+  return Math.min(profile.slowScale, Math.max(profile.fastScale, scale))
+}
+
+/**
+ * Brush profile for a tool: only the pen is a brush. A highlighter is a chisel
+ * marker, so it keeps a constant width and only its ends taper.
+ *
+ * A hold-locked stroke has been collapsed into a line — a shape, not handwriting —
+ * so it paints at the chosen width like the other shapes. Disabled 毛笔字效果
+ * (`inkTaperEnabled` off) returns `null` as well, which leaves the plain marker look.
+ */
+export function brushProfileFor(tool: string | undefined | null, lockedLine = false): BrushProfile | null {
+  if (!inkTaperEnabled || lockedLine || tool !== 'pen') return null
+  return PEN_BRUSH
 }
 
 /** Width multiplier for a normalized pressure: `pressureFloor + pressureRange × p`. */
@@ -403,28 +464,65 @@ export function smoothSamples(points: Point[], style: SweptStyle): Point[] {
   return out
 }
 
+/**
+ * Width multiplier for sample `index`, smoothed like pressure (EMA).
+ *
+ * Speed is distance over the event's own `timeStamp`, so the width follows the
+ * hand rather than the event rate. A sample without timestamps (synthetic strokes,
+ * older actions) paints at the chosen width instead of guessing.
+ */
+export function brushScaleAt(
+  points: readonly Point[],
+  index: number,
+  style: SweptStyle,
+  profile: BrushProfile | null,
+  previous: number,
+): number {
+  if (!profile) return 1
+  const point = points[index]
+  const prev = index > 0 ? points[index - 1] : null
+  if (!prev || point.t == null || prev.t == null) return 1
+  const elapsed = point.t - prev.t
+  if (!(elapsed > 0)) return 1
+  const speed = Math.hypot(point.x - prev.x, point.y - prev.y) / elapsed
+  const target = brushWidthScale(speed, profile)
+  return previous + (target - previous) * pressureAlphaAt(index, style)
+}
+
 export function nodesFromSmoothedPoints(
   points: Point[],
   lineWidth: number,
   style: SweptStyle,
   pointerType?: string | null,
+  profile: BrushProfile | null = null,
 ): StylusNode[] {
   const pressureInk = usesPressureInk(pointerType)
   const smoothed = smoothSamples(points, style)
+  const scales = brushScales(points, style, profile)
 
   const out: StylusNode[] = []
   const count = smoothed.length
   if (count === 0) return out
 
-  out.push(nodeFromPoint(smoothed[0], lineWidth, style, pressureInk))
+  out.push(nodeFromPoint(smoothed[0], lineWidth, style, pressureInk, scales[0]))
   for (let i = 1; i < count - 1; i++) {
     for (const tip of roundCornerTips(smoothed[i - 1], smoothed[i], smoothed[i + 1], style)) {
-      out.push(nodeFromPoint(tip, lineWidth, style, pressureInk))
+      out.push(nodeFromPoint(tip, lineWidth, style, pressureInk, scales[i]))
     }
   }
   // The tip stays on the raw sample so the stroke never falls short of the pointer.
-  if (count > 1) out.push(nodeFromPoint(points[count - 1], lineWidth, style, pressureInk))
+  if (count > 1) out.push(nodeFromPoint(points[count - 1], lineWidth, style, pressureInk, scales[count - 1]))
   return out
+}
+
+/** Smoothed width multiplier for every sample of a stroke. */
+export function brushScales(points: readonly Point[], style: SweptStyle, profile: BrushProfile | null): number[] {
+  const scales: number[] = new Array(points.length).fill(1)
+  if (!profile) return scales
+  for (let i = 1; i < points.length; i++) {
+    scales[i] = brushScaleAt(points, i, style, profile, scales[i - 1])
+  }
+  return scales
 }
 
 /**
@@ -788,13 +886,17 @@ export class SweptSampleCache {
   private readonly lineWidth: number
   private readonly style: SweptStyle
   private readonly pressureInk: boolean
+  private readonly profile: BrushProfile | null
+  /** 毛笔字 width multiplier per sample, on the same EMA phase as the smoothing. */
+  private readonly scales: number[] = []
   /** Arc length between the cached smoothed samples (the raw tip is added in `length`). */
   private arcLength = 0
 
-  constructor(lineWidth: number, style: SweptStyle, pointerType?: string | null) {
+  constructor(lineWidth: number, style: SweptStyle, pointerType?: string | null, profile: BrushProfile | null = null) {
     this.lineWidth = lineWidth
     this.style = style
     this.pressureInk = usesPressureInk(pointerType)
+    this.profile = profile
   }
 
   /** Extend the cache to cover every sample and round whatever is settled. */
@@ -805,6 +907,7 @@ export class SweptSampleCache {
       const current = prev ? smoothPenPoint(prev, points[i], this.style, i) : points[i]
       if (prev) this.arcLength += Math.hypot(current.x - prev.x, current.y - prev.y)
       this.smoothed.push(current)
+      this.scales.push(brushScaleAt(points, i, this.style, this.profile, i > 0 ? this.scales[i - 1] : 1))
     }
 
     // Samples 0…n-2 are settled: their rounded corner depends only on neighbours that exist.
@@ -814,7 +917,9 @@ export class SweptSampleCache {
         i === 0
           ? [this.smoothed[0]]
           : roundCornerTips(this.smoothed[i - 1], this.smoothed[i], this.smoothed[i + 1], this.style)
-      this.perSample.push(tips.map((tip) => nodeFromPoint(tip, this.lineWidth, this.style, this.pressureInk)))
+      this.perSample.push(
+        tips.map((tip) => nodeFromPoint(tip, this.lineWidth, this.style, this.pressureInk, this.scales[i])),
+      )
     }
   }
 
@@ -835,7 +940,7 @@ export class SweptSampleCache {
   /** Node for sample `i`; `points` must already be synced. */
   nodeAt(points: Point[], i: number): StylusNode {
     const sample = i === points.length - 1 ? points[i] : this.smoothed[i]
-    return nodeFromPoint(sample, this.lineWidth, this.style, this.pressureInk)
+    return nodeFromPoint(sample, this.lineWidth, this.style, this.pressureInk, this.scales[i] ?? 1)
   }
 
   /** Nodes for samples `[from, to]` inclusive — same values `nodesFromSmoothedPoints` yields. */
@@ -843,7 +948,7 @@ export class SweptSampleCache {
     const out: StylusNode[] = []
     for (let i = from; i <= to; i++) {
       if (i === points.length - 1) {
-        out.push(nodeFromPoint(points[i], this.lineWidth, this.style, this.pressureInk))
+        out.push(nodeFromPoint(points[i], this.lineWidth, this.style, this.pressureInk, this.scales[i] ?? 1))
       } else {
         out.push(...this.perSample[i])
       }

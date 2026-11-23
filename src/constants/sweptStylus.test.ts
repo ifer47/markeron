@@ -25,9 +25,13 @@ import {
   SWEPT_STYLE,
   setInkTaperEnabled,
   SweptSampleCache,
+  PEN_BRUSH,
   taperMetrics,
   taperNodes,
   taperRamps,
+  brushProfileFor,
+  brushScales,
+  brushWidthScale,
   taperStyleFor,
   usesPressureInk,
   type StylusNode,
@@ -671,6 +675,66 @@ describe('taperMetrics', () => {
 
   it('has no direction to report on a tap', () => {
     expect(taperMetrics([{ x: 0, y: 0, r: 2 }])).toEqual({ speed: 0, turn: 0, entrySpeed: 0 })
+  })
+})
+
+describe('brushWidthScale', () => {
+  it('paints the chosen width at a typical speed', () => {
+    expect(brushWidthScale(PEN_BRUSH.typicalSpeed)).toBeCloseTo(1, 6)
+  })
+
+  it('thins out as the nib races and thickens as it dwells', () => {
+    expect(brushWidthScale(0.2)).toBeGreaterThan(1)
+    expect(brushWidthScale(2)).toBeLessThan(1)
+    // 两端都落在可调范围内，不会出现负宽度或无限粗。
+    expect(brushWidthScale(0)).toBeLessThanOrEqual(PEN_BRUSH.slowScale)
+    expect(brushWidthScale(1000)).toBe(PEN_BRUSH.fastScale)
+  })
+})
+
+describe('brushScales', () => {
+  const timed = (dx: number, dt: number, count = 12): Point[] =>
+    Array.from({ length: count }, (_, i) => ({ x: i * dx, y: 0, t: i * dt }))
+
+  it('follows the nib speed sample by sample', () => {
+    // 第一个采样点没有前一点，保持选定宽度。
+    const slow = brushScales(timed(1, 10), SWEPT_STYLE, PEN_BRUSH).slice(1)
+    const fast = brushScales(timed(4, 1), SWEPT_STYLE, PEN_BRUSH).slice(1)
+    expect(Math.min(...slow)).toBeGreaterThan(1)
+    expect(Math.max(...fast)).toBeLessThan(1)
+  })
+
+  it('paints the chosen width when samples carry no timestamps', () => {
+    // 合成笔画（测试、脚本）没有时间戳，不能根据 `performance.now()` 猜速度。
+    expect(
+      brushScales(
+        [
+          { x: 0, y: 0 },
+          { x: 60, y: 0 },
+        ],
+        SWEPT_STYLE,
+        PEN_BRUSH,
+      ),
+    ).toEqual([1, 1])
+  })
+
+  it('is a no-op without a brush profile', () => {
+    expect(brushScales(timed(4, 1), SWEPT_STYLE, null)).toEqual(new Array(12).fill(1))
+  })
+})
+
+describe('brushProfileFor', () => {
+  afterEach(() => setInkTaperEnabled(true))
+
+  it('is pen-only — a highlighter is a chisel marker', () => {
+    expect(brushProfileFor('pen')).toBe(PEN_BRUSH)
+    expect(brushProfileFor('highlighter')).toBeNull()
+    expect(brushProfileFor(undefined)).toBeNull()
+  })
+
+  it('is off when 毛笔字效果 is disabled', () => {
+    setInkTaperEnabled(false)
+    expect(brushProfileFor('pen')).toBeNull()
   })
 })
 

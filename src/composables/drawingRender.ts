@@ -24,6 +24,7 @@ import {
   buildSweptPath,
   dotRadius,
   nodesFromSmoothedPoints,
+  brushProfileFor,
   polylineLength,
   pruneNodes,
   SWEPT_STYLE,
@@ -65,7 +66,7 @@ export function buildInkPath(
   tool?: DrawAction['tool'],
   lockedLine = false,
 ): Path2D {
-  const nodes = nodesFromSmoothedPoints(points, size, SWEPT_STYLE, pointerType)
+  const nodes = nodesFromSmoothedPoints(points, size, SWEPT_STYLE, pointerType, brushProfileFor(tool, lockedLine))
   // Prune first, then taper: the ramp needs arc-length resolution, and merging the two
   // would either drop the ramp's curvature or paint round caps at the tapered tip.
   const pruned = pruneNodes(nodes, SWEPT_STYLE)
@@ -76,7 +77,13 @@ export function buildInkPath(
 }
 
 function buildCurvedInkPath(action: DrawAction): Path2D {
-  const nodes = nodesFromSmoothedPoints(curvedInkPoints(action), action.lineWidth, CURVED_INK_STYLE, action.pointerType)
+  const nodes = nodesFromSmoothedPoints(
+    curvedInkPoints(action),
+    action.lineWidth,
+    CURVED_INK_STYLE,
+    action.pointerType,
+    brushProfileFor(action.tool, action.lockedLine === true),
+  )
   // Keep every sample: the 3° freehand pruning tolerance would flatten a smooth
   // quadratic into a visibly polygonal ribbon.
   const tapered = taperNodes(

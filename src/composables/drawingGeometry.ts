@@ -3,6 +3,7 @@ import { textOutlinePadding } from '../constants/textOutline'
 import { stampBboxPad, stampRadius } from '../constants/stamp'
 import { isNonSolidDashStyle } from '../constants/tools'
 import {
+  brushProfileFor,
   connectingQuadPoints,
   nodesFromSmoothedPoints,
   polylineLength,
@@ -620,6 +621,7 @@ export function actionInkNodes(action: DrawAction): StylusNode[] | null {
     action.lineWidth,
     isCurvedLinearAction(action) ? CURVED_INK_STYLE : SWEPT_STYLE,
     action.pointerType,
+    brushProfileFor(action.tool, action.lockedLine === true),
   )
   // The 笔锋 ramp shrinks the painted radius at the lifted tip, so the eraser has to see
   // the tapered nodes too — otherwise it erases the air where the round cap used to be.

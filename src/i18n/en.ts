@@ -194,9 +194,9 @@ export default {
     autoRevertToPen: 'Return to pen after shape',
     autoRevertToPenDesc:
       'After drawing one line, arrow, rectangle, or ellipse, automatically switch back to the pen. Re-entering drawing mode also starts from the pen. Modifier-key temporary tools still restore the previous tool as before.',
-    inkTaper: 'Tapered stroke ends',
+    inkTaper: 'Brush strokes',
     inkTaperDesc:
-      'Pen and highlighter strokes taper at both tips: a short, sharp landing (blunt when you press first) and a long tail that grows with your speed and bends along the stroke. Lines and shapes carry no taper. Works with a mouse, touch and stylus alike; turn it off for uniform round ends.',
+      'Pen width follows how fast you write — thin when you race, thick when you dwell — with a short, sharp landing and a long trailing tail, so handwriting looks brushed. The highlighter stays uniform, and lines and shapes carry no taper. Works with a mouse, touch and stylus alike; turn it off for uniform round ends.',
   },
   toolbar: {
     shortcutTooltip: '{label} ({shortcut})',

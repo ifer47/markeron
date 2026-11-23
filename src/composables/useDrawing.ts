@@ -52,6 +52,7 @@ import {
   taperMetrics,
   taperNodes,
   taperStyleFor,
+  brushProfileFor,
 } from '../constants/sweptStylus'
 import { collapseStrokeToLine, STROKE_LINE_LOCK_HOLD_MS, strokeLineLockStillDistSq } from '../utils/strokeLineLock'
 import { buildEraserFootprint, type EraserFootprint } from '../utils/eraserFootprint'
@@ -1439,7 +1440,12 @@ export function useDrawing(
 
     // Every slice must sit on the same EMA phase as the final `buildInkPath`, else the
     // frozen chunks stick out and the stroke visibly re-renders on pointer up.
-    const cache = (inkSamples ??= new SweptSampleCache(action.lineWidth, SWEPT_STYLE, action.pointerType))
+    const cache = (inkSamples ??= new SweptSampleCache(
+      action.lineWidth,
+      SWEPT_STYLE,
+      action.pointerType,
+      brushProfileFor(action.tool, action.lockedLine === true),
+    ))
     cache.sync(pts)
     const taper = taperStyleFor(action.tool, action.lockedLine === true)
     // The ramp length comes from the whole stroke, so the live tail tapers exactly like
@@ -1922,7 +1928,10 @@ export function useDrawing(
         if (action.tool === 'laser') {
           nextPoint = { x, y, t: performance.now() }
         } else if (isInkTool(action.tool)) {
-          nextPoint = { x, y, pressure: normalizePressure(point.pressure) }
+          // 毛笔字 width follows nib speed, so every sample keeps the event timestamp.
+          // Synthetic input (tests, scripted strokes) has none — the renderer then paints
+          // at the chosen width instead of guessing a speed from `performance.now()`.
+          nextPoint = { x, y, pressure: normalizePressure(point.pressure), t: point.timeStamp }
         } else {
           nextPoint = { x, y }
         }

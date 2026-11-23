@@ -682,9 +682,10 @@ describe('hitTestAction', () => {
     const straight = makeAction({
       tool: 'pen',
       lockedLine: true,
+      // 时间戳相差很大（速度很快）：如果锁定的直线也吃速度，笔宽会变细。
       points: [
-        { x: 0, y: 0, pressure: 0.6 },
-        { x: 100, y: 0, pressure: 0.6 },
+        { x: 0, y: 0, pressure: 0.6, t: 0 },
+        { x: 100, y: 0, pressure: 0.6, t: 5 },
       ],
     })
     const bent = makeAction({
@@ -728,10 +729,11 @@ describe('hitTestAction', () => {
       expect(Math.min(...ink.map((n) => n.r))).toBeCloseTo(1.5, 10)
       expect(Math.max(...ink.map((n) => n.r))).toBeCloseTo(1.5, 10)
 
-      // The same samples as freehand ink still taper the lifted tip.
+      // The same samples as freehand ink taper the lifted tip and thin out under speed.
       const freehand = actionInkNodes({ ...straight, lockedLine: false })!
       expect(freehand[freehand.length - 1].r).toBeLessThan(1.5)
       expect(freehand[0].r).toBeCloseTo(1.5, 10)
+      expect(Math.min(...freehand.map((n) => n.r))).toBeLessThan(1)
     })
   })
 

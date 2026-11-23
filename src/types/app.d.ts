@@ -32,7 +32,10 @@ export interface AppConfig {
     crosshairCursorStyle?: CrosshairCursorStyle
     /** After one arrow/rect/ellipse/line stroke, switch back to pen. Default off. */
     autoRevertToPen?: boolean
-    /** Taper the lifted end of pen / highlighter ink (笔锋). Default on. */
+    /**
+     * 毛笔字效果: pen width follows nib speed, with a 露锋 entry and a 出锋 exit.
+     * The config key predates the brush profile — it still gates both. Default on.
+     */
     inkTaper?: boolean
     lineWidths?: {
       stroke: number

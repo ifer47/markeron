@@ -619,18 +619,21 @@ export function pruneNodes(nodes: StylusNode[], style: SweptStyle): StylusNode[]
   if (nodes.length <= 4 || style.pruneAngleDeg <= 0) return nodes.slice()
 
   const out: StylusNode[] = []
-  let lastAngle = 0
+  /** Direction of the segment that ends at the last **kept** node. */
+  let keptAngle = 0
   let lastArea = 0
   let previousPreviousRendered = false
 
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i]
     const prev = i > 0 ? nodes[i - 1] : null
+    const angle = prev ? angleBetween(prev, node) : 0
 
     let delta = 0
+    // 转角必须相对「上一个保留的节点」量：只比相邻两点时，密集采样（慢速书写）
+    // 的每个采样点只转几分之一度，整条曲线会被简化成一条弦。
     if (prev && (node.x !== prev.x || node.y !== prev.y)) {
-      delta = Math.abs(angleDeltaFromLast(prev, node, lastAngle))
-      lastAngle = angleBetween(prev, node)
+      delta = Math.abs(angleDeltaFromLast(prev, node, keptAngle))
     }
 
     const area = 4 * node.r * node.r
@@ -650,6 +653,7 @@ export function pruneNodes(nodes: StylusNode[], style: SweptStyle): StylusNode[]
         previousPreviousRendered = true
       }
       out.push(node)
+      keptAngle = angle
     }
 
     if (!directionChanged) previousPreviousRendered = false

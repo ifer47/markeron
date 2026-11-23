@@ -147,6 +147,21 @@ describe('pruneNodes', () => {
     expect(SWEPT_STYLE.pruneAngleDeg).toBeLessThanOrEqual(5)
   })
 
+  it('keeps a dense gentle curve instead of flattening it to a chord', () => {
+    // 慢速书写的采样间隔很小，每个点只转 ~0.6°；只比相邻两点时整段圆弧会被弦代替。
+    const arc = nodes(
+      Array.from({ length: 300 }, (_, i) => {
+        const t = (i / 299) * Math.PI
+        return [100 * Math.cos(t), 100 * Math.sin(t)] as [number, number]
+      }),
+    )
+    const pruned = pruneNodes(arc, SWEPT_STYLE)
+
+    expect(pruned.length).toBeGreaterThan(20)
+    // 每个保留节点都还在圆弧上。
+    for (const node of pruned) expect(Math.hypot(node.x, node.y)).toBeCloseTo(100, 6)
+  })
+
   it('never reorders or duplicates the endpoints', () => {
     const pruned = pruneNodes(straight(200), SWEPT_STYLE)
     expect(pruned[0].x).toBe(0)

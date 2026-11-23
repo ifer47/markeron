@@ -26,6 +26,7 @@ import {
   setInkTaperEnabled,
   SweptSampleCache,
   taperLength,
+  taperMetrics,
   taperNodes,
   taperStyleFor,
   usesPressureInk,
@@ -608,8 +609,42 @@ describe('taperLength', () => {
     expect(taperLength(6, 4, PEN_TAPER)).toBeCloseTo(6 * PEN_TAPER.maxLengthRatio, 6)
   })
 
+  it('stretches the ramp with the exit speed', () => {
+    const slow = taperLength(200, 4, PEN_TAPER, 0)
+    const fast = taperLength(200, 4, PEN_TAPER, 1)
+    expect(slow).toBeCloseTo(4 * PEN_TAPER.endLength, 6)
+    expect(fast / slow).toBeCloseTo(1 + PEN_TAPER.speedLengthGain, 6)
+  })
+
   it('does not taper a zero-length stroke', () => {
     expect(taperLength(0, 4, PEN_TAPER)).toBe(0)
+  })
+})
+
+describe('taperMetrics', () => {
+  const line = (spacing: number, count = 12): StylusNode[] =>
+    Array.from({ length: count }, (_, i) => ({ x: i * spacing, y: 0, r: 2 }))
+
+  it('maps slow presses to 0 and fast flicks to 1', () => {
+    expect(taperMetrics(line(0.5)).speed).toBe(0)
+    expect(taperMetrics(line(3)).speed).toBeCloseTo(0.5, 6)
+    expect(taperMetrics(line(10)).speed).toBe(1)
+  })
+
+  it('reports the signed turn of the exit', () => {
+    // 屏幕坐标 y 向下：向上拐是负角。
+    const up: StylusNode[] = [
+      { x: 0, y: 0, r: 2 },
+      { x: 10, y: 0, r: 2 },
+      { x: 20, y: -10, r: 2 },
+      { x: 30, y: -20, r: 2 },
+    ]
+    expect(taperMetrics(up).turn).toBeCloseTo(-Math.PI / 4, 5)
+    expect(taperMetrics(up.map((node) => ({ ...node, y: -node.y }))).turn).toBeCloseTo(Math.PI / 4, 5)
+  })
+
+  it('has no direction to report on a tap', () => {
+    expect(taperMetrics([{ x: 0, y: 0, r: 2 }])).toEqual({ speed: 0, turn: 0 })
   })
 })
 
@@ -719,7 +754,7 @@ describe('taperNodes', () => {
       SWEPT_STYLE,
       'mouse',
     )
-    const tailOnly = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, true)
+    const tailOnly = taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER)
     expect(tailOnly[0].r).toBeCloseTo(half, 5)
     expect(tailOnly[tailOnly.length - 1].r).toBeCloseTo(half * PEN_TAPER.endTipScale, 5)
   })
@@ -736,7 +771,40 @@ describe('taperNodes', () => {
       'mouse',
     )
     // 冻结块的末端藏在实时尾部下方，必须是满宽圆头，不能留缺口。
-    expect(taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, false)).toBe(input)
+    expect(taperNodes(input, lineWidth, polylineLength(input), PEN_TAPER, { taperEnd: false })).toBe(input)
+  })
+
+  it('skews the tail off the centreline', () => {
+    const input: StylusNode[] = Array.from({ length: 40 }, (_, i) => ({ x: i * 2, y: 0, r: half }))
+    const total = polylineLength(input)
+    const offsetOf = (nodes: StylusNode[]) => Math.max(...nodes.map((node) => Math.abs(node.y)))
+
+    // 尾巴向肩部一侧偏斜，形成月牙而不是对称的针尖。
+    const skewed = taperNodes(input, lineWidth, total, PEN_TAPER)
+    expect(offsetOf(skewed)).toBeGreaterThan(0.1)
+
+    // 完全对称时中心线不动。
+    const symmetric = taperNodes(input, lineWidth, total, { ...PEN_TAPER, skew: 0 })
+    expect(offsetOf(symmetric)).toBe(0)
+
+    // 反向弯曲时偏到另一侧。
+    const flipped = taperNodes(input, lineWidth, total, PEN_TAPER, { metrics: { speed: 0, turn: -Math.PI } })
+    const peak = (nodes: StylusNode[]) =>
+      nodes.reduce((best, node) => (Math.abs(node.y) > Math.abs(best.y) ? node : best))
+    expect(Math.sign(peak(flipped).y)).toBe(-Math.sign(peak(skewed).y))
+  })
+
+  it('sharpens and lengthens the 锋 for a fast lift', () => {
+    const input: StylusNode[] = Array.from({ length: 40 }, (_, i) => ({ x: i * 2, y: 0, r: half }))
+    const total = polylineLength(input)
+    const radiusAt = (nodes: StylusNode[], x: number) =>
+      nodes.reduce((best, node) => (Math.abs(node.x - x) < Math.abs(best.x - x) ? node : best)).r
+
+    // 同一位置，快速挑笔更细：锋更长。
+    const slow = taperNodes(input, lineWidth, total, PEN_TAPER, { metrics: { speed: 0, turn: 0 } })
+    const fast = taperNodes(input, lineWidth, total, PEN_TAPER, { metrics: { speed: 1, turn: 0 } })
+    expect(radiusAt(fast, total - 8)).toBeLessThan(radiusAt(slow, total - 8))
+    expect(radiusAt(fast, total * 0.4)).toBeCloseTo(radiusAt(slow, total * 0.4), 5)
   })
 
   it('leaves a single-sample tap round', () => {
@@ -785,7 +853,7 @@ describe('taperNodes live slices', () => {
   const committedAt = new Map(committed.map((node) => [`${node.x},${node.y}`, node.r]))
 
   it('freezes a chunk without a ramp at its covered end', () => {
-    const chunk = taperNodes(nodes.slice(0, 260), 4, total, PEN_TAPER, false)
+    const chunk = taperNodes(nodes.slice(0, 260), 4, total, PEN_TAPER, { taperEnd: false })
     // 冻结块的末端藏在实时尾部下方，必须是满宽圆头，不能留缺口。
     expect(chunk[chunk.length - 1].r).toBeCloseTo(2, 6)
     for (const node of chunk) {
@@ -795,7 +863,7 @@ describe('taperNodes live slices', () => {
   })
 
   it('tapers the live tail exactly like the committed ribbon', () => {
-    const tail = taperNodes(nodes.slice(200), 4, total, PEN_TAPER, true)
+    const tail = taperNodes(nodes.slice(200), 4, total, PEN_TAPER)
     // 尾部起点是冻结块的接缝，必须和冻结块一样保持满宽；其余节点必须与落笔后的轮廓逐点一致。
     expect(tail[0].r).toBeCloseTo(2, 6)
     expect(tail[tail.length - 1].r).toBeCloseTo(committed[committed.length - 1].r, 6)

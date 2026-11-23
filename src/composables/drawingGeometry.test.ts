@@ -32,6 +32,7 @@ import {
   ERASER_GLYPH_HALF_STROKE,
   type EraserFootprint,
 } from '../utils/eraserFootprint'
+import { PEN_TAPER } from '../constants/sweptStylus'
 
 function makeAction(overrides: Partial<DrawAction> = {}): DrawAction {
   return {
@@ -1181,8 +1182,8 @@ describe('hitTestActionWithFootprint', () => {
         ],
       })
       const tip = actionInkNodes(action)!.reduce((lowest, node) => (node.y > lowest.y ? node : lowest))
-      // 4.35 × endTipScale (0.12) — the paint ends in a point, not a disc.
-      expect(tip.r).toBeCloseTo(4.35 * 0.12, 5)
+      // 4.35 × endTipScale — the paint ends in a thin thread, not a disc.
+      expect(tip.r).toBeCloseTo(4.35 * PEN_TAPER.endTipScale, 5)
       expect(hitTestActionWithFootprint(action, squareProbe(50, 100, 5))).toBe(true)
       // The old round cap reached 4.35px at the tip; the tapered ribbon is gone by then.
       expect(hitTestActionWithFootprint(action, squareProbe(50 + 4.35 + 5 - 0.01, 100, 5))).toBe(false)
@@ -1309,11 +1310,11 @@ describe('hitTestActionWithFootprint', () => {
         bbox: { x1: -40, y1: -40, x2: 40, y2: 140 },
       })
       // Prime the cache with the 3.25px ribbon (r = 1.625).
-      expect(hitTestActionWithFootprint(action, squareProbe(5, 50, 0.01))).toBe(false)
+      expect(hitTestActionWithFootprint(action, squareProbe(5, 20, 0.01))).toBe(false)
       action.lineWidth = 20
-      // The repainted ribbon reaches 10px beside the centreline; a stale radius would
-      // still report 1.625 and leave the ink under the glyph unerased.
-      expect(hitTestActionWithFootprint(action, squareProbe(5, 50, 0.01))).toBe(true)
+      // The repainted ribbon is ~9px wide here (the 锋 ramp only eats the last 70px); a
+      // stale radius would still report 1.625 and leave the ink under the glyph unerased.
+      expect(hitTestActionWithFootprint(action, squareProbe(5, 20, 0.01))).toBe(true)
     })
 
     it('rebuilds bent ink after the bend handle moves', () => {

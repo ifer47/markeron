@@ -27,6 +27,7 @@ import {
   polylineLength,
   pruneNodes,
   SWEPT_STYLE,
+  taperMetrics,
   taperNodes,
   taperStyleFor,
 } from '../constants/sweptStylus'
@@ -68,7 +69,9 @@ export function buildInkPath(
   // Prune first, then taper: the ramp needs arc-length resolution, and merging the two
   // would either drop the ramp's curvature or paint round caps at the tapered tip.
   const pruned = pruneNodes(nodes, SWEPT_STYLE)
-  const tapered = taperNodes(pruned, size, polylineLength(nodes), taperStyleFor(tool, lockedLine))
+  const tapered = taperNodes(pruned, size, polylineLength(nodes), taperStyleFor(tool, lockedLine), {
+    metrics: taperMetrics(nodes),
+  })
   return buildSweptPath(tapered)
 }
 
@@ -81,6 +84,7 @@ function buildCurvedInkPath(action: DrawAction): Path2D {
     action.lineWidth,
     polylineLength(nodes),
     taperStyleFor(action.tool, action.lockedLine === true),
+    { metrics: taperMetrics(nodes) },
   )
   return buildSweptPath(tapered)
 }

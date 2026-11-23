@@ -196,7 +196,7 @@ export default {
       'After drawing one line, arrow, rectangle, or ellipse, automatically switch back to the pen. Re-entering drawing mode also starts from the pen. Modifier-key temporary tools still restore the previous tool as before.',
     inkTaper: 'Tapered stroke ends',
     inkTaperDesc:
-      'Pen and highlighter strokes thin out only where you lift the nib, so handwriting keeps a natural brush tip while the start stays at full width and lines and shapes carry no taper. Works with a mouse, touch and stylus alike; turn it off for uniform round ends.',
+      'Pen and highlighter strokes thin out only where you lift the nib, so handwriting keeps a natural brush tip whose length follows your speed and whose thread bends along the stroke. The start stays at full width, and lines and shapes carry no taper. Works with a mouse, touch and stylus alike; turn it off for uniform round ends.',
   },
   toolbar: {
     shortcutTooltip: '{label} ({shortcut})',

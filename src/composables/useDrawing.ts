@@ -49,6 +49,7 @@ import {
   SweptSampleCache,
   isInkTaperEnabled,
   setInkTaperEnabled,
+  taperMetrics,
   taperNodes,
   taperStyleFor,
 } from '../constants/sweptStylus'
@@ -1448,7 +1449,12 @@ export function useDrawing(
     const pathFor = (from: number, to: number): Path2D => {
       const nodes = cache.nodes(pts, from, to)
       const pruned = pruneNodes(nodes, SWEPT_STYLE)
-      return buildSweptPath(taperNodes(pruned, action.lineWidth, strokeLength, taper, to === pts.length - 1))
+      return buildSweptPath(
+        taperNodes(pruned, action.lineWidth, strokeLength, taper, {
+          taperEnd: to === pts.length - 1,
+          metrics: taperMetrics(nodes),
+        }),
+      )
     }
 
     if (pts.length === 1) {

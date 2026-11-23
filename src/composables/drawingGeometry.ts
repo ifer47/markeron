@@ -8,6 +8,7 @@ import {
   polylineLength,
   isInkTaperEnabled,
   SWEPT_STYLE,
+  taperMetrics,
   taperNodes,
   taperStyleFor,
   usesPressureInk,
@@ -627,6 +628,7 @@ export function actionInkNodes(action: DrawAction): StylusNode[] | null {
     action.lineWidth,
     polylineLength(smoothed),
     taperStyleFor(action.tool, action.lockedLine === true),
+    { metrics: taperMetrics(smoothed) },
   )
 
   const first = pts[0]

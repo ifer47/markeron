@@ -1,6 +1,18 @@
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, computed, watch } from 'vue'
-import { Undo2, Redo2, Trash2, Layout, Copy, MoreHorizontal, ChevronUp, MousePointer2, Pin, X, Pen } from '@lucide/vue'
+import {
+  Undo2,
+  Redo2,
+  Trash2,
+  Layout,
+  Copy,
+  MoreHorizontal,
+  ChevronUp,
+  SquareDashedMousePointer,
+  Pin,
+  X,
+  Feather,
+} from '@lucide/vue'
 import type { Tool } from '../composables/useDrawing'
 import { isMacOS } from '../utils/platform'
 import { useI18n } from '../i18n'
@@ -601,6 +613,9 @@ onUnmounted(() => {
         <!-- Actions — same size/gap as compact tools row -->
         <div class="px-3 pt-1 pb-2">
           <div class="flex items-center justify-between">
+            <!-- Mode pair: Feather (draw/annotate) vs dashed pointer (click-through —
+                 dashed reads as "not intercepting"). The select tool to the right uses
+                 the plain pointer from SELECT_TOOL_DEF. -->
             <button
               v-if="standaloneWindow"
               type="button"
@@ -612,7 +627,7 @@ onUnmounted(() => {
               :disabled="whiteboardMode"
               @click="onDrawingModeClick"
             >
-              <Pen :size="15" />
+              <Feather :size="15" />
             </button>
             <button
               v-if="standaloneWindow"
@@ -625,7 +640,7 @@ onUnmounted(() => {
               :disabled="whiteboardMode"
               @click="onPenetrationModeClick"
             >
-              <MousePointer2 :size="15" />
+              <SquareDashedMousePointer :size="15" />
             </button>
             <button
               type="button"

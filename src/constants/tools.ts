@@ -1,6 +1,6 @@
 import type { Component } from 'vue'
 import {
-  SquareDashedMousePointer,
+  MousePointer2,
   Pen,
   Highlighter,
   Crosshair,
@@ -22,8 +22,10 @@ export interface ToolDef {
   key: string
 }
 
-/** Select lives in the top action row; drawing tools use the grid below. */
-export const SELECT_TOOL_DEF: ToolDef = { id: 'select', icon: SquareDashedMousePointer, key: 'V' }
+/** Select lives in the top action row; drawing tools use the grid below.
+ *  Select uses the plain pointer; the dashed-pointer glyph belongs to the
+ *  click-through (penetration) mode toggle in `ToolToolbar.vue`. */
+export const SELECT_TOOL_DEF: ToolDef = { id: 'select', icon: MousePointer2, key: 'V' }
 
 export const TOOL_DEFS: ToolDef[] = [
   SELECT_TOOL_DEF,

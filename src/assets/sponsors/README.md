@@ -47,16 +47,39 @@ src/assets/sponsors/
 - `public/` 路径：`"sponsors/foo.webp"`（随版本发布，不参与远程更新）
 - 完整远程地址：`"https://..."`（需要把域名加入 CSP 的 `img-src`）
 
-## 等级文案
-
-`plan` 用稳定的 key，界面会按语言翻译：
+Contributors（共创者）可以直接用 GitHub 头像地址，例如：
 
 ```json
-{ "plan": "supporter" }
+{
+  "name": "ifer47",
+  "plan": "contributor",
+  "avatar": "https://avatars.githubusercontent.com/u/172476270?s=96&v=4"
+}
 ```
 
-目前支持 `supporter`（中文「支持者」/ 英文「Supporter」）。
-旧的 `"MarkerOn 支持者"` 也会自动按 supporter 翻译；其他未识别文案原样显示。
+`avatars.githubusercontent.com` 已经加入 CSP。远程头像没有本地兜底，离线时会显示首字徽章。
+
+## 档位
+
+`plan` 用稳定的 key，界面会按语言翻译。所有档位已经预置在客户端里，
+以后只改 `sponsors.json` 并 push 就能换档，不需要发版。
+
+| key | 中文 | English | 建议条件 | 视觉 |
+|---|---|---|---|---|
+| `supporter` | 支持者 | Supporter | 任意金额 / 一次性 | 默认灰 |
+| `patron` | 同行者 | Patron | 累计 ≥ ¥50 或连续 3 个月 | 蓝色标签 + 圆点 + 蓝环 |
+| `guardian` | 守护者 | Guardian | 累计 ≥ ¥200 或连续 12 个月 | 金色标签 + 菱形 + 金环 |
+| `contributor` | 共创者 | Co-creator | 代码 / 文档 / 翻译 / 设计 / 推广 | 青色标签 + 方块 + 青环 |
+
+金额阈值只是建议，按实际支持情况调整；不公开金额也可以。
+
+```json
+{ "name": "千里封冰", "plan": "guardian", "avatar": "千里封冰.png" }
+```
+
+- 旧文案 `"MarkerOn 支持者"`、`"支持者"`、`"Supporter"` 会自动按 supporter 处理。
+- 未识别的 plan 会原样显示，并按 supporter 样式渲染。
+- 早期支持者暂不作为独立档位，避免和金额档冲突；以后可以加 badge。
 
 ## 图片建议
 

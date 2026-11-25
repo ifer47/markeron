@@ -32,8 +32,28 @@
     },
     {
       "name": "Loristoki",
-      "plan": "supporter",
+      "plan": "guardian",
       "avatar": "loristoki.jpg"
+    },
+    {
+      "name": "ifer47",
+      "plan": "contributor",
+      "avatar": "https://avatars.githubusercontent.com/u/172476270?s=96&v=4"
+    },
+    {
+      "name": "siqinpeng",
+      "plan": "contributor",
+      "avatar": "https://avatars.githubusercontent.com/u/99539158?s=96&v=4"
+    },
+    {
+      "name": "SchneiderSam",
+      "plan": "contributor",
+      "avatar": "https://avatars.githubusercontent.com/u/9355398?s=96&v=4"
+    },
+    {
+      "name": "fu9zhou",
+      "plan": "contributor",
+      "avatar": "https://avatars.githubusercontent.com/u/37035834?s=96&v=4"
     }
   ]
 }

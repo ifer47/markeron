@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, type App } from 'vue'
 
 vi.mock('../../data/sponsors', () => {
-  const sponsors = [{ name: '爱发电用户_W' }, { name: '47' }, { name: '千里封冰' }]
+  // `constructor` 同时覆盖未知 plan：不能命中 Object.prototype 上的属性
+  const sponsors = [{ name: '爱发电用户_W', plan: 'constructor' }, { name: '47' }, { name: '千里封冰' }]
   return {
     bundledSponsors: { sponsors },
     loadSponsors: () => Promise.resolve(sponsors),

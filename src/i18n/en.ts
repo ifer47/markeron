@@ -119,6 +119,9 @@ export default {
       sponsorsEmpty: 'Every supporter',
       closing: 'Thank you all',
       planSupporter: 'Supporter',
+      planPatron: 'Patron',
+      planGuardian: 'Guardian',
+      planContributor: 'Co-creator',
     },
     shortcutLabels: {
       toggleDrawing: 'Toggle annotation',

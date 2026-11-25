@@ -88,19 +88,35 @@ function maybePreloadRemoteAvatars() {
   preloadRemoteAvatars()
 }
 
-const PLAN_LABEL_KEYS: Record<string, string> = {
-  supporter: 'settings.creditsRoll.planSupporter',
-  // 兼容还没更新到新 key 的远程 / 本地文案
-  'MarkerOn 支持者': 'settings.creditsRoll.planSupporter',
-  'MarkerOn Supporter': 'settings.creditsRoll.planSupporter',
-  支持者: 'settings.creditsRoll.planSupporter',
-  Supporter: 'settings.creditsRoll.planSupporter',
+type SponsorTier = 'supporter' | 'patron' | 'guardian' | 'contributor'
+
+const PLAN_META: Record<string, { tier: SponsorTier; key: string }> = {
+  supporter: { tier: 'supporter', key: 'settings.creditsRoll.planSupporter' },
+  'markeron 支持者': { tier: 'supporter', key: 'settings.creditsRoll.planSupporter' },
+  'markeron supporter': { tier: 'supporter', key: 'settings.creditsRoll.planSupporter' },
+  支持者: { tier: 'supporter', key: 'settings.creditsRoll.planSupporter' },
+  patron: { tier: 'patron', key: 'settings.creditsRoll.planPatron' },
+  同行者: { tier: 'patron', key: 'settings.creditsRoll.planPatron' },
+  guardian: { tier: 'guardian', key: 'settings.creditsRoll.planGuardian' },
+  守护者: { tier: 'guardian', key: 'settings.creditsRoll.planGuardian' },
+  contributor: { tier: 'contributor', key: 'settings.creditsRoll.planContributor' },
+  共创者: { tier: 'contributor', key: 'settings.creditsRoll.planContributor' },
+  'co-creator': { tier: 'contributor', key: 'settings.creditsRoll.planContributor' },
+}
+
+function planMeta(plan?: string) {
+  if (!plan) return undefined
+  const key = plan.toLowerCase()
+  return Object.prototype.hasOwnProperty.call(PLAN_META, key) ? PLAN_META[key] : undefined
 }
 
 function planLabel(plan?: string): string {
-  if (!plan) return ''
-  const key = PLAN_LABEL_KEYS[plan]
-  return key ? t(key) : plan
+  const meta = planMeta(plan)
+  return meta ? t(meta.key) : (plan ?? '')
+}
+
+function planTier(plan?: string): SponsorTier {
+  return planMeta(plan)?.tier ?? 'supporter'
 }
 
 onMounted(() => {
@@ -486,6 +502,7 @@ onUnmounted(() => {
                   v-for="(sponsor, sponsorIndex) in sponsors"
                   :key="`a-${sponsorIndex}`"
                   class="settings-sidebar-credits__sponsor"
+                  :class="`settings-sidebar-credits__sponsor--${planTier(sponsor.plan)}`"
                 >
                   <span
                     class="settings-sidebar-credits__avatar"
@@ -522,6 +539,7 @@ onUnmounted(() => {
                   v-for="(sponsor, sponsorIndex) in sponsors"
                   :key="`b-${sponsorIndex}`"
                   class="settings-sidebar-credits__sponsor"
+                  :class="`settings-sidebar-credits__sponsor--${planTier(sponsor.plan)}`"
                 >
                   <span
                     class="settings-sidebar-credits__avatar"

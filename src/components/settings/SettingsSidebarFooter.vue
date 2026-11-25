@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '../../i18n'
-import { bundledSponsors, loadSponsors, sponsorHue, sponsorMonogram, type SponsorEntry } from '../../data/sponsors'
+import {
+  bundledSponsors,
+  loadSponsors,
+  refreshSponsors,
+  sponsorHue,
+  sponsorMonogram,
+  type SponsorEntry,
+} from '../../data/sponsors'
 
 const { t } = useI18n()
 
@@ -86,6 +93,19 @@ function preloadRemoteAvatars() {
 function maybePreloadRemoteAvatars() {
   if (phase.value === 'idle') return
   preloadRemoteAvatars()
+}
+
+/** Refresh the official sponsors.json; the GitHub raw cache may still serve a recent copy. */
+function refreshSponsorList() {
+  void refreshSponsors()
+    .then((list) => {
+      if (disposed) return
+      sponsors.value = list
+      maybePreloadRemoteAvatars()
+    })
+    .catch((error) => {
+      console.warn('[sponsors] refresh failed, keeping current list', error)
+    })
 }
 
 type SponsorTier = 'supporter' | 'patron' | 'guardian' | 'contributor'
@@ -286,6 +306,7 @@ function startEasterEgg() {
   creditsHovered.value = false
   phase.value = 'shake'
   maybePreloadRemoteAvatars()
+  void refreshSponsorList()
   void nextTick(playShake)
 
   scheduleSequence(SHAKE_MS, () => {
@@ -362,6 +383,16 @@ async function onVersionActivate(event: PointerEvent) {
 const creditsVisible = computed(() => phase.value !== 'idle')
 // 关闭阶段同步恢复底部文案，避免弹层淡出后短暂空白
 const hideFooterLine = computed(() => phase.value === 'unroll' || phase.value === 'scroll')
+
+// 面板滚动期间名单变长（刷新或新 contributor）时重新计算滚动距离
+watch(
+  () => sponsors.value.length,
+  () => {
+    if (phase.value !== 'scroll') return
+    resetScrollTrack()
+    void nextTick(beginScroll)
+  },
+)
 
 onUnmounted(() => {
   disposed = true

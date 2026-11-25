@@ -180,6 +180,33 @@ export function sponsorHue(name: string): number {
   return hash
 }
 
+/** Fetch the remote list from GitHub raw; throws on failure. */
+async function fetchRemoteSponsors(): Promise<SponsorEntry[]> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 8000)
+
+  try {
+    const response = await fetch(SPONSORS_REMOTE_URL, {
+      method: 'GET',
+      cache: 'no-store',
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    }).finally(() => clearTimeout(timer))
+
+    if (!response.ok) {
+      throw new Error(`sponsors fetch HTTP ${response.status}`)
+    }
+
+    const remote = normalizeSponsors(await response.json())
+    if (remote.sponsors.length === 0) {
+      throw new Error('sponsors fetch returned an empty list')
+    }
+    return remote.sponsors
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /**
  * Load sponsors at runtime from GitHub raw (`master`), falling back to the
  * bundled `sponsors.json` when offline or the request fails.
@@ -194,24 +221,9 @@ export function loadSponsors(): Promise<SponsorEntry[]> {
 
   inflight = (async () => {
     try {
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 8000)
-      const response = await fetch(SPONSORS_REMOTE_URL, {
-        method: 'GET',
-        cache: 'no-store',
-        signal: controller.signal,
-        headers: { Accept: 'application/json' },
-      }).finally(() => clearTimeout(timer))
-
-      if (!response.ok) {
-        throw new Error(`sponsors fetch HTTP ${response.status}`)
-      }
-
-      const remote = normalizeSponsors(await response.json())
-      if (remote.sponsors.length > 0) {
-        cachedSponsors = remote.sponsors
-        return cachedSponsors
-      }
+      const remote = await fetchRemoteSponsors()
+      cachedSponsors = remote
+      return remote
     } catch (error) {
       console.warn('[sponsors] remote fetch failed, using bundled list', error)
     }
@@ -223,6 +235,15 @@ export function loadSponsors(): Promise<SponsorEntry[]> {
   })
 
   return inflight
+}
+
+/**
+ * Refresh the remote list for an already-open panel. Unlike `loadSponsors()`,
+ * this rejects on failure so callers can keep the currently displayed list
+ * instead of replacing it with the bundled fallback.
+ */
+export function refreshSponsors(): Promise<SponsorEntry[]> {
+  return fetchRemoteSponsors()
 }
 
 /** Sync initial paint fallback. Prefer `loadSponsors()` for the live list. */

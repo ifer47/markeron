@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, type App } from 'vue'
+import { refreshSponsors } from '../../data/sponsors'
 
 vi.mock('../../data/sponsors', () => {
   // `constructor` 同时覆盖未知 plan：不能命中 Object.prototype 上的属性
@@ -8,6 +9,7 @@ vi.mock('../../data/sponsors', () => {
   return {
     bundledSponsors: { sponsors },
     loadSponsors: () => Promise.resolve(sponsors),
+    refreshSponsors: vi.fn(() => Promise.resolve(sponsors)),
     sponsorHue: () => 220,
     sponsorMonogram: (name: string) => name.slice(0, 1),
   }
@@ -62,6 +64,7 @@ function leave() {
 beforeEach(async () => {
   vi.useFakeTimers()
   vi.stubGlobal('__APP_VERSION__', '9.9.9')
+  vi.mocked(refreshSponsors).mockClear()
   // jsdom 不做布局，滚动距离固定给一个非零值
   Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
     configurable: true,
@@ -213,5 +216,12 @@ describe('致谢面板关闭时序', () => {
 
     expect(panel()).not.toBeNull()
     expect(panel()?.classList.contains('is-closing')).toBe(false)
+  })
+})
+
+describe('致谢名单刷新', () => {
+  it('打开面板时强制刷新名单', async () => {
+    await openPanel()
+    expect(refreshSponsors).toHaveBeenCalledTimes(1)
   })
 })

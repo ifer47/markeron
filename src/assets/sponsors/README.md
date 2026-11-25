@@ -81,6 +81,24 @@ Contributors（共创者）可以直接用 GitHub 头像地址，例如：
 - 未识别的 plan 会原样显示，并按 supporter 样式渲染。
 - 早期支持者暂不作为独立档位，避免和金额档冲突；以后可以加 badge。
 
+## 自动同步 Contributors
+
+GitHub Actions 会定期把项目 Contributors 同步进 `sponsors.json`，应用不需要直接请求 GitHub API，
+因此没有浏览器 CORS 和 60 次/小时限流问题。
+
+- Workflow：`.github/workflows/sync-contributors.yml`
+- 脚本：`scripts/sync-contributors.mjs`
+- 触发：push 到 `master`、每天定时、也可在 Actions 页面手动运行
+- 认证：使用 `GITHUB_TOKEN`，自动追加缺少的人类 contributor（过滤 Bot）
+- 新条目：`plan: "contributor"`，头像使用 GitHub 头像
+- 已在 `sponsors.json` 里的条目不会被覆盖，方便手动指定守护者/同行者或自定义头像
+
+应用端打开致谢面板时会强制刷新 `sponsors.json`，所以新 contributor 被 Action 写入后，
+用户重新打开面板即可看到（GitHub raw 仍有约 5 分钟缓存）。
+
+> 打开面板即刷新需要 v2.35.0 或更新版本；旧版本仍需重启应用。
+> 如果刚合并了代码，想立刻同步，可以在 GitHub Actions 里手动运行一次 `Sync contributors`。
+
 ## 图片建议
 
 - 正方形，**96×96** 或 **128×128**（界面显示 24×24，2x 屏最多 48px）

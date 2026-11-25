@@ -107,4 +107,41 @@ describe('loadSponsors', () => {
     const mod = await import('./sponsors')
     await expect(mod.loadSponsors()).resolves.toEqual(mod.bundledSponsors.sponsors)
   })
+
+  it('refreshSponsors bypasses the cached list', async () => {
+    vi.resetModules()
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sponsors: [{ name: '旧名单' }] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sponsors: [{ name: '新名单' }] }),
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const mod = await import('./sponsors')
+    await expect(mod.loadSponsors()).resolves.toEqual([{ name: '旧名单' }])
+    await expect(mod.refreshSponsors()).resolves.toEqual([{ name: '新名单' }])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('refreshSponsors keeps the cached list when refresh fails', async () => {
+    vi.resetModules()
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ sponsors: [{ name: '缓存名单' }] }),
+      })
+      .mockRejectedValueOnce(new Error('network down'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const mod = await import('./sponsors')
+    await expect(mod.loadSponsors()).resolves.toEqual([{ name: '缓存名单' }])
+    await expect(mod.refreshSponsors()).rejects.toThrow('network down')
+    await expect(mod.loadSponsors()).resolves.toEqual([{ name: '缓存名单' }])
+  })
 })

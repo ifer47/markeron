@@ -12,7 +12,7 @@
         { key: 'guardian', name: 'Guardian', desc: 'Cumulative ¥200+ or 12 months' },
         { key: 'contributor', name: 'Co-creator', desc: 'Code / docs / design' },
       ],
-      tiersNote: 'Tiers only change the badge in the in-app sponsor list. Amounts are guidelines.',
+      tiersNote: 'Tiers only change the badge in the in-app credits list. Amounts are guidelines.',
     },
     'zh-CN': {
       title: '微信 / 支付宝收款码',

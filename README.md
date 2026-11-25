@@ -199,7 +199,7 @@ Thanks to everyone who supports MarkerOn. Tiers only change the label color and 
 
 - Amounts and durations are guidelines and may be adjusted case by case; keeping amounts private is fine too.
 - The list lives in [`src/data/sponsors.json`](./src/data/sponsors.json); co-creators are synced from GitHub Contributors automatically.
-- In the app: Settings → **Sponsor list** at the bottom of the sidebar.
+- In the app: Settings → **Credits** at the bottom of the sidebar.
 
 ## Feedback & Issues
 

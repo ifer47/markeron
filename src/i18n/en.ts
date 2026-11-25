@@ -112,7 +112,7 @@ export default {
       about: 'About',
     },
     sidebarOpenSource: 'OSS',
-    sidebarSponsors: 'Sponsor list',
+    sidebarSponsors: 'Credits',
     sidebarOpenReleases: 'Open latest release notes (v{version})',
     creditsRoll: {
       title: 'Credits',

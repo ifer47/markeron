@@ -185,7 +185,7 @@ winget install --id 9N6623X973JV --source msstore
 
 - 金额与时长只是参考标准，会按实际情况调整，也可以不公开金额。
 - 名单维护在 [`src/data/sponsors.json`](./src/data/sponsors.json)；共创者由 GitHub Contributors 自动同步。
-- 应用内入口：设置 → 侧栏底部「赞助名单」。
+- 应用内入口：设置 → 侧栏底部「致谢」。
 
 ## 反馈与 Issue
 

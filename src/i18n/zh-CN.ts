@@ -111,7 +111,7 @@ export default {
       about: '关于',
     },
     sidebarOpenSource: '开源',
-    sidebarSponsors: '赞助名单',
+    sidebarSponsors: '致谢',
     sidebarOpenReleases: '打开最新版本说明（v{version}）',
     creditsRoll: {
       title: '致谢',

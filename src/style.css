@@ -119,6 +119,7 @@ html[data-theme='dark'] {
   --ui-credits-mark: rgba(110, 160, 255, 0.9);
   --ui-credits-ink-dot: rgba(110, 160, 255, 0.85);
   --ui-credits-doodle: rgba(110, 160, 255, 0.88);
+  --ui-credits-avatar-ring: rgba(255, 255, 255, 0.18);
   --ui-panel-border-standalone: rgba(255, 255, 255, 0.1);
   --ui-card-row-divider: rgba(255, 255, 255, 0.04);
   --ui-locale-hover: rgba(255, 255, 255, 0.06);
@@ -241,6 +242,7 @@ html[data-theme='light'] {
   --ui-credits-mark: rgba(100, 145, 255, 0.92);
   --ui-credits-ink-dot: rgba(100, 145, 255, 0.9);
   --ui-credits-doodle: rgba(100, 145, 255, 0.88);
+  --ui-credits-avatar-ring: rgba(0, 0, 0, 0.08);
   --ui-panel-border-standalone: rgba(0, 0, 0, 0.12);
   --ui-card-row-divider: rgba(0, 0, 0, 0.05);
   --ui-locale-hover: rgba(0, 0, 0, 0.05);
@@ -1095,14 +1097,14 @@ html.settings .ui-select {
 }
 
 .settings-sidebar-credits__viewport {
-  /* 约三行赞助者高度，名单更多时仍有滚动空间 */
-  height: 108px;
+  /* 约三行赞助者高度（44px × 3），名单更多时仍有滚动空间 */
+  height: 132px;
   overflow: hidden;
-  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 1) 14%, rgba(0, 0, 0, 1) 86%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 1) 88%, transparent 100%);
 }
 
 .settings-sidebar-credits__track {
-  padding: 0 14px;
+  padding: 0 12px;
   will-change: transform;
 }
 
@@ -1115,6 +1117,8 @@ html.settings .ui-select {
 }
 
 .settings-sidebar-credits:has(.settings-sidebar-credits__sponsor-name:hover)
+  .settings-sidebar-credits__track.is-scrolling,
+.settings-sidebar-credits:has(.settings-sidebar-credits__sponsor-plan:hover)
   .settings-sidebar-credits__track.is-scrolling {
   animation-play-state: paused;
 }
@@ -1188,11 +1192,12 @@ html.settings .ui-select {
 .settings-sidebar-credits__sponsor {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 8px;
   box-sizing: border-box;
-  /* 每行含 1px 顶部分隔线，盒模型完全一致，文字相对上下线几何居中 */
-  height: 36px;
-  padding: 0 4px;
+  /* 每行含 1px 顶部分隔线，盒模型完全一致，头像与两行文字整体几何居中 */
+  height: 44px;
+  padding: 0 2px;
   border-top: 1px solid transparent;
 }
 
@@ -1201,20 +1206,88 @@ html.settings .ui-select {
   border-top-color: var(--ui-credits-border);
 }
 
+.settings-sidebar-credits__avatar {
+  position: relative;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--credits-avatar-hue, 220) 72% 62%),
+    hsl(calc(var(--credits-avatar-hue, 220) + 42) 68% 52%)
+  );
+}
+
+/* 头像描边放在最上层：图片会盖住容器自身的 inset shadow */
+.settings-sidebar-credits__avatar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--ui-credits-avatar-ring);
+  pointer-events: none;
+}
+
+.settings-sidebar-credits__avatar-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: #fff;
+}
+
+.settings-sidebar-credits__avatar-img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* 透明头像露出卡片底色，避免透出首字徽章 */
+  background: var(--ui-credits-body-bg);
+  object-fit: cover;
+}
+
+.settings-sidebar-credits__sponsor-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+
 .settings-sidebar-credits__sponsor-name {
+  display: block;
   max-width: 100%;
   font-family: 'Kaiti SC', 'STKaiti', KaiTi, 'Segoe Print', 'Bradley Hand', cursive, serif;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1;
   font-weight: 600;
   color: var(--ui-credits-sponsor-name);
-  text-align: center;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* 仅文字本身可触发暂停，行内空白区域不暂停 */
-  display: inline-block;
-  padding: 4px 2px;
+  padding: 1px 0;
+}
+
+.settings-sidebar-credits__sponsor-plan {
+  max-width: 100%;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--ui-credits-name);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-sidebar-credits__closing {

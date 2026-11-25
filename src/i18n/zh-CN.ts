@@ -117,6 +117,7 @@ export default {
       title: '致谢',
       sponsorsEmpty: '每一位赞助者',
       closing: '感谢每一份支持',
+      planSupporter: '支持者',
     },
     shortcutLabels: {
       toggleDrawing: '开始标注',

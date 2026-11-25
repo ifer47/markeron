@@ -7,6 +7,8 @@ vi.mock('../../data/sponsors', () => {
   return {
     bundledSponsors: { sponsors },
     loadSponsors: () => Promise.resolve(sponsors),
+    sponsorHue: () => 220,
+    sponsorMonogram: (name: string) => name.slice(0, 1),
   }
 })
 

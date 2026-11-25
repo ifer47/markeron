@@ -2,31 +2,38 @@
   "sponsors": [
     {
       "name": "爱发电用户_WJDU",
-      "plan": "MarkerOn 支持者"
+      "plan": "supporter",
+      "avatar": "爱发电用户_WJDU.jpg"
     },
     {
       "name": "47",
-      "plan": "MarkerOn 支持者"
+      "plan": "supporter",
+      "avatar": "47.png"
     },
     {
       "name": "千里封冰",
-      "plan": "MarkerOn 支持者"
+      "plan": "supporter",
+      "avatar": "千里封冰.png"
     },
     {
       "name": "晚风入墨",
-      "plan": "MarkerOn 支持者"
+      "plan": "supporter",
+      "avatar": "晚风入墨.jpg"
     },
     {
       "name": "我爱说实话",
-      "plan": "MarkerOn 支持者"
+      "plan": "supporter",
+      "avatar": "我爱说实话.png"
     },
     {
       "name": "小文哥",
-      "plan": "MarkerOn 支持者"
+      "plan": "supporter",
+      "avatar": "小文哥.png"
     },
     {
       "name": "Loristoki",
-      "plan": "MarkerOn 支持者"
+      "plan": "supporter",
+      "avatar": "loristoki.jpg"
     }
   ]
 }

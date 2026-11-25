@@ -2,7 +2,7 @@
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '../../i18n'
-import { bundledSponsors, loadSponsors, type SponsorEntry } from '../../data/sponsors'
+import { bundledSponsors, loadSponsors, sponsorHue, sponsorMonogram, type SponsorEntry } from '../../data/sponsors'
 
 const { t } = useI18n()
 
@@ -29,9 +29,85 @@ const sponsors = ref<SponsorEntry[]>(bundledSponsors.sponsors)
 const hasSponsors = computed(() => sponsors.value.length > 0)
 const loopEnabled = computed(() => hasSponsors.value)
 
+/** 加载失败的头像（按 URL 去重），失败后回退到下一候选或首字徽章。 */
+const failedAvatarUrls = ref<Set<string>>(new Set())
+/** 已经从 GitHub raw 成功加载的远程头像，加载后优先展示。 */
+const remoteAvatarUrls = ref<Set<string>>(new Set())
+const remotePreloads = new Map<string, HTMLImageElement>()
+let disposed = false
+
+function onAvatarError(url?: string) {
+  if (!url || failedAvatarUrls.value.has(url)) return
+  const next = new Set(failedAvatarUrls.value)
+  next.add(url)
+  failedAvatarUrls.value = next
+}
+
+function onAvatarErrorEvent(event: Event) {
+  const target = event.target
+  if (target instanceof HTMLImageElement) {
+    onAvatarError(target.getAttribute('src') ?? undefined)
+  }
+}
+
+/** 本地图片先显示；远程预加载成功后再替换，避免离线时等待网络。 */
+function activeAvatarUrl(sponsor: SponsorEntry): string | undefined {
+  const remote = sponsor.avatarRemoteUrl
+  if (remote && remoteAvatarUrls.value.has(remote) && !failedAvatarUrls.value.has(remote)) {
+    return remote
+  }
+  if (sponsor.avatarUrl && !failedAvatarUrls.value.has(sponsor.avatarUrl)) return sponsor.avatarUrl
+  if (remote && !failedAvatarUrls.value.has(remote)) return remote
+  return undefined
+}
+
+function preloadRemoteAvatars() {
+  for (const sponsor of sponsors.value) {
+    const remote = sponsor.avatarRemoteUrl
+    // 没有本地图时 <img> 会直接请求远程，无需重复预加载
+    if (!remote || !sponsor.avatarUrl || remotePreloads.has(remote) || remoteAvatarUrls.value.has(remote)) {
+      continue
+    }
+    const image = new Image()
+    remotePreloads.set(remote, image)
+    image.onload = () => {
+      remotePreloads.delete(remote)
+      const next = new Set(remoteAvatarUrls.value)
+      next.add(remote)
+      remoteAvatarUrls.value = next
+    }
+    image.onerror = () => {
+      remotePreloads.delete(remote)
+    }
+    image.src = remote
+  }
+}
+
+function maybePreloadRemoteAvatars() {
+  if (phase.value === 'idle') return
+  preloadRemoteAvatars()
+}
+
+const PLAN_LABEL_KEYS: Record<string, string> = {
+  supporter: 'settings.creditsRoll.planSupporter',
+  // 兼容还没更新到新 key 的远程 / 本地文案
+  'MarkerOn 支持者': 'settings.creditsRoll.planSupporter',
+  'MarkerOn Supporter': 'settings.creditsRoll.planSupporter',
+  支持者: 'settings.creditsRoll.planSupporter',
+  Supporter: 'settings.creditsRoll.planSupporter',
+}
+
+function planLabel(plan?: string): string {
+  if (!plan) return ''
+  const key = PLAN_LABEL_KEYS[plan]
+  return key ? t(key) : plan
+}
+
 onMounted(() => {
   void loadSponsors().then((list) => {
+    if (disposed) return
     sponsors.value = list
+    maybePreloadRemoteAvatars()
   })
   window.addEventListener('blur', onWindowBlur)
   document.addEventListener('pointerdown', onDocumentPointerDown)
@@ -193,6 +269,7 @@ function startEasterEgg() {
   resetScrollTrack()
   creditsHovered.value = false
   phase.value = 'shake'
+  maybePreloadRemoteAvatars()
   void nextTick(playShake)
 
   scheduleSequence(SHAKE_MS, () => {
@@ -271,11 +348,17 @@ const creditsVisible = computed(() => phase.value !== 'idle')
 const hideFooterLine = computed(() => phase.value === 'unroll' || phase.value === 'scroll')
 
 onUnmounted(() => {
+  disposed = true
   window.removeEventListener('blur', onWindowBlur)
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   document.removeEventListener('pointermove', onDocumentPointerMove)
   clearAllTimers()
   stopShakeAnimation()
+  for (const image of remotePreloads.values()) {
+    image.onload = null
+    image.onerror = null
+  }
+  remotePreloads.clear()
 })
 </script>
 
@@ -404,7 +487,33 @@ onUnmounted(() => {
                   :key="`a-${sponsorIndex}`"
                   class="settings-sidebar-credits__sponsor"
                 >
-                  <span class="settings-sidebar-credits__sponsor-name">{{ sponsor.name }}</span>
+                  <span
+                    class="settings-sidebar-credits__avatar"
+                    :style="{ '--credits-avatar-hue': sponsorHue(sponsor.name) }"
+                  >
+                    <span
+                      v-if="!activeAvatarUrl(sponsor)"
+                      class="settings-sidebar-credits__avatar-fallback"
+                      aria-hidden="true"
+                      >{{ sponsorMonogram(sponsor.name) }}</span
+                    >
+                    <img
+                      v-if="activeAvatarUrl(sponsor)"
+                      :key="activeAvatarUrl(sponsor) ?? ''"
+                      class="settings-sidebar-credits__avatar-img"
+                      :src="activeAvatarUrl(sponsor)"
+                      alt=""
+                      decoding="async"
+                      draggable="false"
+                      @error="onAvatarErrorEvent"
+                    />
+                  </span>
+                  <span class="settings-sidebar-credits__sponsor-text">
+                    <span class="settings-sidebar-credits__sponsor-name">{{ sponsor.name }}</span>
+                    <span v-if="sponsor.plan" class="settings-sidebar-credits__sponsor-plan">{{
+                      planLabel(sponsor.plan)
+                    }}</span>
+                  </span>
                 </div>
               </div>
               <!-- 第二份用于无缝衔接 -->
@@ -414,7 +523,33 @@ onUnmounted(() => {
                   :key="`b-${sponsorIndex}`"
                   class="settings-sidebar-credits__sponsor"
                 >
-                  <span class="settings-sidebar-credits__sponsor-name">{{ sponsor.name }}</span>
+                  <span
+                    class="settings-sidebar-credits__avatar"
+                    :style="{ '--credits-avatar-hue': sponsorHue(sponsor.name) }"
+                  >
+                    <span
+                      v-if="!activeAvatarUrl(sponsor)"
+                      class="settings-sidebar-credits__avatar-fallback"
+                      aria-hidden="true"
+                      >{{ sponsorMonogram(sponsor.name) }}</span
+                    >
+                    <img
+                      v-if="activeAvatarUrl(sponsor)"
+                      :key="activeAvatarUrl(sponsor) ?? ''"
+                      class="settings-sidebar-credits__avatar-img"
+                      :src="activeAvatarUrl(sponsor)"
+                      alt=""
+                      decoding="async"
+                      draggable="false"
+                      @error="onAvatarErrorEvent"
+                    />
+                  </span>
+                  <span class="settings-sidebar-credits__sponsor-text">
+                    <span class="settings-sidebar-credits__sponsor-name">{{ sponsor.name }}</span>
+                    <span v-if="sponsor.plan" class="settings-sidebar-credits__sponsor-plan">{{
+                      planLabel(sponsor.plan)
+                    }}</span>
+                  </span>
                 </div>
               </div>
             </template>

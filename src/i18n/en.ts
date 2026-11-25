@@ -117,7 +117,8 @@ export default {
     creditsRoll: {
       title: 'Credits',
       sponsorsEmpty: 'Every supporter',
-      closing: 'Thank you for your support',
+      closing: 'Thank you all',
+      planSupporter: 'Supporter',
     },
     shortcutLabels: {
       toggleDrawing: 'Toggle annotation',

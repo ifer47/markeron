@@ -225,3 +225,20 @@ describe('致谢名单刷新', () => {
     expect(refreshSponsors).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('拉丁名字的光学对齐', () => {
+  it('只给纯 ASCII 名字加 latin-name 修饰类', async () => {
+    await openPanel()
+    await nextTick()
+
+    const rows = [...host.querySelectorAll<HTMLElement>('.settings-sidebar-credits__sponsor')]
+    const latinNames = rows
+      .filter((row) => row.classList.contains('settings-sidebar-credits__sponsor--latin-name'))
+      .map((row) => row.querySelector('.settings-sidebar-credits__sponsor-name')?.textContent)
+
+    expect(latinNames).toContain('47')
+    expect(latinNames.every((name) => /^[\x20-\x7E]+$/.test((name ?? '').trim()))).toBe(true)
+    // 中文名不能套用这个补偿，否则文字块会被整体上移
+    expect(latinNames).not.toContain('千里封冰')
+  })
+})

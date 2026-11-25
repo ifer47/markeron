@@ -1270,6 +1270,12 @@ html.settings .ui-select {
   min-width: 0;
 }
 
+/* 纯拉丁名字在楷体里只有 x-height，字形比中文名矮且整体偏低，两行文字视觉重心下坠 1–2px
+   （全小写名字更明显）。按视觉把这类行的文字块上移 2px；头像列保持严格对齐。 */
+.settings-sidebar-credits__sponsor--latin-name .settings-sidebar-credits__sponsor-text {
+  transform: translateY(-2px);
+}
+
 .settings-sidebar-credits__sponsor-name {
   display: block;
   max-width: 100%;

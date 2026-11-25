@@ -139,6 +139,11 @@ function planTier(plan?: string): SponsorTier {
   return planMeta(plan)?.tier ?? 'supporter'
 }
 
+/** 纯 ASCII 名字（英文 / 数字）在楷体里只有 x-height，视觉上比中文名低。 */
+function isLatinName(name: string): boolean {
+  return /^[\x20-\x7E]+$/.test(name.trim())
+}
+
 onMounted(() => {
   void loadSponsors().then((list) => {
     if (disposed) return
@@ -533,7 +538,10 @@ onUnmounted(() => {
                   v-for="(sponsor, sponsorIndex) in sponsors"
                   :key="`a-${sponsorIndex}`"
                   class="settings-sidebar-credits__sponsor"
-                  :class="`settings-sidebar-credits__sponsor--${planTier(sponsor.plan)}`"
+                  :class="[
+                    `settings-sidebar-credits__sponsor--${planTier(sponsor.plan)}`,
+                    { 'settings-sidebar-credits__sponsor--latin-name': isLatinName(sponsor.name) },
+                  ]"
                 >
                   <span
                     class="settings-sidebar-credits__avatar"
@@ -570,7 +578,10 @@ onUnmounted(() => {
                   v-for="(sponsor, sponsorIndex) in sponsors"
                   :key="`b-${sponsorIndex}`"
                   class="settings-sidebar-credits__sponsor"
-                  :class="`settings-sidebar-credits__sponsor--${planTier(sponsor.plan)}`"
+                  :class="[
+                    `settings-sidebar-credits__sponsor--${planTier(sponsor.plan)}`,
+                    { 'settings-sidebar-credits__sponsor--latin-name': isLatinName(sponsor.name) },
+                  ]"
                 >
                   <span
                     class="settings-sidebar-credits__avatar"

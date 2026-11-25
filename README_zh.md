@@ -172,6 +172,21 @@ winget install --id 9N6623X973JV --source msstore
 
 </details>
 
+## 赞助与档位
+
+感谢每一位支持者。致谢名单里的档位只影响标签颜色和头像描边，不影响任何功能权限。
+
+| 档位 | 含义 | 参考标准 |
+| :--- | :--- | :--- |
+| **支持者** Supporter | 任意形式的支持 | 任意金额，或一次性赞助 |
+| **同行者** Patron | 持续或较多的支持 | 累计 ≥ ¥50，或连续支持 3 个月 |
+| **守护者** Guardian | 长期或大额的支持 | 累计 ≥ ¥200，或连续支持 12 个月 |
+| **共创者** Co-creator | 代码、文档、翻译、设计、推广等贡献 | 有被合并的 PR 或其他有效贡献 |
+
+- 金额与时长只是参考标准，会按实际情况调整，也可以不公开金额。
+- 名单维护在 [`src/data/sponsors.json`](./src/data/sponsors.json)；共创者由 GitHub Contributors 自动同步。
+- 应用内入口：设置 → 侧栏底部「赞助名单」。
+
 ## 反馈与 Issue
 
 - **报 Bug：** 设置 → **诊断** → 导出报告，再到 [GitHub Issues](https://github.com/ifer47/markeron/issues) 提交

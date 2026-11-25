@@ -186,6 +186,21 @@ In **Settings → General** (toolbar display, click-through, and stroke width �
 
 </details>
 
+## Sponsorship tiers
+
+Thanks to everyone who supports MarkerOn. Tiers only change the label color and avatar ring in the in-app credits list; they do not unlock features.
+
+| Tier | Meaning | Guideline |
+| :--- | :--- | :--- |
+| **Supporter** | Any kind of support | Any amount, or a one-time donation |
+| **Patron** | Sustained or notable support | ¥50 cumulative, or 3 consecutive months |
+| **Guardian** | Long-term or major support | ¥200 cumulative, or 12 consecutive months |
+| **Co-creator** | Code, docs, translation, design, or outreach | Merged PRs or other meaningful contributions |
+
+- Amounts and durations are guidelines and may be adjusted case by case; keeping amounts private is fine too.
+- The list lives in [`src/data/sponsors.json`](./src/data/sponsors.json); co-creators are synced from GitHub Contributors automatically.
+- In the app: Settings → **Sponsor list** at the bottom of the sidebar.
+
 ## Feedback & Issues
 
 - **Bug reports:** Settings → **Diagnostics** → export a report, then open a [GitHub Issue](https://github.com/ifer47/markeron/issues)

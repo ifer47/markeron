@@ -159,26 +159,53 @@ jobs:
 
       - run: npm ci
 
-      - name: Import code-signing certificate (Windows)
+      - name: Import and verify code-signing certificate (Windows)
         id: codesign
         shell: powershell
         env:
           SIGN_PFX_BASE64: ${{ secrets.SIGN_PFX_BASE64 }}
           SIGN_PFX_PASSWORD: ${{ secrets.SIGN_PFX_PASSWORD }}
+          ALLOW_UNSIGNED_WINDOWS_RELEASE: ${{ vars.ALLOW_UNSIGNED_WINDOWS_RELEASE }}
         run: |
-          if ($env:SIGN_PFX_BASE64) {
-            $pfxBytes = [Convert]::FromBase64String($env:SIGN_PFX_BASE64)
-            $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
-            [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
-            $securePass = ConvertTo-SecureString -String $env:SIGN_PFX_PASSWORD -Force -AsPlainText
-            Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\CurrentUser\My" -Password $securePass
-            Remove-Item $pfxPath
-            Write-Host "Certificate imported — signing enabled"
-            "sign_args=-c src-tauri/tauri.sign.conf.json" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          } else {
-            Write-Host "No signing certificate — build will be unsigned"
-            "sign_args=" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          # GitHub reads step outputs as UTF-8; Windows PowerShell's Out-File defaults
+          # to UTF-16, which silently drops the output and turns signing off.
+          $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+          if (-not $env:SIGN_PFX_BASE64) {
+            if ($env:ALLOW_UNSIGNED_WINDOWS_RELEASE -eq "true") {
+              Write-Host "::warning::No signing certificate - releasing UNSIGNED Windows build (ALLOW_UNSIGNED_WINDOWS_RELEASE=true)."
+              [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "sign_args=`n", $utf8NoBom)
+              exit 0
+            }
+            Write-Error "SIGN_PFX_BASE64 is not configured. Unsigned Windows builds make the in-app updater look stuck (Defender holds the downloaded installer before it starts) and trigger SmartScreen warnings. Add SIGN_PFX_BASE64 / SIGN_PFX_PASSWORD, or set the repository variable ALLOW_UNSIGNED_WINDOWS_RELEASE=true to release unsigned deliberately."
+            exit 1
           }
+
+          $pfxBytes = [Convert]::FromBase64String($env:SIGN_PFX_BASE64)
+          $pfxPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, $pfxBytes)
+          if (-not $env:SIGN_PFX_PASSWORD) {
+            Write-Error "SIGN_PFX_PASSWORD is not configured."
+            exit 1
+          }
+          $securePass = ConvertTo-SecureString -String $env:SIGN_PFX_PASSWORD -Force -AsPlainText
+          $imported = @(Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation "Cert:\CurrentUser\My" -Password $securePass)
+          Remove-Item $pfxPath
+
+          $cert = $imported | Where-Object { $_.HasPrivateKey } | Select-Object -First 1
+          if (-not $cert) {
+            Write-Error "The PFX has no certificate with a private key."
+            exit 1
+          }
+
+          $expected = (Get-Content src-tauri/tauri.sign.conf.json -Raw | ConvertFrom-Json).bundle.windows.certificateThumbprint
+          if ($cert.Thumbprint -ne $expected) {
+            Write-Error "Imported certificate thumbprint $($cert.Thumbprint) does not match src-tauri/tauri.sign.conf.json ($expected). Fix the thumbprint or upload the matching PFX."
+            exit 1
+          }
+
+          Write-Host "Signing with $($cert.Subject) ($($cert.Thumbprint))"
+          [IO.File]::AppendAllText($env:GITHUB_OUTPUT, "sign_args=-c src-tauri/tauri.sign.conf.json`n", $utf8NoBom)
 
       - name: Build and release
         uses: tauri-apps/tauri-action@v0
@@ -195,6 +222,32 @@ jobs:
           updaterJsonPreferNsis: true
           includeUpdaterJson: true
           args: ${{ steps.codesign.outputs.sign_args }}
+
+      - name: Verify Windows code signatures
+        if: vars.ALLOW_UNSIGNED_WINDOWS_RELEASE != 'true'
+        shell: powershell
+        run: |
+          $targets = @("src-tauri/target/release/markeron.exe")
+          $targets += @(Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+
+          $unsigned = @()
+          foreach ($target in $targets) {
+            if (-not (Test-Path $target)) {
+              Write-Host "::error::Expected signed binary not found: $target"
+              exit 1
+            }
+            $sig = Get-AuthenticodeSignature -FilePath $target
+            if (-not $sig.SignerCertificate) {
+              Write-Host "::error::$([IO.Path]::GetFileName($target)) is not code-signed"
+              $unsigned += $target
+            } else {
+              Write-Host "$([IO.Path]::GetFileName($target)): $($sig.SignerCertificate.Subject) [$($sig.Status)]"
+            }
+          }
+
+          if ($unsigned.Count -gt 0) {
+            throw "Release aborted: the Windows app or installer is unsigned. Unsigned builds make the in-app updater sit silently while Defender scans the installer, and SmartScreen flags the download."
+          }
 
       - name: Stash updater fragment
         shell: bash

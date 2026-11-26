@@ -72,6 +72,23 @@ Monitor: https://github.com/ifer47/markeron/actions/workflows/release.yml
 
 If release notes job fails, fix `.github/workflows/release.yml` on `master`, delete + recreate tag (see skill `cross-platform-tauri-ui` not needed — use release workflow fix + retag).
 
+## Windows code signing (required)
+
+The Windows job fails when the installer is unsigned. Unsigned installers are held by Defender before they start, so the in-app update looks frozen (the window closes and the tray icon only returns a minute later), and browsers flag the download.
+
+Required repository secrets:
+
+| Secret | Value |
+|--------|-------|
+| `SIGN_PFX_BASE64` | Base64 of the code-signing `.pfx` |
+| `SIGN_PFX_PASSWORD` | Export password of that `.pfx` |
+
+The certificate thumbprint must equal `bundle.windows.certificateThumbprint` in `src-tauri/tauri.sign.conf.json`; the workflow checks this before building. `scripts/generate-cert.ps1` creates a local self-signed cert for testing, but only a CA-issued certificate builds SmartScreen reputation.
+
+To publish an unsigned build on purpose (not recommended), set the repository variable `ALLOW_UNSIGNED_WINDOWS_RELEASE=true`. The signature verification step is skipped and the job warns.
+
+> Gotcha: GitHub reads step outputs from `$GITHUB_OUTPUT` as UTF-8. Windows PowerShell's `Out-File` writes UTF-16 by default, which silently drops the output (this is why Windows releases shipped unsigned from June to November 2026). Append outputs with `[IO.File]::AppendAllText` and a `UTF8Encoding($false)` writer instead.
+
 ## Prerequisites
 
 - Node >= 20, Rust stable, `gh` CLI

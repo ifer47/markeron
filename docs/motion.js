@@ -144,7 +144,7 @@
         if (event.pointerType !== 'mouse') {
           try {
             tilt.setPointerCapture(event.pointerId);
-          } catch (_) {
+          } catch {
             /* ignore */
           }
         }

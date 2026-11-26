@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import {
-  LASER_DECAY_LENGTH,
   LASER_DECAY_MS,
   LASER_WRITING_FADE_MS,
   LASER_WRITING_HOLD_MS,

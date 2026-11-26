@@ -29,16 +29,16 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup Pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: docs
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         continue-on-error: true
 
       # Pages fails transiently in two ways: the artifact API can lag behind the
@@ -54,7 +54,7 @@ jobs:
       - name: Deploy to GitHub Pages (retry 1)
         id: deployment_retry_1
         if: steps.deployment.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         continue-on-error: true
 
       - name: Back off before deploy retry 2
@@ -64,7 +64,7 @@ jobs:
       - name: Deploy to GitHub Pages (retry 2)
         id: deployment_retry_2
         if: steps.deployment.outcome == 'failure' && steps.deployment_retry_1.outcome == 'failure'
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
         continue-on-error: true
 
       - name: Fail when every deploy attempt failed

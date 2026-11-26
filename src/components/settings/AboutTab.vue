@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { getVersion } from '@tauri-apps/api/app'
 import { invoke } from '@tauri-apps/api/core'
 import { useI18n } from '../../i18n'
-import { useUpdater } from '../../composables/useUpdater'
+import { consumeUpdatedVersion, useUpdater } from '../../composables/useUpdater'
 import { resolvePortableMode } from '../../utils/portable'
 import sponsorPayUrl from '../../assets/sponsor-pay.png'
 
@@ -12,6 +13,8 @@ const CONTACT_EMAIL = 'iamajser@gmail.com'
 const { t } = useI18n()
 
 const portableMode = ref<boolean | null>(null)
+/** Set once when this launch is the build an in-app update just installed. */
+const updatedTo = ref<string | null>(null)
 const payModalOpen = ref(false)
 const contactCopied = ref(false)
 let contactCopiedTimer: ReturnType<typeof setTimeout> | null = null
@@ -22,15 +25,37 @@ const updateUiExpanded = computed(
     portableMode.value === false &&
     (status.value === 'available' ||
       status.value === 'downloading' ||
+      status.value === 'installing' ||
       status.value === 'checking' ||
       status.value === 'up-to-date'),
 )
 
 const contactTitle = computed(() => (contactCopied.value ? t('about.contactCopied') : t('about.contactCopy')))
 
+/** Keep the one-time "updated" line from stacking with a new update prompt. */
+const showUpdatedNotice = computed(
+  () =>
+    updatedTo.value !== null &&
+    status.value !== 'available' &&
+    status.value !== 'downloading' &&
+    status.value !== 'installing',
+)
+
 onMounted(async () => {
   portableMode.value = await resolvePortableMode()
+  if (portableMode.value === false) {
+    try {
+      updatedTo.value = consumeUpdatedVersion(await getVersion())
+    } catch {
+      /* version unavailable — skip the one-time notice */
+    }
+  }
 })
+
+async function checkForUpdateFromUi() {
+  updatedTo.value = null
+  await checkForUpdate()
+}
 
 function onEscape(event: KeyboardEvent) {
   if (event.key === 'Escape' && payModalOpen.value) {
@@ -103,11 +128,15 @@ async function copyContactEmail() {
           {{ t('about.portableUpdateHint') }}
         </p>
 
-        <template v-else-if="portableMode === false">
+        <span v-else-if="showUpdatedNotice" class="settings-status-success text-center">
+          {{ t('about.updatedTo', { version: updatedTo ?? '' }) }}
+        </span>
+
+        <template v-if="portableMode === false">
           <button
             v-if="status === 'idle' || status === 'error'"
             class="settings-btn-accent-outline px-4 py-1.5 rounded-lg cursor-pointer"
-            @click="checkForUpdate()"
+            @click="checkForUpdateFromUi()"
           >
             {{ status === 'error' ? t('about.updateError') : t('about.checkUpdate') }}
           </button>
@@ -138,6 +167,19 @@ async function copyContactEmail() {
                 :style="{ width: progress + '%' }"
               />
             </div>
+          </div>
+
+          <div v-else-if="status === 'installing'" class="flex flex-col items-center gap-1.5 w-full max-w-60">
+            <span class="settings-text-accent flex items-center gap-1.5 text-center">
+              <svg class="w-3.5 h-3.5 animate-spin shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" />
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              {{ t('about.installing') }}
+            </span>
+            <span class="settings-text-faint text-center text-xs leading-relaxed">
+              {{ t('about.installingHint') }}
+            </span>
           </div>
 
           <span v-else-if="status === 'up-to-date'" class="settings-status-success">

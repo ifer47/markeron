@@ -313,6 +313,9 @@ export default {
     upToDate: '已是最新版本',
     updateError: '检查失败，请稍后重试',
     installAndRestart: '安装并重启',
+    installing: '正在安装...',
+    installingHint: '窗口会暂时关闭以完成安装，完成后会自动重新打开，最长可能需要一分钟。',
+    updatedTo: '已更新到 v{version}',
     portableUpdateHint: '当前为绿色免安装版，请从 GitHub Releases 下载最新 portable.zip 覆盖更新。',
   },
   diagnostics: {

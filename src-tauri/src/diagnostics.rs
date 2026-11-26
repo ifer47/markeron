@@ -227,6 +227,100 @@ pub fn events_path() -> Option<&'static Path> {
     EVENTS_PATH.get().map(PathBuf::as_path)
 }
 
+/// How long after an update the leftover installer is still considered "this run".
+#[cfg(target_os = "windows")]
+const UPDATER_TIMING_WINDOW_SECS: u64 = 30 * 60;
+
+/// Log the update handoff timeline so a slow in-app update can be measured from
+/// an exported diagnostics bundle instead of guessed.
+///
+/// `windows/hooks.nsh` records when the installer's install section started
+/// (file mtime). The updater also leaves the downloaded installer in `%TEMP%`;
+/// its mtime is when the app handed off. Both are logged relative to this
+/// launch, and the marker is consumed so it is only reported once.
+#[cfg(target_os = "windows")]
+pub fn log_updater_timing(app: &AppHandle) {
+    let Ok(logs) = log_dir(app) else {
+        return;
+    };
+
+    let marker = logs.join("updater-timing.log");
+    if let Ok(meta) = fs::metadata(&marker) {
+        let line = fs::read_to_string(&marker)
+            .ok()
+            .and_then(|text| {
+                text.lines()
+                    .rev()
+                    .find(|line| !line.trim().is_empty())
+                    .map(str::trim)
+                    .map(str::to_owned)
+            })
+            .unwrap_or_default();
+        if let Ok(modified) = meta.modified() {
+            info!(
+                "Updater installer started {}s before this launch ({})",
+                secs_ago(modified),
+                line
+            );
+        }
+        let _ = fs::remove_file(&marker);
+    }
+
+    if let Some(installer) = newest_updater_installer() {
+        if let Ok(modified) = installer.metadata().and_then(|meta| meta.modified()) {
+            let secs = secs_ago(modified);
+            if secs <= UPDATER_TIMING_WINDOW_SECS {
+                info!(
+                    "Updater installer downloaded {}s before this launch ({})",
+                    secs,
+                    installer.display()
+                );
+            }
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn secs_ago(at: std::time::SystemTime) -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(at)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or(0)
+}
+
+/// Newest `MarkerOn-<version>-updater-*` installer left behind in `%TEMP%`
+/// (the updater calls `process::exit`, so it never cleans them up).
+#[cfg(target_os = "windows")]
+fn newest_updater_installer() -> Option<PathBuf> {
+    let mut newest: Option<(std::time::SystemTime, PathBuf)> = None;
+    for entry in fs::read_dir(std::env::temp_dir()).ok()?.flatten() {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !name.starts_with("MarkerOn-") || !name.contains("-updater-") {
+            continue;
+        }
+        let Ok(files) = fs::read_dir(entry.path()) else {
+            continue;
+        };
+        for file in files.flatten() {
+            let path = file.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("exe") {
+                continue;
+            }
+            let Ok(modified) = file.metadata().and_then(|meta| meta.modified()) else {
+                continue;
+            };
+            if newest
+                .as_ref()
+                .is_none_or(|(current, _)| modified > *current)
+            {
+                newest = Some((modified, path));
+            }
+        }
+    }
+    newest.map(|(_, path)| path)
+}
+
 pub fn init_tracing(app: &AppHandle) -> AppResult<LogGuard> {
     let logs = log_dir(app)?;
     let events = logs.join(EVENTS_FILE_NAME);

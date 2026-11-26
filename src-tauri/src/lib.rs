@@ -236,6 +236,9 @@ pub fn run() {
                 info!("Starting MarkerOn");
             }
 
+            #[cfg(target_os = "windows")]
+            diagnostics::log_updater_timing(&handle);
+
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 

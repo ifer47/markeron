@@ -22,7 +22,7 @@ jobs:
   deploy:
     environment:
       name: github-pages
-      url: ${{ steps.deployment_retry.outputs.page_url || steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment_retry_2.outputs.page_url || steps.deployment_retry_1.outputs.page_url || steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -41,9 +41,38 @@ jobs:
         uses: actions/deploy-pages@v4
         continue-on-error: true
 
-      # GitHub Pages sometimes stays at deployment_queued for the full 10m
-      # poll window (actions/deploy-pages#406). One retry usually clears it.
-      - name: Deploy to GitHub Pages (retry)
-        id: deployment_retry
+      # Pages fails transiently in two ways: the artifact API can lag behind the
+      # upload ("Found 0 artifact(s)"), and the deployment API can return 5xx
+      # while Pages is degraded (as during the 2026-11-25 incident). Both clear
+      # on a short retry, so keep trying instead of leaving the site stale.
+      - name: Back off before deploy retry 1
+        if: steps.deployment.outcome == 'failure'
+        run: sleep 15
+
+      # Also covers deployment_queued sitting out the full 10m poll window
+      # (actions/deploy-pages#406).
+      - name: Deploy to GitHub Pages (retry 1)
+        id: deployment_retry_1
         if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Back off before deploy retry 2
+        if: steps.deployment.outcome == 'failure' && steps.deployment_retry_1.outcome == 'failure'
+        run: sleep 45
+
+      - name: Deploy to GitHub Pages (retry 2)
+        id: deployment_retry_2
+        if: steps.deployment.outcome == 'failure' && steps.deployment_retry_1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Fail when every deploy attempt failed
+        if: >-
+          steps.deployment.outcome == 'failure' &&
+          steps.deployment_retry_1.outcome == 'failure' &&
+          steps.deployment_retry_2.outcome == 'failure'
+        run: |
+          echo "::error::GitHub Pages deploy failed on every attempt."
+          echo "Check https://www.githubstatus.com for a Pages incident, then re-run this workflow."
+          exit 1

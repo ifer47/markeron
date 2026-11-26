@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing!
 
-> **AI agents / doc index:** see [AGENTS.md](./AGENTS.md) for Cursor rules, skills, and common workflows.
+> **AI agents / doc index:** see [AGENTS.md](./AGENTS.md) for agent rules, skills, and common workflows.
 
 ## Prerequisites
 
@@ -29,6 +29,8 @@ npm -v        # 11.12.1
 ```
 
 `npm install` runs a version check automatically. Wrong Node/npm versions will fail with setup instructions.
+
+When bumping Node/npm, update `package.json` → `engines`/`packageManager`, `.nvmrc`, and `.node-version`, then run `npm run check:engines`.
 
 ## Development Setup
 
@@ -106,4 +108,4 @@ This bumps all version files, commits, tags, pushes, and triggers the GitHub Act
 
 Requirements: clean `master` branch, `gh` CLI logged in, Rust + Node installed.
 
-See `.cursor/skills/release/SKILL.md` for the full workflow.
+See `.agents/skills/release/SKILL.md` for the full workflow.

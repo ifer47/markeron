@@ -4,6 +4,9 @@ description: >-
   Cross-platform UI styling for MarkerOn Tauri app (macOS WKWebView vs Windows
   WebView2). Use when styling Vue/CSS, fixing Mac/Windows visual differences,
   working on settings window, overlay panels, or Tailwind opacity issues on WebKit.
+paths:
+  - "src/**/*.vue"
+  - "src/**/*.css"
 ---
 
 # Cross-Platform Tauri UI (MarkerOn)

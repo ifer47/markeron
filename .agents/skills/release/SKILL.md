@@ -1,4 +1,5 @@
 ---
+name: release
 description: >-
   MarkerOn release workflow. Use when the user asks to release, publish, bump
   version, create a tag, or cut a new version. Never release manually.
@@ -70,7 +71,7 @@ Release notes are derived from **Conventional Commits** since the previous tag. 
 
 Monitor: https://github.com/ifer47/markeron/actions/workflows/release.yml
 
-If release notes job fails, fix `.github/workflows/release.yml` on `master`, delete + recreate tag (see skill `cross-platform-tauri-ui` not needed — use release workflow fix + retag).
+If the release-notes job fails, fix `.github/workflows/release.yml` on `master`, then delete and recreate the same tag to re-run the Release workflow. Do not bump the version just to retry.
 
 ## Windows code signing (required)
 
@@ -91,5 +92,5 @@ To publish an unsigned build on purpose (not recommended), set the repository va
 
 ## Prerequisites
 
-- Node >= 20, Rust stable, `gh` CLI
+- Node 24.15.0 / npm 11.12.1 (pinned), Rust stable, `gh` CLI
 - On Windows: no bash required for release (Node script is cross-platform)

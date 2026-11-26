@@ -120,5 +120,5 @@ Touch:
 
 ## Related
 
-- Locale strings: `.cursor/rules/i18n.mdc`
+- Locale strings: `.agents/skills/i18n/SKILL.md`
 - Platform window behavior: `src-tauri/src/lib.rs`, `macos.rs`, `win32.rs`

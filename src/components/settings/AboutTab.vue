@@ -189,21 +189,68 @@ async function copyContactEmail() {
       </div>
     </div>
 
-    <div class="w-full max-w-85 shrink-0">
-      <div class="settings-card w-full overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-3 ui-divider-b settings-row-hover transition-colors">
-          <span class="settings-text-row-key">{{ t('about.license') }}</span>
-          <span class="settings-text-value">MIT License</span>
-        </div>
-        <button
-          class="w-full flex items-center justify-between px-4 py-3 ui-divider-b settings-row-hover-strong transition-colors cursor-pointer bg-transparent border-x-0 border-t-0"
-          @click="openUrl('https://github.com/ifer47/markeron')"
-        >
-          <span class="settings-text-row-key">GitHub</span>
-          <span class="flex items-center gap-1.5 settings-text-accent-link">
-            ifer47/markeron
+    <div class="w-full max-w-85 min-h-0 flex flex-col">
+      <div class="settings-card w-full min-h-0 flex flex-col overflow-hidden">
+        <div class="about-card-scroll min-h-0 overflow-y-auto">
+          <div class="flex items-center justify-between px-4 py-3 ui-divider-b settings-row-hover transition-colors">
+            <span class="settings-text-row-key">{{ t('about.license') }}</span>
+            <span class="settings-text-value">MIT License</span>
+          </div>
+          <button
+            class="w-full flex items-center justify-between px-4 py-3 ui-divider-b settings-row-hover-strong transition-colors cursor-pointer bg-transparent border-x-0 border-t-0"
+            @click="openUrl('https://github.com/ifer47/markeron')"
+          >
+            <span class="settings-text-row-key">GitHub</span>
+            <span class="flex items-center gap-1.5 settings-text-accent-link">
+              ifer47/markeron
+              <svg
+                class="w-3 h-3 opacity-50"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+            </span>
+          </button>
+          <button
+            type="button"
+            class="w-full flex items-center justify-between px-4 py-3 ui-divider-b settings-row-hover-strong transition-colors cursor-pointer bg-transparent border-x-0 border-t-0"
+            :aria-label="t('about.sponsorPay')"
+            :title="t('about.sponsorPay')"
+            @click="payModalOpen = true"
+          >
+            <span class="settings-text-row-key">{{ t('about.sponsor') }}</span>
             <svg
-              class="w-3 h-3 opacity-50"
+              class="w-3.5 h-3.5 settings-text-accent-link"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <path d="M14 14h3v3h-3z" />
+              <path d="M20 14v3" />
+              <path d="M14 20h6" />
+            </svg>
+          </button>
+          <button
+            class="w-full flex items-center justify-between px-4 py-3 settings-row-hover-strong transition-colors cursor-pointer bg-transparent border-none"
+            @click="openUrl('https://github.com/ifer47/markeron/issues')"
+          >
+            <span class="settings-text-row-key">{{ t('about.feedback') }}</span>
+            <svg
+              class="w-3.5 h-3.5 settings-text-dim"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -211,55 +258,10 @@ async function copyContactEmail() {
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
+              <polyline points="9 18 15 12 9 6" />
             </svg>
-          </span>
-        </button>
-        <button
-          type="button"
-          class="w-full flex items-center justify-between px-4 py-3 ui-divider-b settings-row-hover-strong transition-colors cursor-pointer bg-transparent border-x-0 border-t-0"
-          :aria-label="t('about.sponsorPay')"
-          :title="t('about.sponsorPay')"
-          @click="payModalOpen = true"
-        >
-          <span class="settings-text-row-key">{{ t('about.sponsor') }}</span>
-          <svg
-            class="w-3.5 h-3.5 settings-text-accent-link"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <rect x="3" y="3" width="7" height="7" rx="1" />
-            <rect x="14" y="3" width="7" height="7" rx="1" />
-            <rect x="3" y="14" width="7" height="7" rx="1" />
-            <path d="M14 14h3v3h-3z" />
-            <path d="M20 14v3" />
-            <path d="M14 20h6" />
-          </svg>
-        </button>
-        <button
-          class="w-full flex items-center justify-between px-4 py-3 settings-row-hover-strong transition-colors cursor-pointer bg-transparent border-none"
-          @click="openUrl('https://github.com/ifer47/markeron/issues')"
-        >
-          <span class="settings-text-row-key">{{ t('about.feedback') }}</span>
-          <svg
-            class="w-3.5 h-3.5 settings-text-dim"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
+          </button>
+        </div>
       </div>
     </div>
 

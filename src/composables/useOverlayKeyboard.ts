@@ -142,16 +142,6 @@ export function markPointerInteractionEnded(): void {
   pointerGestureActive = false
 }
 
-/** For tests: read whether copy modifier is considered physically held. */
-export function isCopyModifierPhysicallyDown(): boolean {
-  return modifierPhysicallyDown
-}
-
-/** For tests: read pointer gesture state. */
-export function isPointerGestureActive(): boolean {
-  return pointerGestureActive
-}
-
 function shouldTriggerKeyboardCopy(e: KeyboardEvent, ctx: KeyboardContext): boolean {
   if (ctx.isDrawing.value || pointerGestureActive) return false
   if (!isCopyShortcut(e)) return false

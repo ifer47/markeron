@@ -2,8 +2,6 @@ import type { Tool } from '../composables/drawingTypes'
 
 export type CrosshairCursorStyle = 'crosshair' | 'dot'
 
-export const CROSSHAIR_CURSOR_STYLE_OPTIONS: CrosshairCursorStyle[] = ['crosshair', 'dot']
-
 /** Tools that use the crosshair (or compact dot) custom cursor. */
 export const CROSSHAIR_CURSOR_TOOLS: readonly Tool[] = ['arrow', 'rect', 'ellipse', 'line', 'laser']
 

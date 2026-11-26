@@ -139,13 +139,6 @@ export async function clampToolbarWindowToOverlay(): Promise<void> {
   }
 }
 
-export async function saveToolbarWindowPosition(): Promise<void> {
-  const win = getCurrentWindow()
-  const [pos, scale] = await Promise.all([win.outerPosition(), win.scaleFactor()])
-  const logical = pos.toLogical(scale)
-  saveToolbarPosition(logical.x, logical.y, true)
-}
-
 /** Resize the standalone toolbar window to fit a panel measured in CSS px. */
 export async function fitToolbarWindow(width: number, height: number): Promise<void> {
   if (width <= 0 || height <= 0) return

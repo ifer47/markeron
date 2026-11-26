@@ -54,7 +54,7 @@ All cross-platform UI colors live in **`src/style.css`** as named classes with *
 
 | Class | Purpose |
 |-------|---------|
-| `settings-text-brand/title/heading/label/value/muted/subtle/faint/dim/footer/body` | Typography |
+| `settings-text-title/heading/label/value/muted/subtle/faint/dim/footer/body` | Typography |
 | `settings-text-accent`, `settings-text-accent-link` | Links, accent text |
 | `settings-status-success` | Green "up to date" |
 | `settings-msg-success`, `settings-msg-error` | Toast messages |
@@ -72,12 +72,12 @@ All cross-platform UI colors live in **`src/style.css`** as named classes with *
 
 | Class | Purpose |
 |-------|---------|
-| `overlay-panel`, `overlay-panel--compact` | Panel shell |
+| `overlay-panel` | Panel shell |
 | `overlay-panel-surface` | WebKit corner bleed fix |
-| `overlay-text-section/hint/label/body/secondary/separator/caption/key*` | Text |
+| `overlay-text-section/hint/key*` | Text |
 | `overlay-tool-btn`, `overlay-tool-btn--active` | Tool buttons |
 | `overlay-width-btn`, `overlay-width-btn--active`, `overlay-width-line*` | Stroke width |
-| `ui-divider-h/v/b`, `ui-kbd`, `ui-select`, `ui-popover`, `ui-segment*` | Shared controls |
+| `ui-divider-h/v/b`, `ui-kbd--shortcut`, `ui-select`, `ui-popover`, `ui-segment*` | Shared controls |
 | `color-swatch-ring*`, `color-picker-ring`, `color-dot-ring` | Color UI |
 
 All platforms use the same `rgba()` values — do not add Mac-only text opacity overrides.

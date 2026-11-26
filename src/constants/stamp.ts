@@ -34,10 +34,6 @@ export function stampLabel(kind: StampKind, index: number): string {
   return String(Math.max(1, Math.floor(index)))
 }
 
-export function getStampState(): Readonly<StampCounters> {
-  return state
-}
-
 export function getStampKind(): StampKind {
   return state.kind
 }

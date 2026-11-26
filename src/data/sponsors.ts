@@ -121,11 +121,6 @@ function resolveAvatarMatch(name: string, avatar?: string): AvatarMatch {
   return { url: byName.url, remoteFileName: byName.fileName }
 }
 
-/** 把 `avatar` / `name` 解析成最终图片地址；没有匹配到本地文件时返回 undefined。 */
-export function resolveSponsorAvatar(name: string, avatar?: string): string | undefined {
-  return resolveAvatarMatch(name, avatar).url
-}
-
 function resolveRemoteAvatarUrl(fileName?: string): string | undefined {
   if (!fileName) return undefined
   return `${SPONSORS_AVATAR_REMOTE_BASE}${encodeURIComponent(fileName)}?v=${AVATAR_CACHE_BUST}`

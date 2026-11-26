@@ -1,7 +1,5 @@
 export type PenCursorStyle = 'pen' | 'dot'
 
-export const PEN_CURSOR_STYLE_OPTIONS: PenCursorStyle[] = ['pen', 'dot']
-
 export function resolvePenCursorStyle(general?: { penCursorStyle?: PenCursorStyle }): PenCursorStyle {
   return general?.penCursorStyle === 'dot' ? 'dot' : 'pen'
 }

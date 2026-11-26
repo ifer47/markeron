@@ -38,11 +38,6 @@ html[data-theme='dark'] {
   --ui-text-capture: rgb(10, 132, 255);
   --ui-text-overlay-section: rgba(255, 255, 255, 0.45);
   --ui-text-overlay-hint: rgba(255, 255, 255, 0.2);
-  --ui-text-overlay-label: rgba(255, 255, 255, 0.5);
-  --ui-text-overlay-body: rgba(255, 255, 255, 0.45);
-  --ui-text-overlay-secondary: rgba(255, 255, 255, 0.5);
-  --ui-text-overlay-separator: rgba(255, 255, 255, 0.3);
-  --ui-text-overlay-caption: rgba(255, 255, 255, 0.5);
   --ui-text-overlay-key: rgba(255, 255, 255, 0.4);
   --ui-text-overlay-key-active: rgba(255, 255, 255, 0.6);
   --ui-control-bg: rgba(255, 255, 255, 0.06);
@@ -56,7 +51,6 @@ html[data-theme='dark'] {
   --ui-kbd-bg: rgba(255, 255, 255, 0.1);
   --ui-kbd-bg-soft: rgba(255, 255, 255, 0.05);
   --ui-kbd-border: rgba(255, 255, 255, 0.1);
-  --ui-kbd-text: rgba(255, 255, 255, 0.7);
   --ui-kbd-text-soft: rgba(255, 255, 255, 0.5);
   --ui-accent: rgb(10, 132, 255);
   --ui-accent-soft: rgba(10, 132, 255, 0.15);
@@ -69,7 +63,6 @@ html[data-theme='dark'] {
   --ui-accent-link: rgba(10, 132, 255, 0.7);
   --ui-shadow-panel:
     0 24px 48px rgba(0, 0, 0, 0.45), 0 4px 16px rgba(0, 0, 0, 0.25), inset 0 0.5px 0 rgba(255, 255, 255, 0.08);
-  --ui-shadow-panel-compact: 0 8px 32px rgba(0, 0, 0, 0.4);
   --ui-shadow-popover: 0 8px 32px rgba(0, 0, 0, 0.5);
   --ui-shadow-tooltip: 0 4px 24px rgba(0, 0, 0, 0.4);
   --ui-nav-text: rgba(255, 255, 255, 0.4);
@@ -125,7 +118,6 @@ html[data-theme='dark'] {
   --ui-credits-tier-contributor: rgba(127, 216, 195, 0.95);
   --ui-panel-border-standalone: rgba(255, 255, 255, 0.1);
   --ui-card-row-divider: rgba(255, 255, 255, 0.04);
-  --ui-locale-hover: rgba(255, 255, 255, 0.06);
   --ui-locale-active: rgba(10, 132, 255, 0.12);
   --ui-textbox-placeholder: rgba(255, 255, 255, 0.55);
   --ui-toast-bg: rgba(28, 28, 30, 0.94);
@@ -166,11 +158,6 @@ html[data-theme='light'] {
   --ui-text-capture: rgb(10, 132, 255);
   --ui-text-overlay-section: rgba(0, 0, 0, 0.5);
   --ui-text-overlay-hint: rgba(0, 0, 0, 0.35);
-  --ui-text-overlay-label: rgba(0, 0, 0, 0.55);
-  --ui-text-overlay-body: rgba(0, 0, 0, 0.5);
-  --ui-text-overlay-secondary: rgba(0, 0, 0, 0.55);
-  --ui-text-overlay-separator: rgba(0, 0, 0, 0.35);
-  --ui-text-overlay-caption: rgba(0, 0, 0, 0.55);
   --ui-text-overlay-key: rgba(0, 0, 0, 0.45);
   --ui-text-overlay-key-active: rgba(0, 0, 0, 0.65);
   --ui-control-bg: rgba(0, 0, 0, 0.04);
@@ -184,7 +171,6 @@ html[data-theme='light'] {
   --ui-kbd-bg: rgba(0, 0, 0, 0.06);
   --ui-kbd-bg-soft: rgba(0, 0, 0, 0.04);
   --ui-kbd-border: rgba(0, 0, 0, 0.1);
-  --ui-kbd-text: rgba(0, 0, 0, 0.7);
   --ui-kbd-text-soft: rgba(0, 0, 0, 0.55);
   --ui-accent: rgb(10, 132, 255);
   --ui-accent-soft: rgba(10, 132, 255, 0.12);
@@ -197,7 +183,6 @@ html[data-theme='light'] {
   --ui-accent-link: rgba(10, 132, 255, 0.85);
   --ui-shadow-panel:
     0 24px 48px rgba(0, 0, 0, 0.12), 0 4px 16px rgba(0, 0, 0, 0.08), inset 0 0.5px 0 rgba(255, 255, 255, 0.8);
-  --ui-shadow-panel-compact: 0 8px 32px rgba(0, 0, 0, 0.12);
   --ui-shadow-popover: 0 8px 32px rgba(0, 0, 0, 0.14);
   --ui-shadow-tooltip: 0 4px 24px rgba(0, 0, 0, 0.12);
   --ui-nav-text: rgba(0, 0, 0, 0.45);
@@ -251,7 +236,6 @@ html[data-theme='light'] {
   --ui-credits-tier-contributor: rgba(20, 122, 104, 0.95);
   --ui-panel-border-standalone: rgba(0, 0, 0, 0.12);
   --ui-card-row-divider: rgba(0, 0, 0, 0.05);
-  --ui-locale-hover: rgba(0, 0, 0, 0.05);
   --ui-locale-active: rgba(10, 132, 255, 0.1);
   --ui-textbox-placeholder: rgba(0, 0, 0, 0.45);
   --ui-toast-bg: rgba(245, 245, 247, 0.96);
@@ -298,7 +282,6 @@ html:not(.settings) {
   html.settings {
     --settings-fs-title: 16px;
     --settings-fs-heading: 19px;
-    --settings-fs-brand: 14.5px;
     --settings-fs-nav: 14.5px;
     --settings-fs-label: 14.5px;
     --settings-fs-body: 13.5px;
@@ -409,11 +392,6 @@ html:not(.settings) {
   user-select: none;
 }
 
-.overlay-panel--compact {
-  border-radius: 12px;
-  box-shadow: var(--ui-shadow-panel-compact);
-}
-
 /* Standalone toolbar window: no outer drop shadow (avoids bleed on transparent window) */
 .overlay-panel--standalone {
   box-shadow: none;
@@ -432,18 +410,6 @@ html:not(.settings) {
   border-bottom: 1px solid var(--ui-divider);
 }
 
-.ui-kbd {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: var(--ui-kbd-bg);
-  border: 1px solid var(--ui-kbd-border);
-  font-size: 9.5px;
-  font-family: inherit;
-  color: var(--ui-kbd-text);
-  line-height: 1.4;
-}
-
 .ui-kbd--shortcut {
   display: inline-flex;
   align-items: center;
@@ -455,10 +421,6 @@ html:not(.settings) {
   font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
   color: var(--ui-kbd-text-soft);
   letter-spacing: 0.05em;
-}
-
-html.settings .ui-kbd {
-  font-size: var(--settings-fs-kbd);
 }
 
 html.settings .ui-kbd--shortcut {
@@ -585,26 +547,6 @@ html.settings .ui-select {
   color: var(--ui-text-overlay-hint);
 }
 
-.overlay-text-label {
-  color: var(--ui-text-overlay-label);
-}
-
-.overlay-text-body {
-  color: var(--ui-text-overlay-body);
-}
-
-.overlay-text-secondary {
-  color: var(--ui-text-overlay-secondary);
-}
-
-.overlay-text-separator {
-  color: var(--ui-text-overlay-separator);
-}
-
-.overlay-text-caption {
-  color: var(--ui-text-overlay-caption);
-}
-
 .overlay-text-key {
   color: var(--ui-text-overlay-key);
 }
@@ -674,18 +616,7 @@ html.settings .ui-select {
   box-shadow: 0 0 0 2px var(--ui-accent-ring);
 }
 
-.overlay-panel .ui-kbd {
-  color: var(--ui-kbd-text);
-  background: var(--ui-kbd-bg);
-  border-color: var(--ui-kbd-border);
-}
-
 /* Settings window — explicit rgba for macOS WebKit parity with Windows */
-.settings-text-brand {
-  color: var(--ui-text-brand);
-  font-size: var(--settings-fs-brand, 14.5px);
-}
-
 .settings-text-title {
   color: var(--ui-text-title);
   font-size: var(--settings-fs-title, 16px);
@@ -875,10 +806,6 @@ html.settings .ui-select {
 .settings-text-btn-strong {
   color: var(--ui-text-btn-strong);
   font-size: var(--settings-fs-btn, 12.5px);
-}
-
-.settings-text-select {
-  color: var(--ui-text-select);
 }
 
 .settings-text-icon {

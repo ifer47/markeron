@@ -227,15 +227,19 @@ jobs:
         if: vars.ALLOW_UNSIGNED_WINDOWS_RELEASE != 'true'
         shell: powershell
         run: |
-          $targets = @("src-tauri/target/release/markeron.exe")
-          $targets += @(Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+          # tauri-bundler signs the main binary, packs it into each installer, then
+          # restores the original unsigned exe on disk. Verify what users download.
+          $targets = @()
+          $targets += @(Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+          $targets += @(Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+
+          if ($targets.Count -eq 0) {
+            Write-Host "::error::No bundled Windows installers found to verify"
+            exit 1
+          }
 
           $unsigned = @()
           foreach ($target in $targets) {
-            if (-not (Test-Path $target)) {
-              Write-Host "::error::Expected signed binary not found: $target"
-              exit 1
-            }
             $sig = Get-AuthenticodeSignature -FilePath $target
             if (-not $sig.SignerCertificate) {
               Write-Host "::error::$([IO.Path]::GetFileName($target)) is not code-signed"
@@ -246,7 +250,7 @@ jobs:
           }
 
           if ($unsigned.Count -gt 0) {
-            throw "Release aborted: the Windows app or installer is unsigned. Unsigned builds make the in-app updater sit silently while Defender scans the installer, and SmartScreen flags the download."
+            throw "Release aborted: a Windows installer is unsigned. Unsigned installers make the in-app updater sit silently while Defender scans them, and SmartScreen flags the download."
           }
 
       - name: Stash updater fragment

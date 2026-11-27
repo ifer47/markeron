@@ -1,19 +1,40 @@
 import { describe, expect, it } from 'vitest'
 import {
   collapseStrokeToLine,
+  maxChordDeviation,
   representativePressure,
   STROKE_LINE_LOCK_HOLD_MS,
-  STROKE_LINE_LOCK_MAX_ARC_RATIO,
+  STROKE_LINE_LOCK_MAX_DEVIATION_RATIO,
   STROKE_LINE_LOCK_MIN_CHORD_PX,
+  STROKE_LINE_LOCK_MIN_DEVIATION_PX,
   STROKE_LINE_LOCK_STILL_PX,
   strokeLineLockStillDistSq,
 } from './strokeLineLock'
+import type { LineLockPoint } from './strokeLineLock'
+
+/**
+ * Circular arc from (0, 0) to (`chord`, 0) bulging up by `sagitta` px — the
+ * shape of a hand-drawn curve, so tests can state "a 100×30 curve" directly.
+ */
+function arcPoints(chord: number, sagitta: number, sampleCount = 60): LineLockPoint[] {
+  const radius = (chord * chord) / (8 * sagitta) + sagitta / 2
+  const halfAngle = Math.asin(chord / (2 * radius))
+  const cx = chord / 2
+  const cy = sagitta - radius
+  return Array.from({ length: sampleCount + 1 }, (_, i) => {
+    // Sweep the upper arc from the left end to the right end.
+    const angle = Math.PI / 2 + halfAngle - (2 * halfAngle * i) / sampleCount
+    return { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) }
+  })
+}
 
 describe('strokeLineLock', () => {
-  it('uses a 500ms hold and 10px still threshold', () => {
+  it('uses a 500ms hold, a 10px still threshold, and a 5% deviation limit', () => {
     expect(STROKE_LINE_LOCK_HOLD_MS).toBe(500)
     expect(STROKE_LINE_LOCK_STILL_PX).toBe(10)
     expect(strokeLineLockStillDistSq()).toBe(100)
+    expect(STROKE_LINE_LOCK_MAX_DEVIATION_RATIO).toBe(0.05)
+    expect(STROKE_LINE_LOCK_MIN_DEVIATION_PX).toBe(3)
   })
 
   it('collapses a polyline to start and end with uniform pressure', () => {
@@ -121,12 +142,50 @@ describe('strokeLineLock', () => {
     ).toBeNull()
   })
 
-  it('rejects a stroke that wobbles past the arc ratio', () => {
-    // Zig-zag along x: arc ≈ 2× chord.
+  it('keeps a zig-zag freehand', () => {
     const points: { x: number; y: number }[] = []
     for (let i = 0; i <= 40; i++) points.push({ x: i * 5, y: i % 2 === 0 ? 0 : 20 })
-    const arc = 40 * Math.hypot(5, 20)
-    expect(arc / Math.hypot(200, 0)).toBeGreaterThan(STROKE_LINE_LOCK_MAX_ARC_RATIO)
     expect(collapseStrokeToLine(points)).toBeNull()
+  })
+
+  it('measures how far the stroke strays from its chord', () => {
+    expect(
+      maxChordDeviation([
+        { x: 0, y: 0 },
+        { x: 100, y: 0 },
+      ]),
+    ).toBe(0)
+    expect(
+      maxChordDeviation([
+        { x: 0, y: 0 },
+        { x: 100, y: 8 },
+        { x: 200, y: 0 },
+      ]),
+    ).toBeCloseTo(8, 6)
+  })
+
+  // Arc length barely grows for a shallow bend, so the old ratio test flattened
+  // exactly the curves people draw most. These are the regression cases.
+  it('keeps a visible shallow curve freehand (100 × 30)', () => {
+    expect(collapseStrokeToLine(arcPoints(100, 30))).toBeNull()
+  })
+
+  it('keeps a 100 × 10 arc freehand', () => {
+    expect(collapseStrokeToLine(arcPoints(100, 10))).toBeNull()
+  })
+
+  it('keeps a short arc freehand once it strays past the absolute floor', () => {
+    // 20px chord, 5px sagitta: the 3px floor applies, so this is a curve.
+    expect(collapseStrokeToLine(arcPoints(20, 5))).toBeNull()
+  })
+
+  it('still straightens a stroke flatter than the deviation limit', () => {
+    // 100px chord with a 4px sagitta ≈ 4%, under the 5% limit: reads as a line.
+    expect(collapseStrokeToLine(arcPoints(100, 4))).not.toBeNull()
+  })
+
+  it('still straightens a hand-drawn line that wobbles a pixel or two', () => {
+    const points = Array.from({ length: 61 }, (_, i) => ({ x: i * 4, y: Math.sin(i / 2) * 1.5 }))
+    expect(collapseStrokeToLine(points)).not.toBeNull()
   })
 })

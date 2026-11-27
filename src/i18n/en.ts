@@ -293,7 +293,8 @@ export default {
       exitWhiteboard: 'Esc leaves the whiteboard.',
       square: 'Locks a 1:1 ratio.',
       circle: 'Draws from the starting point as the center.',
-      penToLine: 'Hold the pen or highlighter still for ~0.5s to straighten; drag the midpoint to bend.',
+      penToLine:
+        'Hold the pen or highlighter still for ~0.5s to straighten; only near-straight strokes snap (curves keep their shape); drag the midpoint to bend.',
       dragElement: 'Off / hover / hold modifier is set in General; disabled with the eraser.',
       selectBatch:
         'Shift adds to the selection; drag corners to scale, the top handle to rotate; Shift snaps ratio or angle, Alt scales from center.',

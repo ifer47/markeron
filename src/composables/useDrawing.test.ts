@@ -370,6 +370,28 @@ describe('useDrawing', () => {
       expect(hit!.action.points.length).toBeGreaterThan(2)
       vi.useRealTimers()
     })
+
+    it('keeps a shallow curve freehand when the pen rests after drawing it', () => {
+      vi.useFakeTimers()
+      drawing.currentTool.value = 'pen'
+      // A 100 × 30 arc: visibly a curve, yet the old arc-length test flattened it.
+      const radius = (100 * 100) / (8 * 30) + 30 / 2
+      const halfAngle = Math.asin(100 / (2 * radius))
+      const centerY = 30 - radius
+      drawing.startDraw({ x: 0, y: 0 })
+      for (let i = 1; i <= 40; i++) {
+        const angle = Math.PI / 2 + halfAngle - (2 * halfAngle * i) / 40
+        drawing.draw({ x: 50 + radius * Math.cos(angle), y: centerY + radius * Math.sin(angle) })
+      }
+      vi.advanceTimersByTime(500)
+      expect(drawing.isStrokeLineLocked()).toBe(false)
+      drawing.endDraw()
+
+      const hit = drawing.findActionAt({ x: 50, y: 30 })
+      expect(hit).toBeTruthy()
+      expect(hit!.action.points.length).toBeGreaterThan(2)
+      vi.useRealTimers()
+    })
   })
 
   describe('undo / redo', () => {

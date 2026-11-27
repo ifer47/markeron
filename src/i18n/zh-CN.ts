@@ -287,7 +287,7 @@ export default {
       exitWhiteboard: '白板中按 Esc 退出。',
       square: '锁定 1:1 比例。',
       circle: '以起点为圆心。',
-      penToLine: '画笔、荧光笔按住停顿约 0.5 秒变直线；选中后拖中点可弯曲。',
+      penToLine: '画笔、荧光笔按住停顿约 0.5 秒变直线；只对接近直线的笔迹生效，曲线保留手绘形状；选中后拖中点可弯曲。',
       dragElement: '关闭 / 悬停 / 按住修饰键在「常规」中设置；橡皮擦下禁用。',
       selectBatch: 'Shift 加选；拖角点缩放，拖顶部圆点旋转；Shift 等比或角度吸附，Alt 从中心缩放。',
       editText: 'T 模式下双击空白处新建。',

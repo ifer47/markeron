@@ -14,11 +14,26 @@ export const STROKE_LINE_LOCK_STILL_PX = 10
 export const STROKE_LINE_LOCK_MIN_CHORD_PX = 12
 
 /**
- * Longest arc-length / chord-length ratio still considered "an almost straight
- * stroke". A hand-drawn line wobbles around 1.0–1.1; a 90° corner is ~1.41 and
- * any loop is far above that, so loops and elbows keep their freehand shape.
+ * How far the stroke may stray from its own start → end chord, as a fraction of
+ * that chord, and still read as "a straight line".
+ *
+ * Judged by perpendicular deviation instead of arc length: arc length barely
+ * grows for a smooth bend (a 100×30 arc scores 1.22, a 100×10 arc 1.03), so the
+ * old 1.35 arc-ratio limit flattened every smooth arc up to ~149° of bend and
+ * only spared elbows, loops and near-circles. Deviation separates the two
+ * cleanly — a hand-drawn line wobbles 1–3% of the chord, while a 100×10 arc,
+ * barely a curve to the eye, is already 10%.
+ *
+ * 0.05 is roughly 23° of total bend, i.e. the point where the curve becomes
+ * visible rather than "a line with a wobble".
  */
-export const STROKE_LINE_LOCK_MAX_ARC_RATIO = 1.35
+export const STROKE_LINE_LOCK_MAX_DEVIATION_RATIO = 0.05
+
+/**
+ * Absolute deviation floor (CSS px). Very short strokes have a tiny chord, so a
+ * ratio-only limit would reject a hand-drawn line of pen-width wobble.
+ */
+export const STROKE_LINE_LOCK_MIN_DEVIATION_PX = 3
 
 export function strokeLineLockStillDistSq(): number {
   return STROKE_LINE_LOCK_STILL_PX * STROKE_LINE_LOCK_STILL_PX
@@ -76,11 +91,42 @@ export function representativePressure(points: LineLockPoint[]): number | undefi
 }
 
 /**
+ * Largest perpendicular distance (CSS px) between any sampled point and the
+ * start → end chord.
+ *
+ * This is the shape test behind the line lock: it stays near zero for a wobbly
+ * hand-drawn line and grows with the sagitta of a curve, so a shallow arc is
+ * recognised as a curve instead of being flattened.
+ *
+ * Returns 0 when the two ends coincide; callers reject those strokes through
+ * the minimum chord instead.
+ */
+export function maxChordDeviation(points: LineLockPoint[]): number {
+  if (points.length < 2) return 0
+  const start = points[0]
+  const end = points[points.length - 1]
+  const dx = end.x - start.x
+  const dy = end.y - start.y
+  const chord = Math.hypot(dx, dy)
+  if (!(chord > 0)) return 0
+
+  let max = 0
+  for (let i = 1; i < points.length - 1; i++) {
+    const point = points[i]
+    // |cross product| / chord is the distance from the point to the chord line.
+    const deviation = Math.abs((point.x - start.x) * dy - (point.y - start.y) * dx) / chord
+    if (deviation > max) max = deviation
+  }
+  return max
+}
+
+/**
  * Collapse a freehand polyline to start → end for locked-line preview / commit.
  *
- * Returns `null` when the stroke is not line-like (loops, elbows, or two ends
- * that nearly touch): straightening such a stroke destroys its shape, and for a
- * closed loop the collapsed line is degenerate — the drawing simply vanishes.
+ * Returns `null` unless the stroke is already almost straight. Curves, loops,
+ * elbows and strokes whose two ends nearly touch keep their freehand shape:
+ * straightening them destroys what the user drew, and for a closed loop the
+ * collapsed line is degenerate — the drawing simply vanishes.
  */
 export function collapseStrokeToLine(points: LineLockPoint[]): LineLockPoint[] | null {
   if (points.length < 2) return null
@@ -90,11 +136,10 @@ export function collapseStrokeToLine(points: LineLockPoint[]): LineLockPoint[] |
   const chord = Math.hypot(end.x - start.x, end.y - start.y)
   if (chord < STROKE_LINE_LOCK_MIN_CHORD_PX) return null
 
-  let arc = 0
-  for (let i = 1; i < points.length; i++) {
-    arc += Math.hypot(points[i].x - points[i - 1].x, points[i].y - points[i - 1].y)
-  }
-  if (arc > chord * STROKE_LINE_LOCK_MAX_ARC_RATIO) return null
+  // Curves are judged against their own chord, so this holds at any size; the
+  // absolute floor keeps a short wobbly line from being rejected by ratio alone.
+  const maxDeviation = Math.max(STROKE_LINE_LOCK_MIN_DEVIATION_PX, chord * STROKE_LINE_LOCK_MAX_DEVIATION_RATIO)
+  if (maxChordDeviation(points) > maxDeviation) return null
 
   // Uniform ink width: both caps share the stroke's representative pressure, so a
   // light hold at the tip cannot turn the whole line into a hairline.

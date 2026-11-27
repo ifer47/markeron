@@ -58,7 +58,7 @@ winget install --id 9N6623X973JV --source msstore
 - **Annotate anywhere** — draw over any app, including the taskbar
 - **11 tools** — select, pen, highlighter, laser, arrow, rectangle, ellipse, line, eraser, text, stamp
 - **Stroke styles** — press <kbd>D</kbd> to cycle solid → dashed → dotted (<kbd>Shift</kbd>+<kbd>D</kbd> reverses) for pen, line, arrow, rectangle, and ellipse
-- **Hold to straighten** — while drawing with pen/highlighter, hold still ~0.5s to lock into a straight line and keep dragging to preview (only near-straight strokes snap — loops and elbows keep their shape); hold <kbd>Alt</kbd> to draw a perfect line immediately
+- **Hold to straighten** — while drawing with pen/highlighter, hold still ~0.5s to lock into a straight line and keep dragging to preview (only strokes that already stay close to a straight line snap — visible curves, loops and elbows keep their hand-drawn shape); hold <kbd>Alt</kbd> to draw a perfect line immediately
 - **Brush strokes** — pen width follows how fast you write (thin when you race, thick when you dwell), with a short, sharp landing and a long trailing tail, so handwriting looks brushed; toggle it in **Settings → General**
 - **Marquee batch edit** — press <kbd>V</kbd> for Select: box/click select, group drag, corner reshape, top-handle rotate, <kbd>Delete</kbd> to remove
 - **Flexible toolbar** — press <kbd>Space</kbd> to toggle, or enable **always-on** in Settings; compact panel with **Expand** for full options, undo, copy, and whiteboard actions in-panel; **independent floating window** with drawing / click-through toggles
